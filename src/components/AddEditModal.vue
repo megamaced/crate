@@ -1,11 +1,13 @@
 <template>
   <NcModal
-    :name="title"
     :show="show"
+    label-id="crate-modal-title"
     @close="$emit('close')"
   >
     <div class="crate-modal">
-      <h2>{{ title }}</h2>
+      <h2 id="crate-modal-title">
+        {{ title }}
+      </h2>
       <form @submit.prevent="submit">
         <div class="crate-field">
           <label for="field-artist">Artist <span class="required">*</span></label>
@@ -19,7 +21,7 @@
         </div>
 
         <div class="crate-field">
-          <label for="field-title">Title <span class="required">*</span></label>
+          <label for="field-title">Album <span class="required">*</span></label>
           <input
             id="field-title"
             v-model="form.title"
@@ -106,7 +108,7 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'save'])
 
-const formats = ['Vinyl', 'CD', 'Cassette', 'MiniDisc', 'DVD', 'Blu-ray', 'VHS', 'Other']
+const formats = ['Vinyl', 'CD', 'SACD', 'Cassette', 'MiniDisc']
 const currentYear = new Date().getFullYear()
 
 const saving = ref(false)

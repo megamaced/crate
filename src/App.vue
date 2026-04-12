@@ -198,6 +198,7 @@ onMounted(loadItems)
 <style scoped>
 .crate-content {
   padding: 20px;
+  padding-top: calc(var(--default-clickable-area, 44px) + 8px);
   max-width: 900px;
 }
 
