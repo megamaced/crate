@@ -20,10 +20,17 @@
       <NcAppContent>
         <div class="crate-content">
           <h2>{{ view === 'collection' ? 'My Collection' : 'Wishlist' }}</h2>
-          <p v-if="loading">Loading...</p>
-          <p v-else-if="items.length === 0">No items yet. Add your first record!</p>
+          <p v-if="loading">
+            Loading...
+          </p>
+          <p v-else-if="items.length === 0">
+            No items yet. Add your first record!
+          </p>
           <ul v-else>
-            <li v-for="item in items" :key="item.id">
+            <li
+              v-for="item in items"
+              :key="item.id"
+            >
               {{ item.artist }} — {{ item.title }} ({{ item.format }}, {{ item.year }})
             </li>
           </ul>
