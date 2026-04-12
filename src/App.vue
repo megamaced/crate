@@ -1,48 +1,44 @@
 <template>
-  <NcApp>
-    <template #navigation>
-      <NcAppNavigation>
-        <template #list>
-          <NcAppNavigationItem
-            name="My Collection"
-            :active="view === 'collection'"
-            @click="view = 'collection'"
-          />
-          <NcAppNavigationItem
-            name="Wishlist"
-            :active="view === 'wishlist'"
-            @click="view = 'wishlist'"
-          />
-        </template>
-      </NcAppNavigation>
-    </template>
-    <template #default>
-      <NcAppContent>
-        <div class="crate-content">
-          <h2>{{ view === 'collection' ? 'My Collection' : 'Wishlist' }}</h2>
-          <p v-if="loading">
-            Loading...
-          </p>
-          <p v-else-if="items.length === 0">
-            No items yet. Add your first record!
-          </p>
-          <ul v-else>
-            <li
-              v-for="item in items"
-              :key="item.id"
-            >
-              {{ item.artist }} — {{ item.title }} ({{ item.format }}, {{ item.year }})
-            </li>
-          </ul>
-        </div>
-      </NcAppContent>
-    </template>
-  </NcApp>
+  <NcContent app-name="crate">
+    <NcAppNavigation>
+      <template #list>
+        <NcAppNavigationItem
+          name="My Collection"
+          :active="view === 'collection'"
+          @click="view = 'collection'"
+        />
+        <NcAppNavigationItem
+          name="Wishlist"
+          :active="view === 'wishlist'"
+          @click="view = 'wishlist'"
+        />
+      </template>
+    </NcAppNavigation>
+    <NcAppContent>
+      <div class="crate-content">
+        <h2>{{ view === 'collection' ? 'My Collection' : 'Wishlist' }}</h2>
+        <p v-if="loading">
+          Loading...
+        </p>
+        <p v-else-if="items.length === 0">
+          No items yet. Add your first record!
+        </p>
+        <ul v-else>
+          <li
+            v-for="item in items"
+            :key="item.id"
+          >
+            {{ item.artist }} — {{ item.title }} ({{ item.format }}, {{ item.year }})
+          </li>
+        </ul>
+      </div>
+    </NcAppContent>
+  </NcContent>
 </template>
 
 <script setup>
 import { ref, onMounted, watch } from 'vue'
-import { NcApp, NcAppContent, NcAppNavigation, NcAppNavigationItem } from '@nextcloud/vue'
+import { NcContent, NcAppContent, NcAppNavigation, NcAppNavigationItem } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
 
