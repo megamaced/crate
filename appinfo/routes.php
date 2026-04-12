@@ -5,7 +5,6 @@ declare(strict_types=1);
 return [
 	'routes' => [
 		['name' => 'page#index', 'url' => '/', 'verb' => 'GET'],
-		['name' => 'page#index', 'url' => '/{path}', 'verb' => 'GET', 'requirements' => ['path' => '.+']],
 	],
 	'ocs' => [
 		['name' => 'media#index',   'url' => '/api/v1/media',      'verb' => 'GET'],
