@@ -5,7 +5,7 @@
   >
     <div
       class="media-card-art"
-      :style="{ background: formatGradient }"
+      :style="artStyle"
     >
       <span class="media-card-format-label">{{ item.format }}</span>
     </div>
@@ -37,9 +37,16 @@ const FORMAT_COLOURS = {
   MiniDisc: ['#0e7490', '#38bdf8'],
 }
 
-const formatGradient = computed(() => {
+const artStyle = computed(() => {
+  if (props.item.artworkPath) {
+    return {
+      backgroundImage: `url(${props.item.artworkPath})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+    }
+  }
   const colours = FORMAT_COLOURS[props.item.format] ?? ['#374151', '#6b7280']
-  return `linear-gradient(135deg, ${colours[0]}, ${colours[1]})`
+  return { background: `linear-gradient(135deg, ${colours[0]}, ${colours[1]})` }
 })
 </script>
 

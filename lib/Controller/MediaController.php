@@ -48,6 +48,8 @@ class MediaController extends OCSController
         ?string $barcode = null,
         ?string $notes = null,
         string $status = 'owned',
+        ?string $discogsId = null,
+        ?string $artworkPath = null,
     ): DataResponse {
         return new DataResponse(
             $this->mediaService->create(
@@ -59,6 +61,8 @@ class MediaController extends OCSController
                 $barcode,
                 $notes,
                 $status,
+                $discogsId,
+                $artworkPath,
             )
         );
     }
@@ -73,6 +77,8 @@ class MediaController extends OCSController
         ?string $barcode = null,
         ?string $notes = null,
         string $status = 'owned',
+        ?string $discogsId = null,
+        ?string $artworkPath = null,
     ): DataResponse {
         return new DataResponse(
             $this->mediaService->update(
@@ -85,6 +91,8 @@ class MediaController extends OCSController
                 $barcode,
                 $notes,
                 $status,
+                $discogsId,
+                $artworkPath,
             )
         );
     }

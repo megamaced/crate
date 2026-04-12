@@ -128,6 +128,7 @@ const blankForm = () => ({
   year: null,
   notes: '',
   discogsId: null,
+  artworkPath: null,
 })
 
 const form = ref(blankForm())
@@ -144,6 +145,7 @@ watch(
             year: props.item.year ?? null,
             notes: props.item.notes ?? '',
             discogsId: props.item.discogsId ?? null,
+            artworkPath: props.item.artworkPath ?? null,
           }
         : blankForm()
     }
@@ -158,6 +160,7 @@ function applyDiscogs(result) {
   form.value.format = result.format || form.value.format
   form.value.year = result.year || form.value.year
   form.value.discogsId = result.discogsId || null
+  form.value.artworkPath = result.thumb || null
 }
 
 async function submit() {

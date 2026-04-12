@@ -33,6 +33,8 @@ class MediaService
         ?string $barcode,
         ?string $notes,
         string $status,
+        ?string $discogsId = null,
+        ?string $artworkPath = null,
     ): MediaItem {
         $item = new MediaItem();
         $item->setUserId($userId);
@@ -43,6 +45,8 @@ class MediaService
         $item->setBarcode($barcode);
         $item->setNotes($notes);
         $item->setStatus($status);
+        $item->setDiscogsId($discogsId);
+        $item->setArtworkPath($artworkPath);
         $now = (new \DateTime())->format('Y-m-d H:i:s');
         $item->setCreatedAt($now);
         $item->setUpdatedAt($now);
@@ -59,6 +63,8 @@ class MediaService
         ?string $barcode,
         ?string $notes,
         string $status,
+        ?string $discogsId = null,
+        ?string $artworkPath = null,
     ): MediaItem {
         $item = $this->mapper->findByUser($id, $userId);
         $item->setTitle($title);
@@ -68,6 +74,8 @@ class MediaService
         $item->setBarcode($barcode);
         $item->setNotes($notes);
         $item->setStatus($status);
+        $item->setDiscogsId($discogsId);
+        $item->setArtworkPath($artworkPath);
         $item->setUpdatedAt((new \DateTime())->format('Y-m-d H:i:s'));
         return $this->mapper->update($item);
     }
