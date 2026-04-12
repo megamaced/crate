@@ -1,0 +1,23 @@
+{
+  "name": "crate",
+  "version": "0.1.0",
+  "description": "Physical media catalogue for Nextcloud",
+  "scripts": {
+    "build": "webpack --node-env production",
+    "dev": "webpack --node-env development",
+    "watch": "webpack --node-env development --watch",
+    "lint": "eslint --ext .js,.vue src/",
+    "lint:fix": "eslint --ext .js,.vue src/ --fix"
+  },
+  "dependencies": {
+    "@nextcloud/axios": "^2.5.0",
+    "@nextcloud/router": "^3.0.1",
+    "@nextcloud/vue": "^8.22.0",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@nextcloud/webpack-vue-config": "^6.1.1",
+    "eslint": "^8.57.0",
+    "eslint-plugin-vue": "^9.32.0"
+  }
+}
