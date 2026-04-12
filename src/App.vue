@@ -3,6 +3,11 @@
     <NcAppNavigation>
       <template #list>
         <NcAppNavigationItem
+          name="Home"
+          :active="view === 'home'"
+          @click="switchView('home')"
+        />
+        <NcAppNavigationItem
           name="My Collection"
           :active="view === 'collection'"
           @click="switchView('collection')"
@@ -16,7 +21,19 @@
     </NcAppNavigation>
 
     <NcAppContent>
-      <div class="crate-content">
+      <!-- Home / landing view -->
+      <HomeView
+        v-if="view === 'home'"
+        ref="homeView"
+        @add="openAdd"
+        @edit="openEdit"
+      />
+
+      <!-- Collection / wishlist list view -->
+      <div
+        v-else
+        class="crate-content"
+      >
         <div class="crate-header">
           <h2>{{ view === 'collection' ? 'My Collection' : 'Wishlist' }}</h2>
           <NcButton
@@ -115,15 +132,17 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { NcContent, NcAppContent, NcAppNavigation, NcAppNavigationItem, NcButton, NcDialog } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
 import AddEditModal from './components/AddEditModal.vue'
+import HomeView from './components/HomeView.vue'
 
-const view = ref('collection')
+const view = ref('home')
 const items = ref([])
 const loading = ref(false)
+const homeView = ref(null)
 
 const modalOpen = ref(false)
 const editingItem = ref(null)
@@ -146,7 +165,9 @@ async function loadItems() {
 
 function switchView(newView) {
   view.value = newView
-  loadItems()
+  if (newView !== 'home') {
+    loadItems()
+  }
 }
 
 function openAdd() {
@@ -172,7 +193,11 @@ async function saveItem(payload) {
       await axios.post(generateOcsUrl('/apps/crate/api/v1/media'), payload)
     }
     closeModal()
-    await loadItems()
+    if (view.value === 'home') {
+      homeView.value?.load()
+    } else {
+      await loadItems()
+    }
   } catch (e) {
     console.error('Failed to save item', e)
   }
@@ -191,8 +216,6 @@ async function deleteItem() {
     console.error('Failed to delete item', e)
   }
 }
-
-onMounted(loadItems)
 </script>
 
 <style scoped>
