@@ -22,6 +22,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { generateUrl } from '@nextcloud/router'
 
 const props = defineProps({
   item: { type: Object, required: true },
@@ -39,8 +40,9 @@ const FORMAT_COLOURS = {
 
 const artStyle = computed(() => {
   if (props.item.artworkPath) {
+    const url = generateUrl('/apps/crate/artwork/' + props.item.id)
     return {
-      backgroundImage: `url(${props.item.artworkPath})`,
+      backgroundImage: `url(${url})`,
       backgroundSize: 'cover',
       backgroundPosition: 'center',
     }
