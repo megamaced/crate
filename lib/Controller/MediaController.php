@@ -155,4 +155,3 @@ class MediaController extends OCSController
         return new DataResponse($updated);
     }
 }
-

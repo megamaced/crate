@@ -55,7 +55,10 @@ class DiscogsController extends OCSController
     {
         $data = $this->discogsService->getRelease($this->userId(), $id);
         if (empty($data)) {
-            return new DataResponse(['error' => 'Release not found or no Discogs token configured'], Http::STATUS_NOT_FOUND);
+            return new DataResponse(
+                ['error' => 'Release not found or no Discogs token configured'],
+                Http::STATUS_NOT_FOUND,
+            );
         }
         return new DataResponse($data);
     }
@@ -68,7 +71,10 @@ class DiscogsController extends OCSController
     {
         $data = $this->discogsService->getArtist($this->userId(), $id);
         if (empty($data)) {
-            return new DataResponse(['error' => 'Artist not found or no Discogs token configured'], Http::STATUS_NOT_FOUND);
+            return new DataResponse(
+                ['error' => 'Artist not found or no Discogs token configured'],
+                Http::STATUS_NOT_FOUND,
+            );
         }
         return new DataResponse($data);
     }
