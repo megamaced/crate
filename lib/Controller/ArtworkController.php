@@ -8,6 +8,7 @@ use OCA\Crate\Db\MediaItemMapper;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
+use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\FileDisplayResponse;
 use OCP\AppFramework\Http\Response;
 use OCP\Files\AppData\IAppDataFactory;
@@ -30,6 +31,7 @@ class ArtworkController extends Controller
     }
 
     #[NoAdminRequired]
+    #[NoCSRFRequired]
     public function get(int $itemId): Response
     {
         $userId = $this->userSession->getUser()->getUID();
