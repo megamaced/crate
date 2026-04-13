@@ -27,7 +27,7 @@
             v-for="item in recentItems"
             :key="item.id"
             :item="item"
-            @edit="$emit('edit', item)"
+            @detail="$emit('detail', item)"
           />
         </div>
       </section>
@@ -51,7 +51,7 @@
             v-for="item in randomItems"
             :key="'r' + item.id"
             :item="item"
-            @edit="$emit('edit', item)"
+            @detail="$emit('detail', item)"
           />
         </div>
       </section>
@@ -66,7 +66,7 @@ import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
 import MediaCard from './MediaCard.vue'
 
-defineEmits(['add', 'edit'])
+defineEmits(['add', 'detail'])
 
 const loading = ref(false)
 const items = ref([])

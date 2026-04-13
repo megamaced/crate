@@ -44,4 +44,29 @@ class MediaItemMapper extends QBMapper
             ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
         return $this->findEntity($qb);
     }
+
+    /**
+     * Full-text search over title and artist for a user (case-insensitive).
+     *
+     * @return MediaItem[]
+     */
+    public function search(string $userId, string $term): array
+    {
+        $like = '%' . $this->db->escapeLikeParameter(strtolower($term)) . '%';
+        $qb   = $this->db->getQueryBuilder();
+
+        $qb->select('*')
+            ->from($this->getTableName())
+            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+            ->andWhere(
+                $qb->expr()->orX(
+                    $qb->expr()->like($qb->func()->lower('title'), $qb->createNamedParameter($like)),
+                    $qb->expr()->like($qb->func()->lower('artist'), $qb->createNamedParameter($like)),
+                )
+            )
+            ->orderBy('created_at', 'DESC')
+            ->setMaxResults(10);
+
+        return $this->findEntities($qb);
+    }
 }

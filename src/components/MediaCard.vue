@@ -1,7 +1,7 @@
 <template>
   <div
     class="media-card"
-    @click="$emit('edit', item)"
+    @click="$emit('detail', item)"
   >
     <div
       class="media-card-art"
@@ -28,7 +28,7 @@ const props = defineProps({
   item: { type: Object, required: true },
 })
 
-defineEmits(['edit'])
+defineEmits(['detail'])
 
 const FORMAT_COLOURS = {
   Vinyl: ['#6b21a8', '#a855f7'],

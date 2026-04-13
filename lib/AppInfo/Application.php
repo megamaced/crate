@@ -20,6 +20,7 @@ class Application extends App implements IBootstrap
 
     public function register(IRegistrationContext $context): void
     {
+        $context->registerSearchProvider(\OCA\Crate\Search\Provider::class);
     }
 
     public function boot(IBootContext $context): void

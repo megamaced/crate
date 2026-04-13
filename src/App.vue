@@ -26,86 +26,38 @@
       </template>
     </NcAppNavigation>
 
-    <SettingsPanel
-      v-model:open="settingsOpen"
-    />
+    <SettingsPanel v-model:open="settingsOpen" />
 
     <NcAppContent>
-      <!-- Home / landing view -->
-      <HomeView
-        v-if="view === 'home'"
-        ref="homeView"
-        @add="openAdd"
+      <!-- Item detail view -->
+      <ItemDetailView
+        v-if="view === 'detail' && selectedItem"
+        :item="selectedItem"
+        @back="goBack"
         @edit="openEdit"
+        @delete="confirmDelete"
+        @enriched="handleEnriched"
       />
 
-      <!-- Collection / wishlist list view -->
-      <div
+      <!-- Home / landing view -->
+      <HomeView
+        v-else-if="view === 'home'"
+        ref="homeView"
+        @add="openAdd"
+        @detail="showDetail"
+      />
+
+      <!-- Collection / Wishlist -->
+      <CollectionView
         v-else
-        class="crate-content"
-      >
-        <div class="crate-header">
-          <h2>{{ view === 'collection' ? 'My Collection' : 'Wishlist' }}</h2>
-          <NcButton
-            type="primary"
-            @click="openAdd"
-          >
-            <template #icon>
-              <span class="crate-btn-icon">+</span>
-            </template>
-            Add item
-          </NcButton>
-        </div>
-
-        <p
-          v-if="loading"
-          class="crate-status"
-        >
-          Loading…
-        </p>
-        <p
-          v-else-if="items.length === 0"
-          class="crate-status"
-        >
-          {{ view === 'collection' ? 'No items yet. Add your first record!' : 'Your wishlist is empty.' }}
-        </p>
-
-        <ul
-          v-else
-          class="crate-list"
-        >
-          <li
-            v-for="item in items"
-            :key="item.id"
-            class="crate-item"
-          >
-            <div class="crate-item-info">
-              <span class="crate-item-title">{{ item.artist }} — {{ item.title }}</span>
-              <span class="crate-item-meta">{{ item.format }}<template v-if="item.year">, {{ item.year }}</template></span>
-              <span
-                v-if="item.notes"
-                class="crate-item-notes"
-              >{{ item.notes }}</span>
-            </div>
-            <div class="crate-item-actions">
-              <NcButton
-                type="tertiary"
-                :aria-label="'Edit ' + item.title"
-                @click="openEdit(item)"
-              >
-                Edit
-              </NcButton>
-              <NcButton
-                type="tertiary"
-                :aria-label="'Delete ' + item.title"
-                @click="confirmDelete(item)"
-              >
-                Delete
-              </NcButton>
-            </div>
-          </li>
-        </ul>
-      </div>
+        :items="items"
+        :loading="loading"
+        :status="view === 'wishlist' ? 'wanted' : 'owned'"
+        @add="openAdd"
+        @detail="showDetail"
+        @edit="openEdit"
+        @delete="confirmDelete"
+      />
     </NcAppContent>
 
     <AddEditModal
@@ -143,14 +95,22 @@
 
 <script setup>
 import { ref } from 'vue'
-import { NcContent, NcAppContent, NcAppNavigation, NcAppNavigationItem, NcAppNavigationSettings, NcButton, NcDialog } from '@nextcloud/vue'
+import {
+  NcContent, NcAppContent, NcAppNavigation, NcAppNavigationItem,
+  NcAppNavigationSettings, NcButton, NcDialog,
+} from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
 import AddEditModal from './components/AddEditModal.vue'
+import CollectionView from './components/CollectionView.vue'
 import HomeView from './components/HomeView.vue'
+import ItemDetailView from './components/ItemDetailView.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
 
+// ── state ─────────────────────────────────────────────────────────────────────
 const view = ref('home')
+const previousView = ref('home')
+const selectedItem = ref(null)
 const settingsOpen = ref(false)
 const items = ref([])
 const loading = ref(false)
@@ -160,6 +120,7 @@ const modalOpen = ref(false)
 const editingItem = ref(null)
 const deletingItem = ref(null)
 
+// ── data loading ──────────────────────────────────────────────────────────────
 async function loadItems() {
   loading.value = true
   try {
@@ -175,13 +136,27 @@ async function loadItems() {
   }
 }
 
+// ── navigation ────────────────────────────────────────────────────────────────
 function switchView(newView) {
   view.value = newView
+  selectedItem.value = null
   if (newView !== 'home') {
     loadItems()
   }
 }
 
+function showDetail(item) {
+  previousView.value = view.value
+  selectedItem.value = item
+  view.value = 'detail'
+}
+
+function goBack() {
+  view.value = previousView.value
+  selectedItem.value = null
+}
+
+// ── modal helpers ─────────────────────────────────────────────────────────────
 function openAdd() {
   editingItem.value = null
   modalOpen.value = true
@@ -197,15 +172,35 @@ function closeModal() {
   editingItem.value = null
 }
 
+// ── save / delete ─────────────────────────────────────────────────────────────
 async function saveItem(payload) {
   try {
+    let saved
     if (editingItem.value) {
-      await axios.put(generateOcsUrl(`/apps/crate/api/v1/media/${editingItem.value.id}`), payload)
+      const res = await axios.put(
+        generateOcsUrl(`/apps/crate/api/v1/media/${editingItem.value.id}`),
+        payload,
+      )
+      saved = res.data.ocs?.data
     } else {
       await axios.post(generateOcsUrl('/apps/crate/api/v1/media'), payload)
     }
+
     closeModal()
-    if (view.value === 'home') {
+
+    // Update selectedItem in case we edited from detail view
+    if (saved && selectedItem.value?.id === saved.id) {
+      selectedItem.value = saved
+    }
+
+    if (view.value === 'detail') {
+      // Refresh the list in background so it's current when navigating back
+      if (previousView.value !== 'home') {
+        loadItems()
+      } else {
+        homeView.value?.load()
+      }
+    } else if (view.value === 'home') {
       homeView.value?.load()
     } else {
       await loadItems()
@@ -220,92 +215,34 @@ function confirmDelete(item) {
 }
 
 async function deleteItem() {
+  const inDetail = view.value === 'detail'
   try {
     await axios.delete(generateOcsUrl(`/apps/crate/api/v1/media/${deletingItem.value.id}`))
     deletingItem.value = null
-    await loadItems()
+    if (inDetail) {
+      goBack()
+    }
+    if (previousView.value === 'home' || view.value === 'home') {
+      homeView.value?.load()
+    } else {
+      await loadItems()
+    }
   } catch (e) {
     console.error('Failed to delete item', e)
+  }
+}
+
+// ── enrich ────────────────────────────────────────────────────────────────────
+function handleEnriched(updated) {
+  selectedItem.value = updated
+  // Patch item in the items list too
+  const idx = items.value.findIndex(i => i.id === updated.id)
+  if (idx !== -1) {
+    items.value[idx] = updated
   }
 }
 </script>
 
 <style scoped>
-.crate-content {
-  padding: 20px;
-  padding-top: calc(var(--default-clickable-area, 44px) + 8px);
-  max-width: 900px;
-}
-
-.crate-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
-
-.crate-header h2 {
-  margin: 0;
-}
-
-.crate-btn-icon {
-  font-size: 1.2em;
-  line-height: 1;
-  margin-right: 2px;
-}
-
-.crate-status {
-  color: var(--color-text-maxcontrast);
-}
-
-.crate-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.crate-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  border-radius: var(--border-radius-large);
-  transition: background 0.1s;
-}
-
-.crate-item:hover {
-  background: var(--color-background-hover);
-}
-
-.crate-item-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.crate-item-title {
-  font-weight: 500;
-}
-
-.crate-item-meta {
-  font-size: 0.875em;
-  color: var(--color-text-maxcontrast);
-}
-
-.crate-item-notes {
-  font-size: 0.8em;
-  color: var(--color-text-maxcontrast);
-  font-style: italic;
-}
-
-.crate-item-actions {
-  display: flex;
-  gap: 4px;
-  opacity: 0;
-  transition: opacity 0.1s;
-}
-
-.crate-item:hover .crate-item-actions {
-  opacity: 1;
-}
+/* NcAppContent already provides padding via Nextcloud styles */
 </style>
