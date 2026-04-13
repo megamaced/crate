@@ -30,18 +30,16 @@
       No results found.
     </p>
 
-    <!-- Absolutely-positioned dropdown so it floats over the form fields below -->
-    <div
+    <ul
       v-if="results.length > 0"
-      class="discogs-dropdown"
+      class="discogs-results"
     >
-      <ul class="discogs-results">
-        <li
-          v-for="result in results"
-          :key="result.discogsId"
-          class="discogs-result"
-          @mousedown.prevent="select(result)"
-        >
+      <li
+        v-for="result in results"
+        :key="result.discogsId"
+        class="discogs-result"
+        @mousedown.prevent="select(result)"
+      >
           <img
             v-if="result.thumb"
             :src="result.thumb"
@@ -60,9 +58,8 @@
               {{ result.format }}<template v-if="result.year">, {{ result.year }}</template><template v-if="result.label">, {{ result.label }}</template>
             </span>
           </div>
-        </li>
-      </ul>
-    </div>
+      </li>
+    </ul>
   </div>
 </template>
 
@@ -121,7 +118,6 @@ function select(result) {
 <style scoped>
 .discogs-search {
   margin-bottom: 16px;
-  position: relative;
 }
 
 .discogs-search-row {
@@ -156,24 +152,15 @@ function select(result) {
   color: var(--color-warning);
 }
 
-.discogs-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  z-index: 100;
-  background: var(--color-main-background);
-  border: 1px solid var(--color-border-dark);
-  border-radius: var(--border-radius);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-}
-
 .discogs-results {
   list-style: none;
   padding: 0;
-  margin: 0;
-  max-height: 260px;
+  margin: 0 0 12px;
+  max-height: 220px;
   overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  background: var(--color-main-background);
 }
 
 .discogs-result {
