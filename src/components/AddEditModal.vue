@@ -115,15 +115,15 @@
 
         <div class="crate-modal-actions">
           <NcButton
-            native-type="button"
-            type="tertiary"
+            type="button"
+            variant="tertiary"
             @click="$emit('close')"
           >
             Cancel
           </NcButton>
           <NcButton
-            native-type="submit"
-            type="primary"
+            type="submit"
+            variant="primary"
             :disabled="saving"
           >
             {{ saving ? 'Saving…' : (item ? 'Save changes' : 'Add to collection') }}

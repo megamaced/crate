@@ -98,15 +98,15 @@
         <p>This will permanently delete <strong>all items</strong> from your collection and wishlist. There is no undo.</p>
         <template #actions>
           <NcButton
-            native-type="button"
-            type="tertiary"
+            type="button"
+            variant="tertiary"
             @click="confirmWipe = false"
           >
             Cancel
           </NcButton>
           <NcButton
-            native-type="button"
-            type="error"
+            type="button"
+            variant="error"
             @click="wipeCollection"
           >
             Yes, wipe everything
