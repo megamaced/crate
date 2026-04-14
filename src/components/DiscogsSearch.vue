@@ -40,16 +40,10 @@
         class="discogs-result"
         @mousedown.prevent="select(result)"
       >
-        <img
-          v-if="result.thumb"
-          :src="result.thumb"
-          :alt="result.title"
-          class="discogs-result-thumb"
-          loading="lazy"
-        >
         <div
-          v-else
-          class="discogs-result-thumb discogs-result-thumb--placeholder"
+          class="discogs-result-thumb"
+          :style="result.thumb ? { backgroundImage: `url(${result.thumb})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}"
+          :class="{ 'discogs-result-thumb--placeholder': !result.thumb }"
         />
         <div class="discogs-result-info">
           <span class="discogs-result-title">{{ result.title }}</span>

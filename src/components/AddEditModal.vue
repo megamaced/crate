@@ -281,6 +281,8 @@ async function submit() {
 .crate-field input,
 .crate-field select,
 .crate-field textarea {
+  width: 100%;
+  box-sizing: border-box;
   border: 2px solid var(--color-border-dark);
   border-radius: var(--border-radius);
   background: var(--color-background-dark);
