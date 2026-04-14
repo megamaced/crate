@@ -11,7 +11,7 @@
       <div class="crate-home-empty">
         <p>Your collection is empty.</p>
         <NcButton
-          type="primary"
+          variant="primary"
           @click="$emit('add')"
         >
           Add your first record
@@ -69,7 +69,7 @@
               {{ genreList(albumOfDay) }}
             </p>
             <NcButton
-              type="secondary"
+              variant="secondary"
               class="crate-hero__btn"
               @click="$emit('detail', albumOfDay)"
             >

@@ -3,7 +3,7 @@
     <!-- Top bar -->
     <div class="detail-topbar">
       <NcButton
-        type="tertiary"
+        variant="tertiary"
         class="detail-back"
         @click="$emit('back')"
       >
@@ -12,7 +12,7 @@
       <div class="detail-topbar-actions">
         <NcButton
           v-if="item.discogsId && !enriching"
-          type="secondary"
+          variant="secondary"
           @click="enrich"
         >
           {{ isEnriched ? 'Re-enrich from Discogs' : 'Enrich from Discogs' }}
@@ -22,13 +22,13 @@
           class="detail-enriching"
         >Fetching from Discogs…</span>
         <NcButton
-          type="tertiary"
+          variant="tertiary"
           @click="$emit('edit', item)"
         >
           Edit
         </NcButton>
         <NcButton
-          type="error"
+          variant="error"
           @click="$emit('delete', item)"
         >
           Delete

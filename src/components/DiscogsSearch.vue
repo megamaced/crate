@@ -9,7 +9,7 @@
         @keydown.enter.prevent="search"
       >
       <NcButton
-        type="secondary"
+        variant="secondary"
         :disabled="searching || query.trim() === ''"
         @click="search"
       >
@@ -21,7 +21,7 @@
       v-if="noToken"
       class="discogs-hint discogs-hint--warn"
     >
-      Add your Discogs token in Settings to enable search.
+      No Discogs token saved — add one in Settings to enable search and enrichment.
     </p>
     <p
       v-else-if="searched && results.length === 0"
@@ -58,7 +58,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { NcButton } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
@@ -70,6 +70,15 @@ const results = ref([])
 const searching = ref(false)
 const searched = ref(false)
 const noToken = ref(false)
+
+onMounted(async () => {
+  try {
+    const res = await axios.get(generateOcsUrl('/apps/crate/api/v1/settings/discogs-token'))
+    noToken.value = !(res.data.ocs?.data?.hasToken ?? false)
+  } catch {
+    // silently ignore — hint is non-critical
+  }
+})
 
 async function search() {
   if (query.value.trim() === '') return

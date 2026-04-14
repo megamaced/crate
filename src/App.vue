@@ -54,11 +54,19 @@
         :loading="loading"
         :status="view === 'wishlist' ? 'wanted' : 'owned'"
         @add="openAdd"
+        @import="importOpen = true"
         @detail="showDetail"
         @edit="openEdit"
         @delete="confirmDelete"
       />
     </NcAppContent>
+
+    <ImportModal
+      :show="importOpen"
+      :has-token="hasDiscogsToken"
+      @close="importOpen = false"
+      @imported="handleImported"
+    />
 
     <AddEditModal
       :show="modalOpen"
@@ -94,7 +102,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import {
   NcContent, NcAppContent, NcAppNavigation, NcAppNavigationItem,
   NcAppNavigationSettings, NcButton, NcDialog,
@@ -104,6 +112,7 @@ import { generateOcsUrl } from '@nextcloud/router'
 import AddEditModal from './components/AddEditModal.vue'
 import CollectionView from './components/CollectionView.vue'
 import HomeView from './components/HomeView.vue'
+import ImportModal from './components/ImportModal.vue'
 import ItemDetailView from './components/ItemDetailView.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
 
@@ -119,6 +128,16 @@ const homeView = ref(null)
 const modalOpen = ref(false)
 const editingItem = ref(null)
 const deletingItem = ref(null)
+const importOpen = ref(false)
+const hasDiscogsToken = ref(false)
+
+// ── init ──────────────────────────────────────────────────────────────────────
+onMounted(async () => {
+  try {
+    const res = await axios.get(generateOcsUrl('/apps/crate/api/v1/settings/discogs-token'))
+    hasDiscogsToken.value = res.data.ocs?.data?.hasToken ?? false
+  } catch { /* ignore */ }
+})
 
 // ── data loading ──────────────────────────────────────────────────────────────
 async function loadItems() {
@@ -192,6 +211,14 @@ function openEdit(item) {
 function closeModal() {
   modalOpen.value = false
   editingItem.value = null
+}
+
+function handleImported() {
+  if (view.value === 'home') {
+    homeView.value?.load()
+  } else {
+    loadItems()
+  }
 }
 
 // ── save / delete ─────────────────────────────────────────────────────────────

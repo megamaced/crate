@@ -66,7 +66,13 @@
         </div>
 
         <NcButton
-          type="primary"
+          variant="secondary"
+          @click="$emit('import')"
+        >
+          Import
+        </NcButton>
+        <NcButton
+          variant="primary"
           @click="$emit('add')"
         >
           <template #icon>
@@ -116,7 +122,7 @@
       <template v-if="filterFormat">
         <p>No {{ filterFormat }} items in your {{ status === 'wanted' ? 'wishlist' : 'collection' }}.</p>
         <NcButton
-          type="tertiary"
+          variant="tertiary"
           @click="filterFormat = ''"
         >
           Clear filter
@@ -125,7 +131,7 @@
       <template v-else>
         <p>{{ status === 'wanted' ? 'Your wishlist is empty.' : 'No items yet. Add your first record!' }}</p>
         <NcButton
-          type="primary"
+          variant="primary"
           @click="$emit('add')"
         >
           Add item
@@ -187,14 +193,14 @@
               @click.stop
             >
               <NcButton
-                type="tertiary"
+                variant="tertiary"
                 :aria-label="'Edit ' + item.title"
                 @click="$emit('edit', item)"
               >
                 Edit
               </NcButton>
               <NcButton
-                type="tertiary"
+                variant="tertiary"
                 :aria-label="'Delete ' + item.title"
                 @click="$emit('delete', item)"
               >
@@ -220,7 +226,7 @@ const props = defineProps({
   status: { type: String, default: 'owned' }, // 'owned' | 'wanted'
 })
 
-defineEmits(['add', 'detail', 'edit', 'delete'])
+defineEmits(['add', 'import', 'detail', 'edit', 'delete'])
 
 const viewMode = ref('card')
 const sortKey = ref('createdAt-desc')

@@ -36,7 +36,7 @@
             autocomplete="off"
           >
           <NcButton
-            type="tertiary"
+            variant="tertiary"
             :aria-label="showToken ? 'Hide token' : 'Show token'"
             @click="showToken = !showToken"
           >
@@ -47,7 +47,7 @@
 
       <div class="settings-actions">
         <NcButton
-          type="primary"
+          variant="primary"
           :disabled="saving || tokenInput === ''"
           @click="save"
         >
@@ -55,7 +55,7 @@
         </NcButton>
         <NcButton
           v-if="hasToken"
-          type="tertiary"
+          variant="tertiary"
           :disabled="saving"
           @click="clearToken"
         >
@@ -77,7 +77,7 @@
       </p>
       <div class="settings-actions">
         <NcButton
-          type="error"
+          variant="error"
           :disabled="wiping"
           @click="confirmWipe = true"
         >
