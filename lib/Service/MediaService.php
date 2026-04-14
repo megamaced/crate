@@ -102,6 +102,11 @@ class MediaService
         $this->mapper->delete($item);
     }
 
+    public function deleteAll(string $userId): void
+    {
+        $this->mapper->deleteAllByUser($userId);
+    }
+
     /**
      * Enrich an existing media item with full release data from Discogs.
      *

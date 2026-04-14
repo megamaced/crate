@@ -67,12 +67,59 @@
         >{{ savedMessage }}</span>
       </div>
     </NcAppSettingsSection>
+
+    <NcAppSettingsSection
+      id="crate-settings-danger"
+      name="Danger zone"
+    >
+      <p class="settings-hint">
+        Permanently delete every item in your collection and wishlist. This cannot be undone.
+      </p>
+      <div class="settings-actions">
+        <NcButton
+          type="error"
+          :disabled="wiping"
+          @click="confirmWipe = true"
+        >
+          {{ wiping ? 'Wiping…' : 'Wipe collection' }}
+        </NcButton>
+        <span
+          v-if="wipedMessage"
+          class="settings-saved"
+        >{{ wipedMessage }}</span>
+      </div>
+
+      <NcDialog
+        v-if="confirmWipe"
+        name="Wipe collection"
+        :open="confirmWipe"
+        @closing="confirmWipe = false"
+      >
+        <p>This will permanently delete <strong>all items</strong> from your collection and wishlist. There is no undo.</p>
+        <template #actions>
+          <NcButton
+            native-type="button"
+            type="tertiary"
+            @click="confirmWipe = false"
+          >
+            Cancel
+          </NcButton>
+          <NcButton
+            native-type="button"
+            type="error"
+            @click="wipeCollection"
+          >
+            Yes, wipe everything
+          </NcButton>
+        </template>
+      </NcDialog>
+    </NcAppSettingsSection>
   </NcAppSettingsDialog>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { NcAppSettingsDialog, NcAppSettingsSection, NcButton } from '@nextcloud/vue'
+import { NcAppSettingsDialog, NcAppSettingsSection, NcButton, NcDialog } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
 
@@ -86,6 +133,10 @@ const hasToken = ref(false)
 const showToken = ref(false)
 const saving = ref(false)
 const savedMessage = ref('')
+
+const confirmWipe = ref(false)
+const wiping = ref(false)
+const wipedMessage = ref('')
 
 async function load() {
   try {
@@ -126,6 +177,22 @@ async function clearToken() {
     console.error('Failed to clear token', e)
   } finally {
     saving.value = false
+  }
+}
+
+async function wipeCollection() {
+  confirmWipe.value = false
+  wiping.value = true
+  wipedMessage.value = ''
+  try {
+    await axios.delete(generateOcsUrl('/apps/crate/api/v1/media'))
+    wipedMessage.value = 'Collection wiped.'
+    setTimeout(() => { wipedMessage.value = '' }, 4000)
+  } catch (e) {
+    console.error('Failed to wipe collection', e)
+    wipedMessage.value = 'Failed — check the console.'
+  } finally {
+    wiping.value = false
   }
 }
 

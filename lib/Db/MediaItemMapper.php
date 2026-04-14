@@ -45,6 +45,14 @@ class MediaItemMapper extends QBMapper
         return $this->findEntity($qb);
     }
 
+    public function deleteAllByUser(string $userId): void
+    {
+        $qb = $this->db->getQueryBuilder();
+        $qb->delete($this->getTableName())
+            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+        $qb->executeStatement();
+    }
+
     /**
      * Full-text search over title and artist for a user (case-insensitive).
      *

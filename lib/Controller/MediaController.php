@@ -115,6 +115,13 @@ class MediaController extends OCSController
         return new DataResponse([]);
     }
 
+    #[NoAdminRequired]
+    public function destroyAll(): DataResponse
+    {
+        $this->mediaService->deleteAll($this->userId());
+        return new DataResponse([]);
+    }
+
     /**
      * Enrich a media item with full Discogs release details and artist profile.
      *
