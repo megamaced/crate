@@ -114,15 +114,26 @@ class DiscogsService
         $params['token']    = $token;
         $params['per_page'] = '10';
 
-        $client   = $this->clientService->newClient();
-        $response = $client->get(self::API_BASE . '/database/search', [
-            'query'   => $params,
-            'headers' => [
-                'User-Agent' => self::USER_AGENT,
-                'Accept'     => 'application/json',
-            ],
-            'timeout' => 10,
-        ]);
+        $client = $this->clientService->newClient();
+        try {
+            $response = $client->get(self::API_BASE . '/database/search', [
+                'query'   => $params,
+                'headers' => [
+                    'User-Agent' => self::USER_AGENT,
+                    'Accept'     => 'application/json',
+                ],
+                'timeout' => 10,
+            ]);
+        } catch (\Exception $e) {
+            if ($e->getCode() === 429) {
+                throw new \OCA\Crate\Exception\DiscogsRateLimitException(
+                    'Discogs rate limit exceeded.',
+                    429,
+                    $e,
+                );
+            }
+            throw $e;
+        }
 
         $body    = json_decode($response->getBody(), true);
         $results = $body['results'] ?? [];
@@ -150,7 +161,14 @@ class DiscogsService
                 ],
                 'timeout' => 10,
             ]);
-        } catch (\Exception) {
+        } catch (\Exception $e) {
+            if ($e->getCode() === 429) {
+                throw new \OCA\Crate\Exception\DiscogsRateLimitException(
+                    'Discogs rate limit exceeded.',
+                    429,
+                    $e,
+                );
+            }
             return [];
         }
 

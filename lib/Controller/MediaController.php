@@ -135,38 +135,45 @@ class MediaController extends OCSController
     {
         $item = $this->mediaService->find($id, $this->userId());
 
-        // If no Discogs ID is stored, search by artist + title and use the top result.
-        if (empty($item->getDiscogsId())) {
-            $query = trim($item->getArtist() . ' ' . $item->getTitle());
-            $results = $this->discogsService->search($this->userId(), $query);
-            $discogsId = $results[0]['discogsId'] ?? '';
-            if ($discogsId === '') {
+        try {
+            // If no Discogs ID is stored, search by artist + title and use the top result.
+            if (empty($item->getDiscogsId())) {
+                $query = trim($item->getArtist() . ' ' . $item->getTitle());
+                $results = $this->discogsService->search($this->userId(), $query);
+                $discogsId = $results[0]['discogsId'] ?? '';
+                if ($discogsId === '') {
+                    return new DataResponse(
+                        ['error' => 'No Discogs match found for this item.'],
+                        Http::STATUS_NOT_FOUND,
+                    );
+                }
+                $item = $this->mediaService->patchDiscogsId($id, $this->userId(), $discogsId);
+            }
+
+            $release = $this->discogsService->getRelease($this->userId(), $item->getDiscogsId());
+            if (empty($release)) {
                 return new DataResponse(
-                    ['error' => 'No Discogs match found for this item.'],
-                    Http::STATUS_NOT_FOUND,
+                    ['error' => 'Could not fetch release from Discogs. Check your token.'],
+                    Http::STATUS_BAD_GATEWAY,
                 );
             }
-            $item = $this->mediaService->patchDiscogsId($id, $this->userId(), $discogsId);
-        }
 
-        $release = $this->discogsService->getRelease($this->userId(), $item->getDiscogsId());
-        if (empty($release)) {
+            // Fetch artist profile if a Discogs artist ID is available
+            $artist = [];
+            $artistId = $release['discogsArtistId'] ?? $item->getDiscogsArtistId();
+            if (!empty($artistId)) {
+                $artist = $this->discogsService->getArtist($this->userId(), $artistId);
+            }
+
+            $updated = $this->mediaService->applyReleaseData($id, $this->userId(), $release, $artist);
+
+            return new DataResponse($updated);
+        } catch (\OCA\Crate\Exception\DiscogsRateLimitException) {
             return new DataResponse(
-                ['error' => 'Could not fetch release from Discogs. Check your token is configured.'],
-                Http::STATUS_BAD_GATEWAY,
+                ['error' => 'Discogs rate limit exceeded. The queue will retry automatically.'],
+                Http::STATUS_TOO_MANY_REQUESTS,
             );
         }
-
-        // Fetch artist profile if a Discogs artist ID is available
-        $artist = [];
-        $artistId = $release['discogsArtistId'] ?? $item->getDiscogsArtistId();
-        if (!empty($artistId)) {
-            $artist = $this->discogsService->getArtist($this->userId(), $artistId);
-        }
-
-        $updated = $this->mediaService->applyReleaseData($id, $this->userId(), $release, $artist);
-
-        return new DataResponse($updated);
     }
 
     /**
