@@ -229,7 +229,7 @@ const props = defineProps({
 defineEmits(['add', 'import', 'detail', 'edit', 'delete'])
 
 const viewMode = ref('card')
-const sortKey = ref('createdAt-desc')
+const sortKey = ref('artist-asc')
 const filterFormat = ref('')
 
 const heading = computed(() => props.status === 'wanted' ? 'Wishlist' : 'My Collection')
