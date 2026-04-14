@@ -98,11 +98,34 @@
         </NcButton>
       </template>
     </NcDialog>
+
+    <!-- Floating enrichment progress chip (visible when modal is closed but queue is running) -->
+    <Transition name="eq-chip">
+      <div
+        v-if="enrich.running.value && !importOpen"
+        class="enrich-chip"
+      >
+        <span class="enrich-chip__text">Enriching {{ enrich.done.value }} / {{ enrich.total.value }}</span>
+        <div class="enrich-chip__bar-wrap">
+          <div
+            class="enrich-chip__bar"
+            :style="{ width: enrich.progress.value + '%' }"
+          />
+        </div>
+        <button
+          class="enrich-chip__cancel"
+          title="Stop enrichment"
+          @click="enrich.cancel()"
+        >
+          ✕
+        </button>
+      </div>
+    </Transition>
   </NcContent>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import {
   NcContent, NcAppContent, NcAppNavigation, NcAppNavigationItem,
   NcAppNavigationSettings, NcButton, NcDialog,
@@ -115,6 +138,9 @@ import HomeView from './components/HomeView.vue'
 import ImportModal from './components/ImportModal.vue'
 import ItemDetailView from './components/ItemDetailView.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
+import { useEnrichQueue } from './composables/useEnrichQueue.js'
+
+const enrich = useEnrichQueue()
 
 // ── state ─────────────────────────────────────────────────────────────────────
 const view = ref('home')
@@ -137,7 +163,19 @@ onMounted(async () => {
     const res = await axios.get(generateOcsUrl('/apps/crate/api/v1/settings/discogs-token'))
     hasDiscogsToken.value = res.data.ocs?.data?.hasToken ?? false
   } catch { /* ignore */ }
+  window.addEventListener('beforeunload', handleBeforeUnload)
 })
+
+onUnmounted(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+})
+
+function handleBeforeUnload(e) {
+  if (enrich.running.value) {
+    e.preventDefault()
+    e.returnValue = 'Discogs enrichment is still running. Leaving the page will stop it.'
+  }
+}
 
 // ── data loading ──────────────────────────────────────────────────────────────
 async function loadItems() {
@@ -305,4 +343,65 @@ function handleEnriched(updated) {
 
 <style scoped>
 /* NcAppContent already provides padding via Nextcloud styles */
+
+/* ── Floating enrichment chip ── */
+.enrich-chip {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--color-main-background);
+  border: 1px solid var(--color-border-dark);
+  border-radius: 24px;
+  padding: 8px 14px 8px 16px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.3);
+  font-size: 0.85em;
+  min-width: 220px;
+}
+
+.enrich-chip__text {
+  white-space: nowrap;
+  color: var(--color-main-text);
+  flex-shrink: 0;
+}
+
+.enrich-chip__bar-wrap {
+  flex: 1;
+  height: 5px;
+  background: var(--color-background-dark);
+  border-radius: 3px;
+  overflow: hidden;
+  min-width: 60px;
+}
+
+.enrich-chip__bar {
+  height: 100%;
+  background: var(--color-primary-element);
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+.enrich-chip__cancel {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-maxcontrast);
+  font-size: 1em;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 50%;
+  transition: background 0.1s, color 0.1s;
+}
+
+.enrich-chip__cancel:hover {
+  background: var(--color-background-hover);
+  color: var(--color-error);
+}
+
+.eq-chip-enter-active, .eq-chip-leave-active { transition: opacity 0.2s, transform 0.2s; }
+.eq-chip-enter-from, .eq-chip-leave-to { opacity: 0; transform: translateY(12px); }
 </style>

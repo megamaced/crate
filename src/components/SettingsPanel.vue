@@ -69,6 +69,37 @@
     </NcAppSettingsSection>
 
     <NcAppSettingsSection
+      id="crate-settings-enrich"
+      name="Enrichment"
+    >
+      <p class="settings-hint">
+        Enrich your entire collection with artwork, tracklists, genres and artist info from Discogs.
+        Only items without existing enrichment data will be processed.
+      </p>
+      <div class="settings-actions">
+        <NcButton
+          variant="secondary"
+          :disabled="!hasToken || enrich.running.value"
+          @click="enrichAll"
+        >
+          {{ enrich.running.value ? `Enriching… ${enrich.done.value} / ${enrich.total.value}` : 'Enrich all un-enriched items' }}
+        </NcButton>
+        <NcButton
+          v-if="enrich.running.value"
+          variant="tertiary"
+          @click="enrich.cancel()"
+        >
+          Stop
+        </NcButton>
+        <span
+          v-if="!hasToken"
+          class="settings-hint"
+          style="margin:0"
+        >Requires a Discogs token — save one above first.</span>
+      </div>
+    </NcAppSettingsSection>
+
+    <NcAppSettingsSection
       id="crate-settings-danger"
       name="Danger zone"
     >
@@ -122,11 +153,14 @@ import { ref, onMounted } from 'vue'
 import { NcAppSettingsDialog, NcAppSettingsSection, NcButton, NcDialog } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
+import { useEnrichQueue } from '../composables/useEnrichQueue.js'
 
 defineProps({
   open: { type: Boolean, required: true },
 })
 defineEmits(['update:open'])
+
+const enrich = useEnrichQueue()
 
 const tokenInput = ref('')
 const hasToken = ref(false)
@@ -197,6 +231,23 @@ async function wipeCollection() {
 }
 
 onMounted(load)
+
+async function enrichAll() {
+  if (enrich.running.value) return
+  try {
+    const res = await axios.get(generateOcsUrl('/apps/crate/api/v1/media'))
+    const all = res.data.ocs?.data ?? []
+    const needsEnrich = all.filter(item =>
+      !item.genres && !item.artistBio
+      && !(Array.isArray(item.tracklist) && item.tracklist.length > 0),
+    ).map(item => item.id)
+    if (needsEnrich.length > 0) {
+      enrich.start(needsEnrich)
+    }
+  } catch (e) {
+    console.error('Failed to load items for enrichment', e)
+  }
+}
 </script>
 
 <style scoped>

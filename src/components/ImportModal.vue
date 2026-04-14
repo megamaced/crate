@@ -190,27 +190,28 @@
         <template v-if="hasToken && result.created > 0">
           <div class="import-enrich">
             <p class="import-enrich__label">
-              <template v-if="enrichDone">
-                Enrichment complete — {{ enriched }} of {{ enrichTotal }} items enriched from Discogs.
-                <template v-if="enrichFailed > 0">
-                  {{ enrichFailed }} could not be matched.
+              <template v-if="enrich.finished.value">
+                Enrichment complete — {{ enrich.done.value }} of {{ enrich.total.value }} items enriched from Discogs.
+                <template v-if="enrich.failed.value > 0">
+                  {{ enrich.failed.value }} could not be matched.
                 </template>
               </template>
               <template v-else>
-                Enriching from Discogs… {{ enriched }} / {{ enrichTotal }}
+                Enriching from Discogs… {{ enrich.done.value }} / {{ enrich.total.value }}
               </template>
             </p>
             <div class="import-enrich__bar-wrap">
               <div
                 class="import-enrich__bar"
-                :style="{ width: enrichProgress + '%' }"
+                :style="{ width: enrich.progress.value + '%' }"
               />
             </div>
             <p
-              v-if="!enrichDone"
+              v-if="!enrich.finished.value"
               class="import-enrich__hint"
             >
               You can safely close this dialog — enrichment will continue in the background.
+              <strong>Do not navigate away from Crate</strong> or the browser tab, or progress will be lost.
             </p>
           </div>
         </template>
@@ -240,6 +241,7 @@ import { ref, computed, watch } from 'vue'
 import { NcModal, NcButton } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
+import { useEnrichQueue } from '../composables/useEnrichQueue.js'
 
 const props = defineProps({
   show: { type: Boolean, required: true },
@@ -247,6 +249,9 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'imported'])
+
+// Shared enrichment queue (survives modal close/reopen)
+const enrich = useEnrichQueue()
 
 // ── state ────────────────────────────────────────────────────────────────────
 const step = ref('pick')
@@ -261,17 +266,6 @@ const totalRows = ref(0)
 const mapping = ref({}) // colIndex => field name or ''
 
 const result = ref(null)
-
-// Enrichment queue
-const enrichTotal = ref(0)
-const enriched = ref(0)
-const enrichFailed = ref(0)
-const enrichDone = ref(false)
-
-const enrichProgress = computed(() => {
-  if (enrichTotal.value === 0) return 100
-  return Math.round((enriched.value / enrichTotal.value) * 100)
-})
 
 // ── field options for mapping UI ──────────────────────────────────────────────
 const mappableFields = [
@@ -307,10 +301,8 @@ function reset() {
   totalRows.value = 0
   mapping.value = {}
   result.value = null
-  enrichTotal.value = 0
-  enriched.value = 0
-  enrichFailed.value = 0
-  enrichDone.value = false
+  // Only reset enrich state if a previous run has fully completed
+  if (enrich.finished.value) enrich.reset()
 }
 
 // ── file selection ────────────────────────────────────────────────────────────
@@ -371,43 +363,11 @@ async function doImport() {
 
     // Start enrichment queue if we have a token and newly created items
     if (props.hasToken && result.value.itemIds?.length > 0) {
-      startEnrichQueue(result.value.itemIds)
-    } else {
-      enrichDone.value = true
+      enrich.start(result.value.itemIds)
     }
   } catch (e) {
     mappingError.value = e.response?.data?.ocs?.data?.error ?? 'Import failed.'
   }
-}
-
-// ── enrichment queue ──────────────────────────────────────────────────────────
-async function startEnrichQueue(itemIds) {
-  enrichTotal.value = itemIds.length
-  enriched.value = 0
-  enrichFailed.value = 0
-  enrichDone.value = false
-
-  for (const id of itemIds) {
-    await enrichOne(id)
-    // 1 req/sec — stays within Discogs 60 req/min limit
-    await sleep(1000)
-  }
-
-  enrichDone.value = true
-}
-
-async function enrichOne(id) {
-  try {
-    await axios.post(generateOcsUrl(`/apps/crate/api/v1/media/${id}/enrich`))
-    enriched.value++
-  } catch {
-    enrichFailed.value++
-    enriched.value++ // still advance the counter so progress bar completes
-  }
-}
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms))
 }
 
 // ── close ─────────────────────────────────────────────────────────────────────
