@@ -179,7 +179,7 @@ const formatRows = computed(() => {
 
   for (const fmt of ordered) {
     const pool = items.value.filter(i => i.format === fmt)
-    if (pool.length < 2) continue
+    if (pool.length === 0) continue
     const shuffled = seededShuffle(pool, seed + fmt.charCodeAt(0))
     const picks = shuffled.slice(0, ROW_COUNT)
     picks.forEach(i => seen.add(i.id))

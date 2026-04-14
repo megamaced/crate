@@ -158,11 +158,7 @@ const formatGroups = [
   },
   {
     label: 'Disc',
-    formats: ['CD', 'SACD', 'CD-R', 'SHM-CD', 'HDCD', 'CDV', 'Blu-ray Audio', 'DVD-Audio', 'LaserDisc'],
-  },
-  {
-    label: 'Other',
-    formats: ['MiniDisc'],
+    formats: ['CD', 'SACD', 'CD-R', 'SHM-CD', 'HDCD', 'CDV', 'Blu-ray Audio', 'DVD-Audio', 'LaserDisc', 'MiniDisc'],
   },
 ]
 
