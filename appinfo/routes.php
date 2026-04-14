@@ -23,6 +23,7 @@ return [
 		['name' => 'discogs#getArtist',  'url' => '/api/v1/discogs/artist/{id}',    'verb' => 'GET'],
 
 		['name' => 'media#enrich',       'url' => '/api/v1/media/{id}/enrich',      'verb' => 'POST'],
+		['name' => 'media#stripEnrich',   'url' => '/api/v1/media/{id}/enrich',      'verb' => 'DELETE'],
 
 		['name' => 'import#preview', 'url' => '/api/v1/import/preview', 'verb' => 'POST'],
 		['name' => 'import#commit',  'url' => '/api/v1/import/commit',  'verb' => 'POST'],

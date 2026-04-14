@@ -11,16 +11,27 @@
       </NcButton>
       <div class="detail-topbar-actions">
         <NcButton
-          v-if="!enriching"
+          v-if="!enriching && !stripping"
           variant="secondary"
           @click="enrich"
         >
           {{ isEnriched ? 'Re-enrich from Discogs' : 'Enrich from Discogs' }}
         </NcButton>
+        <NcButton
+          v-if="isEnriched && !enriching && !stripping"
+          variant="tertiary"
+          @click="stripEnrich"
+        >
+          Remove Discogs data
+        </NcButton>
         <span
           v-if="enriching"
           class="detail-enriching"
         >Fetching from Discogs…</span>
+        <span
+          v-if="stripping"
+          class="detail-enriching"
+        >Removing…</span>
         <NcButton
           variant="tertiary"
           @click="$emit('edit', item)"
@@ -163,6 +174,7 @@ const props = defineProps({
 const emit = defineEmits(['back', 'edit', 'delete', 'enriched'])
 
 const enriching = ref(false)
+const stripping = ref(false)
 
 // True once full release data has been fetched from Discogs
 const isEnriched = computed(() =>
@@ -216,6 +228,23 @@ async function enrich() {
     console.error('Enrich failed', e)
   } finally {
     enriching.value = false
+  }
+}
+
+async function stripEnrich() {
+  stripping.value = true
+  try {
+    const res = await axios.delete(
+      generateOcsUrl('/apps/crate/api/v1/media/' + props.item.id + '/enrich'),
+    )
+    const updated = res.data.ocs?.data ?? null
+    if (updated) {
+      emit('enriched', updated)
+    }
+  } catch (e) {
+    console.error('Strip enrich failed', e)
+  } finally {
+    stripping.value = false
   }
 }
 </script>

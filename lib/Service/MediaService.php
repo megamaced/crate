@@ -119,6 +119,27 @@ class MediaService
     }
 
     /**
+     * Strip all Discogs-sourced enrichment fields from an item, preserving the
+     * user-entered fields (title, artist, format, year, notes, status, artwork).
+     * The discogsId is also cleared so the item is treated as unenriched.
+     */
+    public function stripEnrichment(int $id, string $userId): MediaItem
+    {
+        $item = $this->mapper->findByUser($id, $userId);
+        $item->setGenres(null);
+        $item->setTracklist(null);
+        $item->setPressingNotes(null);
+        $item->setLabel(null);
+        $item->setCountry(null);
+        $item->setDiscogsArtistId(null);
+        $item->setArtistBio(null);
+        $item->setArtistMembers(null);
+        $item->setDiscogsId(null);
+        $item->setUpdatedAt((new \DateTime())->format('Y-m-d H:i:s'));
+        return $this->mapper->update($item);
+    }
+
+    /**
      * Enrich an existing media item with full release data from Discogs.
      *
      * $release comes from DiscogsService::getRelease().

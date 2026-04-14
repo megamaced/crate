@@ -168,4 +168,17 @@ class MediaController extends OCSController
 
         return new DataResponse($updated);
     }
+
+    /**
+     * Remove all Discogs-sourced enrichment data from an item.
+     * Keeps title, artist, format, year, notes, status and artwork.
+     *
+     * DELETE /api/v1/media/{id}/enrich
+     */
+    #[NoAdminRequired]
+    public function stripEnrich(int $id): DataResponse
+    {
+        $updated = $this->mediaService->stripEnrichment($id, $this->userId());
+        return new DataResponse($updated);
+    }
 }
