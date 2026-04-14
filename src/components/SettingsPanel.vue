@@ -82,7 +82,7 @@
           :disabled="!hasToken || enrich.running.value"
           @click="enrichAll"
         >
-          {{ enrich.running.value ? `Enriching… ${enrich.done.value} / ${enrich.total.value}` : 'Enrich all un-enriched items' }}
+          {{ enrich.running.value ? `Enriching… ${enrich.done.value} / ${enrich.total.value}` : 'Enrich all un-enriched items' }}
         </NcButton>
         <NcButton
           v-if="enrich.running.value"

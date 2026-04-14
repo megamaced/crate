@@ -105,7 +105,7 @@
         v-if="enrich.running.value && !importOpen"
         class="enrich-chip"
       >
-        <span class="enrich-chip__text">Enriching {{ enrich.done.value }} / {{ enrich.total.value }}</span>
+        <span class="enrich-chip__text">Enriching {{ enrich.done.value }} / {{ enrich.total.value }}</span>
         <div class="enrich-chip__bar-wrap">
           <div
             class="enrich-chip__bar"
