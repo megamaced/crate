@@ -255,6 +255,9 @@ const filteredSorted = computed(() => {
     } else if (field === 'year') {
       av = a.year ?? 0
       bv = b.year ?? 0
+    } else if (field === 'artist') {
+      av = stripArticle(a.artist ?? '').toLowerCase()
+      bv = stripArticle(b.artist ?? '').toLowerCase()
     } else {
       av = (a[field] ?? '').toLowerCase()
       bv = (b[field] ?? '').toLowerCase()
