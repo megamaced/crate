@@ -5,7 +5,7 @@
 	"license": "AGPL-3.0-or-later",
 	"require": {
 		"php": "^8.1",
-		"phpoffice/phpspreadsheet": "^3.0"
+		"openspout/openspout": "^4.0"
 	},
 	"require-dev": {
 		"nextcloud/ocp": "^29",

@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace OCA\Crate\Service;
 
 use OCA\Crate\Db\MediaItemMapper;
-use PhpOffice\PhpSpreadsheet\IOFactory;
+use OpenSpout\Reader\CSV\Reader as CsvReader;
+use OpenSpout\Reader\CSV\Options as CsvOptions;
+use OpenSpout\Reader\XLSX\Reader as XlsxReader;
+use OpenSpout\Reader\ODS\Reader as OdsReader;
 
 class ImportService
 {
@@ -55,8 +58,12 @@ class ImportService
             return $this->parseCsv($tmpPath);
         }
 
-        if (in_array($ext, ['xlsx', 'xls', 'ods'], true)) {
+        if (in_array($ext, ['xlsx', 'xls'], true)) {
             return $this->parseSpreadsheet($tmpPath);
+        }
+
+        if ($ext === 'ods') {
+            return $this->parseOds($tmpPath);
         }
 
         throw new \RuntimeException("Unsupported file type: .{$ext}");
@@ -65,43 +72,52 @@ class ImportService
     /** @return array{headers: string[], rows: array<array<string|null>>} */
     private function parseCsv(string $path): array
     {
-        $handle = fopen($path, 'r');
-        if ($handle === false) {
-            throw new \RuntimeException('Could not open file');
-        }
-
-        $headers = [];
-        $rows = [];
-
-        while (($line = fgetcsv($handle)) !== false) {
-            if (empty($headers)) {
-                $headers = array_map('trim', $line);
-                continue;
-            }
-            $rows[] = $line;
-        }
-
-        fclose($handle);
-        return ['headers' => $headers, 'rows' => $rows];
+        $options = new CsvOptions();
+        $options->FIELD_DELIMITER = ',';
+        $reader = new CsvReader($options);
+        return $this->readWithOpenSpout($reader, $path);
     }
 
     /** @return array{headers: string[], rows: array<array<string|null>>} */
     private function parseSpreadsheet(string $path): array
     {
-        $spreadsheet = IOFactory::load($path);
-        $sheet = $spreadsheet->getActiveSheet();
-        $data = $sheet->toArray(null, true, true, false);
+        $reader = new XlsxReader();
+        return $this->readWithOpenSpout($reader, $path);
+    }
 
-        if (empty($data)) {
-            return ['headers' => [], 'rows' => []];
+    /** @return array{headers: string[], rows: array<array<string|null>>} */
+    private function parseOds(string $path): array
+    {
+        $reader = new OdsReader();
+        return $this->readWithOpenSpout($reader, $path);
+    }
+
+    /**
+     * @return array{headers: string[], rows: array<array<string|null>>}
+     */
+    private function readWithOpenSpout(mixed $reader, string $path): array
+    {
+        $reader->open($path);
+
+        $headers = [];
+        $rows = [];
+
+        foreach ($reader->getSheetIterator() as $sheet) {
+            foreach ($sheet->getRowIterator() as $row) {
+                $cells = array_map(
+                    fn($cell) => $cell->getValue() !== null ? (string)$cell->getValue() : null,
+                    $row->getCells(),
+                );
+                if (empty($headers)) {
+                    $headers = array_map('trim', array_map('strval', $cells));
+                } else {
+                    $rows[] = $cells;
+                }
+            }
+            break; // first sheet only
         }
 
-        $headers = array_map(fn($v) => trim((string)($v ?? '')), array_shift($data));
-        $rows = array_map(
-            fn($row) => array_map(fn($v) => $v !== null ? (string)$v : null, $row),
-            $data,
-        );
-
+        $reader->close();
         return ['headers' => $headers, 'rows' => $rows];
     }
 
