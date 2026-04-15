@@ -143,6 +143,7 @@
     <template v-else>
       <div
         v-for="group in groupedItems"
+        :id="'cv-grp-' + groupId(group.header)"
         :key="group.header"
         class="cv-group"
       >
@@ -211,6 +212,23 @@
         </div>
       </div>
     </template>
+
+    <!-- Quick-nav index strip -->
+    <nav
+      v-if="groupedItems.length > 1"
+      class="cv-index"
+      aria-label="Jump to section"
+    >
+      <button
+        v-for="group in groupedItems"
+        :key="group.header"
+        class="cv-index-btn"
+        :title="group.header"
+        @click="scrollToGroup(group.header)"
+      >
+        {{ shortLabel(group.header) }}
+      </button>
+    </nav>
   </div>
 </template>
 
@@ -334,6 +352,30 @@ const groupedItems = computed(() => {
   return groups
 })
 
+// ── index / quick-nav ────────────────────────────────────────────────────────
+function groupId(header) {
+  return header.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '_')
+}
+
+function shortLabel(header) {
+  if (header.length <= 3) return header
+  // Decade like "1970s" → "70s"
+  const decade = header.match(/^(\d{2})(\d{2})s$/)
+  if (decade) return decade[2] + 's'
+  if (header === 'This Week') return 'Wk'
+  if (header === 'This Month') return 'Mo'
+  if (header === 'This Year') return 'Yr'
+  // Full year like "2024" → "'24"
+  if (/^\d{4}$/.test(header)) return '\'' + header.slice(2)
+  if (header === 'Unknown') return '?'
+  return header.slice(0, 3)
+}
+
+function scrollToGroup(header) {
+  const el = document.getElementById('cv-grp-' + groupId(header))
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
 const FORMAT_COLOURS = {
   Vinyl: ['#6b21a8', '#a855f7'],
   CD: ['#1d4ed8', '#60a5fa'],
@@ -354,7 +396,7 @@ function thumbStyle(item) {
 
 <style scoped>
 .collection-view {
-  padding: 0 20px 40px;
+  padding: 0 36px 40px 20px;
 }
 
 /* Toolbar */
@@ -581,5 +623,40 @@ function thumbStyle(item) {
     width: 100%;
     justify-content: flex-end;
   }
+}
+
+/* Quick-nav index */
+.cv-index {
+  position: fixed;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 120px);
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.cv-index-btn {
+  background: none;
+  border: none;
+  padding: 1px 5px;
+  font-size: 0.68em;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--color-text-maxcontrast);
+  cursor: pointer;
+  text-align: center;
+  min-width: 22px;
+  border-radius: 3px;
+  transition: color 0.1s, background 0.1s;
+  letter-spacing: 0.02em;
+}
+
+.cv-index-btn:hover {
+  color: var(--color-primary-element);
+  background: var(--color-background-hover);
 }
 </style>
