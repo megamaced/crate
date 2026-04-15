@@ -133,9 +133,9 @@ class MediaController extends OCSController
         $items = $this->mediaService->findAll($userId);
         $itemIds = array_map(fn($i) => $i->getId(), $items);
 
-        // Shares created by this user and shares received by this user
+        // Delete shares this user has created (their own data)
+        // Shares received from others are not touched — they belong to the sharer
         $this->shareMapper->deleteAllByOwner($userId);
-        $this->shareMapper->deleteAllReceivedByUser($userId);
 
         // Playlist items then playlists
         $this->playlistItemMapper->deleteByUserPlaylists($userId);
