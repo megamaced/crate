@@ -12,6 +12,12 @@
       <div class="pd-topbar-actions">
         <NcButton
           variant="tertiary"
+          @click="startEdit"
+        >
+          Edit
+        </NcButton>
+        <NcButton
+          variant="tertiary"
           @click="$emit('share', playlist)"
         >
           Share
@@ -92,6 +98,52 @@
       </div>
     </div>
 
+    <!-- Edit dialog -->
+    <NcDialog
+      v-if="editOpen"
+      name="Edit playlist"
+      :open="editOpen"
+      @closing="editOpen = false"
+    >
+      <div class="pd-dialog-form">
+        <div class="pd-dialog-field">
+          <label for="pd-edit-name">Name</label>
+          <input
+            id="pd-edit-name"
+            v-model="editName"
+            type="text"
+            maxlength="500"
+            autocomplete="off"
+          >
+        </div>
+        <div class="pd-dialog-field">
+          <label for="pd-edit-desc">Description (optional)</label>
+          <input
+            id="pd-edit-desc"
+            v-model="editDesc"
+            type="text"
+            maxlength="500"
+            autocomplete="off"
+          >
+        </div>
+      </div>
+      <template #actions>
+        <NcButton
+          variant="tertiary"
+          @click="editOpen = false"
+        >
+          Cancel
+        </NcButton>
+        <NcButton
+          variant="primary"
+          :disabled="!editName.trim() || saving"
+          @click="doEdit"
+        >
+          {{ saving ? 'Saving…' : 'Save' }}
+        </NcButton>
+      </template>
+    </NcDialog>
+
     <!-- Delete confirm -->
     <NcDialog
       v-if="confirmDelete"
@@ -131,6 +183,34 @@ const props = defineProps({
 const emit = defineEmits(['back', 'detail', 'delete', 'share', 'updated'])
 
 const confirmDelete = ref(false)
+const editOpen = ref(false)
+const editName = ref('')
+const editDesc = ref('')
+const saving = ref(false)
+
+function startEdit() {
+  editName.value = props.playlist.name
+  editDesc.value = props.playlist.description ?? ''
+  editOpen.value = true
+}
+
+async function doEdit() {
+  if (!editName.value.trim()) return
+  saving.value = true
+  try {
+    const res = await axios.put(
+      generateOcsUrl(`/apps/crate/api/v1/playlists/${props.playlist.id}`),
+      { name: editName.value.trim(), description: editDesc.value.trim() || null },
+    )
+    const updated = res.data.ocs?.data
+    if (updated) emit('updated', updated)
+    editOpen.value = false
+  } catch (e) {
+    console.error('Failed to update playlist', e)
+  } finally {
+    saving.value = false
+  }
+}
 
 const FORMAT_COLOURS = {
   Vinyl: ['#6b21a8', '#a855f7'],
@@ -315,5 +395,45 @@ async function removeItem(item) {
   opacity: 0;
   transition: opacity 0.1s;
   flex-shrink: 0;
+}
+
+/* Edit dialog form */
+.pd-dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 0 8px;
+}
+
+.pd-dialog-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pd-dialog-field label {
+  font-size: 0.8em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-maxcontrast);
+}
+
+.pd-dialog-field input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 2px solid var(--color-border-dark);
+  border-radius: var(--border-radius);
+  background: var(--color-background-dark);
+  color: var(--color-main-text);
+  padding: 9px 12px;
+  font-size: 1em;
+  font-family: inherit;
+}
+
+.pd-dialog-field input:focus {
+  border-color: var(--color-primary-element);
+  outline: none;
+  background: var(--color-main-background);
 }
 </style>

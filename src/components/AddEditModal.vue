@@ -186,7 +186,6 @@ import { ref, watch, computed } from 'vue'
 import { NcModal, NcButton } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateUrl } from '@nextcloud/router'
-import { getFilePickerBuilder } from '@nextcloud/dialogs'
 import DiscogsSearch from './DiscogsSearch.vue'
 
 const props = defineProps({
@@ -249,27 +248,35 @@ function onFileSelected(e) {
   e.target.value = ''
 }
 
-async function pickFromNextcloud() {
-  try {
-    const picker = getFilePickerBuilder('Select album artwork')
-      .setMultiSelect(false)
-      .setMimeTypeFilter(['image/jpeg', 'image/png', 'image/webp'])
-      .build()
-    const path = await picker.pick()
-    // Fetch via Nextcloud WebDAV
-    const uid = window.OC?.currentUser ?? ''
-    const webdavUrl = `/remote.php/dav/files/${uid}${path}`
-    const resp = await axios.get(webdavUrl, { responseType: 'arraybuffer' })
-    const mime = resp.headers['content-type'] || 'image/jpeg'
-    const fileName = path.split('/').pop() || 'artwork'
-    const blob = new Blob([resp.data], { type: mime })
-    if (artworkPreviewUrl.value) URL.revokeObjectURL(artworkPreviewUrl.value)
-    artworkFile.value = new File([blob], fileName, { type: mime })
-    artworkPreviewUrl.value = URL.createObjectURL(artworkFile.value)
-    removeArtworkFlag.value = false
-  } catch {
-    // user cancelled or unavailable
+function pickFromNextcloud() {
+  // Use the Nextcloud built-in file picker (always available, no extra chunks)
+  const oc = window.OC
+  if (!oc?.dialogs?.filepicker) {
+    alert('File picker not available.')
+    return
   }
+  oc.dialogs.filepicker(
+    'Select album artwork',
+    async (path) => {
+      try {
+        const uid = oc.currentUser ?? ''
+        const webdavUrl = `/remote.php/dav/files/${uid}${path}`
+        const resp = await axios.get(webdavUrl, { responseType: 'arraybuffer' })
+        const mime = resp.headers['content-type']?.split(';')[0]?.trim() || 'image/jpeg'
+        const fileName = path.split('/').pop() || 'artwork'
+        const blob = new Blob([resp.data], { type: mime })
+        if (artworkPreviewUrl.value) URL.revokeObjectURL(artworkPreviewUrl.value)
+        artworkFile.value = new File([blob], fileName, { type: mime })
+        artworkPreviewUrl.value = URL.createObjectURL(artworkFile.value)
+        removeArtworkFlag.value = false
+      } catch (e) {
+        console.error('Failed to fetch artwork from Nextcloud', e)
+      }
+    },
+    false, // not multiselect
+    ['image/jpeg', 'image/png', 'image/webp'], // MIME filter
+    true, // modal
+  )
 }
 
 function doRemoveArtwork() {

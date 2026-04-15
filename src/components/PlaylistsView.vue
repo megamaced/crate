@@ -71,7 +71,7 @@
             Rename
           </NcButton>
           <NcButton
-            variant="tertiary"
+            variant="error"
             :aria-label="'Delete ' + pl.name"
             @click="confirmDelete(pl)"
           >

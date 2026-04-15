@@ -128,13 +128,13 @@
       <p>Delete <strong>{{ deletingItem.artist }} — {{ deletingItem.title }}</strong>? This cannot be undone.</p>
       <template #actions>
         <NcButton
-          type="tertiary"
+          variant="tertiary"
           @click="deletingItem = null"
         >
           Cancel
         </NcButton>
         <NcButton
-          type="error"
+          variant="error"
           @click="deleteItem"
         >
           Delete
@@ -444,7 +444,12 @@ async function showPlaylistDetail(playlist) {
   setHash(hashForView('playlist-detail', playlist.id))
 }
 
-function handleDeletePlaylist() {
+async function handleDeletePlaylist(playlist) {
+  try {
+    await axios.delete(generateOcsUrl(`/apps/crate/api/v1/playlists/${playlist.id}`))
+  } catch (e) {
+    console.error('Failed to delete playlist', e)
+  }
   view.value = 'playlists'
   selectedPlaylist.value = null
   setHash('#/playlists')
@@ -535,14 +540,16 @@ async function saveItem(payload) {
     closeModal()
 
     // Handle artwork upload / removal
-    if (saved?.id) {
+    // For PUT responses saved may be null (OCS quirk), fall back to editId
+    const targetId = saved?.id ?? editId
+    if (targetId) {
       if (artworkFile) {
         try {
           const fd = new FormData()
           fd.append('file', artworkFile)
-          await axios.post(generateUrl(`/apps/crate/artwork/${saved.id}`), fd)
+          await axios.post(generateUrl(`/apps/crate/artwork/${targetId}`), fd)
           // Re-fetch item so artworkPath = 'local' is reflected everywhere
-          const r = await axios.get(generateOcsUrl(`/apps/crate/api/v1/media/${saved.id}`))
+          const r = await axios.get(generateOcsUrl(`/apps/crate/api/v1/media/${targetId}`))
           const fresh = r.data.ocs?.data
           if (fresh) {
             // eslint-disable-next-line eqeqeq
@@ -556,8 +563,8 @@ async function saveItem(payload) {
         }
       } else if (removeArtwork) {
         try {
-          await axios.delete(generateUrl(`/apps/crate/artwork/${saved.id}`))
-          const r = await axios.get(generateOcsUrl(`/apps/crate/api/v1/media/${saved.id}`))
+          await axios.delete(generateUrl(`/apps/crate/artwork/${targetId}`))
+          const r = await axios.get(generateOcsUrl(`/apps/crate/api/v1/media/${targetId}`))
           const fresh = r.data.ocs?.data
           if (fresh) {
             // eslint-disable-next-line eqeqeq

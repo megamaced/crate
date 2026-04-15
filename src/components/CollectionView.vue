@@ -355,21 +355,17 @@ const groupedItems = computed(() => {
 // ── index / quick-nav ────────────────────────────────────────────────────────
 const activeGroup = ref('')
 
-function getScrollContainer() {
-  return document.getElementById('app-content')
-    || document.querySelector('.app-content-vue')
-    || document.documentElement
-}
-
 function updateActiveGroup() {
   const groups = groupedItems.value
   if (!groups.length) return
   let active = groups[0].header
+  // Use a threshold of ~140px from top to account for the sticky toolbar
+  const threshold = 140
   for (const group of groups) {
     const el = document.getElementById('cv-grp-' + groupId(group.header))
     if (!el) continue
     const rect = el.getBoundingClientRect()
-    if (rect.top <= 120) {
+    if (rect.top <= threshold) {
       active = group.header
     } else {
       break
@@ -378,14 +374,28 @@ function updateActiveGroup() {
   activeGroup.value = active
 }
 
-let _scrollEl = null
+let _scrollTargets = []
+let _scrollHandler = null
 onMounted(() => {
-  _scrollEl = getScrollContainer()
-  _scrollEl.addEventListener('scroll', updateActiveGroup, { passive: true })
+  _scrollHandler = updateActiveGroup
+  // Attach to all potential Nextcloud scroll containers + window
+  const SELECTORS = [
+    () => document.getElementById('app-content-vue'),
+    () => document.querySelector('.app-content-vue'),
+    () => document.getElementById('content-vue'),
+    () => document.getElementById('app-content'),
+    () => document.querySelector('.app-content'),
+  ]
+  _scrollTargets = SELECTORS.map(s => s()).filter(Boolean)
+  _scrollTargets.forEach(el => el.addEventListener('scroll', _scrollHandler, { passive: true }))
+  window.addEventListener('scroll', _scrollHandler, { passive: true })
   updateActiveGroup()
 })
 onBeforeUnmount(() => {
-  if (_scrollEl) _scrollEl.removeEventListener('scroll', updateActiveGroup)
+  if (_scrollHandler) {
+    _scrollTargets.forEach(el => el.removeEventListener('scroll', _scrollHandler))
+    window.removeEventListener('scroll', _scrollHandler)
+  }
 })
 watch(groupedItems, () => setTimeout(updateActiveGroup, 50))
 
