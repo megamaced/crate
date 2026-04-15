@@ -429,6 +429,7 @@ defineExpose({ load })
   display: flex;
   flex-direction: column;
   gap: 14px;
+  min-width: min(320px, 70vw);
 }
 
 .pv-field {
@@ -446,6 +447,8 @@ defineExpose({ load })
 }
 
 .pv-field input {
+  width: 100%;
+  box-sizing: border-box;
   border: 2px solid var(--color-border-dark);
   border-radius: var(--border-radius);
   background: var(--color-background-dark);
