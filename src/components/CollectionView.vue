@@ -222,7 +222,7 @@
       <button
         v-for="group in groupedItems"
         :key="group.header"
-        class="cv-index-btn"
+        :class="['cv-index-btn', { active: activeGroup === group.header }]"
         :title="group.header"
         @click="scrollToGroup(group.header)"
       >
@@ -233,7 +233,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { NcButton } from '@nextcloud/vue'
 import { generateUrl } from '@nextcloud/router'
 import MediaCard from './MediaCard.vue'
@@ -353,6 +353,42 @@ const groupedItems = computed(() => {
 })
 
 // ── index / quick-nav ────────────────────────────────────────────────────────
+const activeGroup = ref('')
+
+function getScrollContainer() {
+  return document.getElementById('app-content')
+    || document.querySelector('.app-content-vue')
+    || document.documentElement
+}
+
+function updateActiveGroup() {
+  const groups = groupedItems.value
+  if (!groups.length) return
+  let active = groups[0].header
+  for (const group of groups) {
+    const el = document.getElementById('cv-grp-' + groupId(group.header))
+    if (!el) continue
+    const rect = el.getBoundingClientRect()
+    if (rect.top <= 120) {
+      active = group.header
+    } else {
+      break
+    }
+  }
+  activeGroup.value = active
+}
+
+let _scrollEl = null
+onMounted(() => {
+  _scrollEl = getScrollContainer()
+  _scrollEl.addEventListener('scroll', updateActiveGroup, { passive: true })
+  updateActiveGroup()
+})
+onBeforeUnmount(() => {
+  if (_scrollEl) _scrollEl.removeEventListener('scroll', updateActiveGroup)
+})
+watch(groupedItems, () => setTimeout(updateActiveGroup, 50))
+
 function groupId(header) {
   return header.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '_')
 }
@@ -372,6 +408,7 @@ function shortLabel(header) {
 }
 
 function scrollToGroup(header) {
+  activeGroup.value = header
   const el = document.getElementById('cv-grp-' + groupId(header))
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
@@ -658,5 +695,10 @@ function thumbStyle(item) {
 .cv-index-btn:hover {
   color: var(--color-primary-element);
   background: var(--color-background-hover);
+}
+
+.cv-index-btn.active {
+  color: var(--color-primary-element);
+  background: var(--color-primary-element-light, rgba(0, 130, 201, 0.15));
 }
 </style>
