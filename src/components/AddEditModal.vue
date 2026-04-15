@@ -110,6 +110,56 @@
           />
         </div>
 
+        <!-- Album Art -->
+        <div class="crate-field">
+          <label>Album Art</label>
+          <div class="crate-artwork-row">
+            <div
+              class="crate-artwork-thumb"
+              :style="previewStyle"
+            >
+              <span
+                v-if="!hasArtwork"
+                class="crate-artwork-placeholder"
+              >♪</span>
+            </div>
+            <div class="crate-artwork-controls">
+              <input
+                ref="fileInput"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                style="display:none"
+                @change="onFileSelected"
+              >
+              <NcButton
+                type="button"
+                variant="tertiary"
+                native-type="button"
+                @click="fileInput.click()"
+              >
+                Upload from computer
+              </NcButton>
+              <NcButton
+                type="button"
+                variant="tertiary"
+                native-type="button"
+                @click="pickFromNextcloud"
+              >
+                Pick from Files
+              </NcButton>
+              <NcButton
+                v-if="hasArtwork"
+                type="button"
+                variant="tertiary"
+                native-type="button"
+                @click="doRemoveArtwork"
+              >
+                Remove
+              </NcButton>
+            </div>
+          </div>
+        </div>
+
         <div class="crate-modal-actions">
           <NcButton
             type="button"
@@ -134,6 +184,9 @@
 <script setup>
 import { ref, watch, computed } from 'vue'
 import { NcModal, NcButton } from '@nextcloud/vue'
+import axios from '@nextcloud/axios'
+import { generateUrl } from '@nextcloud/router'
+import { getFilePickerBuilder } from '@nextcloud/dialogs'
 import DiscogsSearch from './DiscogsSearch.vue'
 
 const props = defineProps({
@@ -162,6 +215,81 @@ const formatGroups = [
 const currentYear = new Date().getFullYear()
 const saving = ref(false)
 
+// ── Artwork ────────────────────────────────────────────────────────────────
+const fileInput = ref(null)
+const artworkFile = ref(null) // File object awaiting upload
+const artworkPreviewUrl = ref(null) // blob URL for local preview
+const removeArtworkFlag = ref(false)
+
+const hasArtwork = computed(() => {
+  if (artworkPreviewUrl.value) return true
+  if (removeArtworkFlag.value) return false
+  return !!(props.item?.artworkPath)
+})
+
+const previewStyle = computed(() => {
+  if (artworkPreviewUrl.value) {
+    return { backgroundImage: `url(${artworkPreviewUrl.value})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+  }
+  if (props.item?.id && props.item?.artworkPath && !removeArtworkFlag.value) {
+    const url = generateUrl('/apps/crate/artwork/' + props.item.id)
+    return { backgroundImage: `url(${url}?t=${Date.now()})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+  }
+  return {}
+})
+
+function onFileSelected(e) {
+  const file = e.target.files[0]
+  if (!file) return
+  if (artworkPreviewUrl.value) URL.revokeObjectURL(artworkPreviewUrl.value)
+  artworkFile.value = file
+  artworkPreviewUrl.value = URL.createObjectURL(file)
+  removeArtworkFlag.value = false
+  // Reset the input so picking the same file again fires the event
+  e.target.value = ''
+}
+
+async function pickFromNextcloud() {
+  try {
+    const picker = getFilePickerBuilder('Select album artwork')
+      .setMultiSelect(false)
+      .setMimeTypeFilter(['image/jpeg', 'image/png', 'image/webp'])
+      .build()
+    const path = await picker.pick()
+    // Fetch via Nextcloud WebDAV
+    const uid = window.OC?.currentUser ?? ''
+    const webdavUrl = `/remote.php/dav/files/${uid}${path}`
+    const resp = await axios.get(webdavUrl, { responseType: 'arraybuffer' })
+    const mime = resp.headers['content-type'] || 'image/jpeg'
+    const fileName = path.split('/').pop() || 'artwork'
+    const blob = new Blob([resp.data], { type: mime })
+    if (artworkPreviewUrl.value) URL.revokeObjectURL(artworkPreviewUrl.value)
+    artworkFile.value = new File([blob], fileName, { type: mime })
+    artworkPreviewUrl.value = URL.createObjectURL(artworkFile.value)
+    removeArtworkFlag.value = false
+  } catch {
+    // user cancelled or unavailable
+  }
+}
+
+function doRemoveArtwork() {
+  artworkFile.value = null
+  removeArtworkFlag.value = true
+  if (artworkPreviewUrl.value) {
+    URL.revokeObjectURL(artworkPreviewUrl.value)
+    artworkPreviewUrl.value = null
+  }
+}
+
+function resetArtworkState() {
+  artworkFile.value = null
+  removeArtworkFlag.value = false
+  if (artworkPreviewUrl.value) {
+    URL.revokeObjectURL(artworkPreviewUrl.value)
+    artworkPreviewUrl.value = null
+  }
+}
+
 const blankForm = () => ({
   title: '',
   artist: '',
@@ -179,6 +307,7 @@ watch(
   () => props.show,
   (open) => {
     if (open) {
+      resetArtworkState()
       form.value = props.item
         ? {
             title: props.item.title,
@@ -213,6 +342,8 @@ async function submit() {
       ...form.value,
       year: form.value.year || null,
       notes: form.value.notes || null,
+      _artworkFile: artworkFile.value,
+      _removeArtwork: removeArtworkFlag.value,
     }
     emit('save', payload)
   } finally {
@@ -318,5 +449,37 @@ async function submit() {
   .crate-field--year {
     flex: unset;
   }
+}
+
+/* Artwork picker */
+.crate-artwork-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.crate-artwork-thumb {
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  border-radius: var(--border-radius);
+  border: 2px solid var(--color-border-dark);
+  background: var(--color-background-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.crate-artwork-placeholder {
+  font-size: 1.8em;
+  opacity: 0.3;
+}
+
+.crate-artwork-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
 }
 </style>

@@ -5,7 +5,9 @@ declare(strict_types=1);
 return [
 	'routes' => [
 		['name' => 'page#index',   'url' => '/',                   'verb' => 'GET'],
-		['name' => 'artwork#get',  'url' => '/artwork/{itemId}',   'verb' => 'GET'],
+		['name' => 'artwork#get',    'url' => '/artwork/{itemId}', 'verb' => 'GET'],
+		['name' => 'artwork#upload', 'url' => '/artwork/{itemId}', 'verb' => 'POST'],
+		['name' => 'artwork#delete', 'url' => '/artwork/{itemId}', 'verb' => 'DELETE'],
 	],
 	'ocs' => [
 		// ── Media items ────────────────────────────────────────────────────────

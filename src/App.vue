@@ -186,7 +186,7 @@ import {
   NcAppNavigationSettings, NcButton, NcDialog,
 } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
-import { generateOcsUrl } from '@nextcloud/router'
+import { generateOcsUrl, generateUrl } from '@nextcloud/router'
 import AddEditModal from './components/AddEditModal.vue'
 import AddToPlaylistModal from './components/AddToPlaylistModal.vue'
 import CollectionView from './components/CollectionView.vue'
@@ -503,6 +503,12 @@ async function saveItem(payload) {
     const wasEditing = !!editingItem.value
     const editId = editingItem.value?.id
 
+    // Pull out artwork side-effects before sending to the API
+    const artworkFile = payload._artworkFile ?? null
+    const removeArtwork = payload._removeArtwork ?? false
+    delete payload._artworkFile
+    delete payload._removeArtwork
+
     if (wasEditing) {
       const res = await axios.put(
         generateOcsUrl(`/apps/crate/api/v1/media/${editId}`),
@@ -527,6 +533,44 @@ async function saveItem(payload) {
     }
 
     closeModal()
+
+    // Handle artwork upload / removal
+    if (saved?.id) {
+      if (artworkFile) {
+        try {
+          const fd = new FormData()
+          fd.append('file', artworkFile)
+          await axios.post(generateUrl(`/apps/crate/artwork/${saved.id}`), fd)
+          // Re-fetch item so artworkPath = 'local' is reflected everywhere
+          const r = await axios.get(generateOcsUrl(`/apps/crate/api/v1/media/${saved.id}`))
+          const fresh = r.data.ocs?.data
+          if (fresh) {
+            // eslint-disable-next-line eqeqeq
+            if (selectedItem.value?.id == fresh.id) selectedItem.value = fresh
+            const idx = items.value.findIndex(i => i.id == fresh.id)
+            if (idx !== -1) items.value[idx] = fresh
+            saved = fresh
+          }
+        } catch (e) {
+          console.error('Artwork upload failed', e)
+        }
+      } else if (removeArtwork) {
+        try {
+          await axios.delete(generateUrl(`/apps/crate/artwork/${saved.id}`))
+          const r = await axios.get(generateOcsUrl(`/apps/crate/api/v1/media/${saved.id}`))
+          const fresh = r.data.ocs?.data
+          if (fresh) {
+            // eslint-disable-next-line eqeqeq
+            if (selectedItem.value?.id == fresh.id) selectedItem.value = fresh
+            const idx = items.value.findIndex(i => i.id == fresh.id)
+            if (idx !== -1) items.value[idx] = fresh
+            saved = fresh
+          }
+        } catch (e) {
+          console.error('Artwork removal failed', e)
+        }
+      }
+    }
 
     // Auto-enrich newly added items that have a Discogs ID
     if (!wasEditing && saved?.id && saved?.discogsId) {
