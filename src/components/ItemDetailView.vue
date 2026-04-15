@@ -15,14 +15,14 @@
           variant="tertiary"
           @click="enrich"
         >
-          {{ isEnriched ? 'Re-enrich from Discogs' : 'Enrich from Discogs' }}
+          {{ isEnriched ? 'Re-enrich' : 'Enrich from Discogs' }}
         </NcButton>
         <NcButton
           v-if="isEnriched && !enriching && !stripping"
           variant="tertiary"
           @click="stripEnrich"
         >
-          Remove Discogs data
+          Remove data
         </NcButton>
         <span
           v-if="enriching"
@@ -59,116 +59,119 @@
       </div>
     </div>
 
-    <!-- Hero -->
-    <div class="detail-hero">
-      <div
-        class="detail-artwork"
-        :style="artStyle"
-      />
+    <!-- Hero + all content constrained to readable width -->
+    <div class="detail-body">
+      <!-- Hero -->
+      <div class="detail-hero">
+        <div
+          class="detail-artwork"
+          :style="artStyle"
+        />
 
-      <div class="detail-hero-info">
-        <h2 class="detail-title">
-          {{ item.title }}
-        </h2>
-        <p class="detail-artist">
-          {{ item.artist }}
-        </p>
+        <div class="detail-hero-info">
+          <h2 class="detail-title">
+            {{ item.title }}
+          </h2>
+          <p class="detail-artist">
+            {{ item.artist }}
+          </p>
 
-        <div class="detail-badges">
-          <span class="badge badge-format">{{ item.format }}</span>
-          <span
-            v-if="item.year"
-            class="badge badge-year"
-          >{{ item.year }}</span>
-          <span
-            v-if="item.status === 'wanted'"
-            class="badge badge-wanted"
-          >Wishlist</span>
-          <span
-            v-if="item.country"
-            class="badge badge-country"
-          >{{ item.country }}</span>
+          <div class="detail-badges">
+            <span class="badge badge-format">{{ item.format }}</span>
+            <span
+              v-if="item.year"
+              class="badge badge-year"
+            >{{ item.year }}</span>
+            <span
+              v-if="item.status === 'wanted'"
+              class="badge badge-wanted"
+            >Wishlist</span>
+            <span
+              v-if="item.country"
+              class="badge badge-country"
+            >{{ item.country }}</span>
+          </div>
+
+          <!-- Metadata grid -->
+          <dl class="detail-meta">
+            <template v-if="item.label">
+              <dt>Label</dt>
+              <dd>{{ item.label }}</dd>
+            </template>
+            <template v-if="item.genres">
+              <dt>Genres</dt>
+              <dd>{{ item.genres }}</dd>
+            </template>
+            <template v-if="item.barcode">
+              <dt>Barcode</dt>
+              <dd>{{ item.barcode }}</dd>
+            </template>
+            <template v-if="item.notes">
+              <dt>Notes</dt>
+              <dd>{{ item.notes }}</dd>
+            </template>
+          </dl>
         </div>
-
-        <!-- Metadata grid -->
-        <dl class="detail-meta">
-          <template v-if="item.label">
-            <dt>Label</dt>
-            <dd>{{ item.label }}</dd>
-          </template>
-          <template v-if="item.genres">
-            <dt>Genres</dt>
-            <dd>{{ item.genres }}</dd>
-          </template>
-          <template v-if="item.barcode">
-            <dt>Barcode</dt>
-            <dd>{{ item.barcode }}</dd>
-          </template>
-          <template v-if="item.notes">
-            <dt>Notes</dt>
-            <dd>{{ item.notes }}</dd>
-          </template>
-        </dl>
       </div>
-    </div>
 
-    <!-- Tracklist -->
-    <section
-      v-if="tracklist.length > 0"
-      class="detail-section"
-    >
-      <h3>Tracklist</h3>
-      <table class="detail-tracklist">
-        <tbody>
-          <tr
-            v-for="(track, idx) in tracklist"
-            :key="idx"
-          >
-            <td class="track-pos">
-              {{ track.position || (idx + 1) }}
-            </td>
-            <td class="track-title">
-              {{ track.title }}
-            </td>
-            <td class="track-dur">
-              {{ track.duration }}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
-
-    <!-- Pressing notes -->
-    <section
-      v-if="item.pressingNotes"
-      class="detail-section"
-    >
-      <h3>Notes</h3>
-      <p class="detail-notes-text">
-        {{ item.pressingNotes }}
-      </p>
-    </section>
-
-    <!-- Artist info -->
-    <section
-      v-if="item.artistBio || (members.length > 0)"
-      class="detail-section"
-    >
-      <h3>About {{ item.artist }}</h3>
-      <p
-        v-if="item.artistBio"
-        class="detail-bio"
+      <!-- Tracklist -->
+      <section
+        v-if="tracklist.length > 0"
+        class="detail-section"
       >
-        {{ item.artistBio }}
-      </p>
-      <div
-        v-if="members.length > 0"
-        class="detail-members"
+        <h3>Tracklist</h3>
+        <table class="detail-tracklist">
+          <tbody>
+            <tr
+              v-for="(track, idx) in tracklist"
+              :key="idx"
+            >
+              <td class="track-pos">
+                {{ track.position || (idx + 1) }}
+              </td>
+              <td class="track-title">
+                {{ track.title }}
+              </td>
+              <td class="track-dur">
+                {{ track.duration }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Pressing notes -->
+      <section
+        v-if="item.pressingNotes"
+        class="detail-section"
       >
-        <strong>Members:</strong>
-        {{ members.join(', ') }}
-      </div>
-    </section>
+        <h3>Notes</h3>
+        <p class="detail-notes-text">
+          {{ item.pressingNotes }}
+        </p>
+      </section>
+
+      <!-- Artist info -->
+      <section
+        v-if="item.artistBio || (members.length > 0)"
+        class="detail-section"
+      >
+        <h3>About {{ item.artist }}</h3>
+        <p
+          v-if="item.artistBio"
+          class="detail-bio"
+        >
+          {{ item.artistBio }}
+        </p>
+        <div
+          v-if="members.length > 0"
+          class="detail-members"
+        >
+          <strong>Members:</strong>
+          {{ members.join(', ') }}
+        </div>
+      </section>
+    </div><!-- /detail-body -->
   </div>
 </template>
 
@@ -263,36 +266,42 @@ async function stripEnrich() {
 
 <style scoped>
 .detail-view {
-  padding: 0 20px 40px;
+  padding: 0 0 40px;
+}
+
+.detail-body {
+  padding: 0 20px;
   max-width: 860px;
 }
 
 /* Top bar */
 .detail-topbar {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  flex-wrap: wrap;
+  align-items: center;
   gap: 4px;
-  padding: 8px 0 16px;
-  /* Push below the Nextcloud top-bar / sidebar-toggle button */
-  padding-top: calc(var(--default-clickable-area, 44px) + 8px);
+  padding: calc(var(--default-clickable-area, 44px) + 8px) 12px 12px;
   position: sticky;
   top: 0;
   background: var(--color-main-background);
   z-index: 10;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.detail-topbar::-webkit-scrollbar {
+  display: none;
 }
 
 .detail-back {
   flex-shrink: 0;
+  margin-right: 8px;
 }
 
 .detail-topbar-actions {
   display: flex;
   gap: 4px;
   align-items: center;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  flex-shrink: 0;
 }
 
 .detail-enriching {
