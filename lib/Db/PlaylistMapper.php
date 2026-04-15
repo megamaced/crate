@@ -50,4 +50,12 @@ class PlaylistMapper extends QBMapper
             ->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)));
         return $this->findEntity($qb);
     }
+
+    public function deleteAllByUser(string $userId): void
+    {
+        $qb = $this->db->getQueryBuilder();
+        $qb->delete($this->getTableName())
+            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+        $qb->executeStatement();
+    }
 }

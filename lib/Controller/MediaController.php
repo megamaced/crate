@@ -4,12 +4,17 @@ declare(strict_types=1);
 
 namespace OCA\Crate\Controller;
 
+use OCA\Crate\Db\CrateShareMapper;
 use OCA\Crate\Service\DiscogsService;
 use OCA\Crate\Service\MediaService;
+use OCA\Crate\Db\PlaylistItemMapper;
+use OCA\Crate\Db\PlaylistMapper;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\OCSController;
+use OCP\Files\AppData\IAppDataFactory;
+use OCP\Files\NotFoundException;
 use OCP\IRequest;
 use OCP\IUserSession;
 
@@ -21,6 +26,10 @@ class MediaController extends OCSController
         private readonly MediaService $mediaService,
         private readonly DiscogsService $discogsService,
         private readonly IUserSession $userSession,
+        private readonly PlaylistMapper $playlistMapper,
+        private readonly PlaylistItemMapper $playlistItemMapper,
+        private readonly CrateShareMapper $shareMapper,
+        private readonly IAppDataFactory $appDataFactory,
     ) {
         parent::__construct($appName, $request);
     }
@@ -118,7 +127,39 @@ class MediaController extends OCSController
     #[NoAdminRequired]
     public function destroyAll(): DataResponse
     {
-        $this->mediaService->deleteAll($this->userId());
+        $userId = $this->userId();
+
+        // Collect item IDs before deletion so we can purge artwork files
+        $items = $this->mediaService->findAll($userId);
+        $itemIds = array_map(fn($i) => $i->getId(), $items);
+
+        // Shares created by this user and shares received by this user
+        $this->shareMapper->deleteAllByOwner($userId);
+        $this->shareMapper->deleteAllReceivedByUser($userId);
+
+        // Playlist items then playlists
+        $this->playlistItemMapper->deleteByUserPlaylists($userId);
+        $this->playlistMapper->deleteAllByUser($userId);
+
+        // Media items
+        $this->mediaService->deleteAll($userId);
+
+        // Artwork files stored in appdata (only for this user's items)
+        if (!empty($itemIds)) {
+            try {
+                $folder = $this->appDataFactory->get('crate')->getFolder('artwork');
+                foreach ($itemIds as $id) {
+                    foreach (['.jpg', '.png', '.webp', '.gif'] as $ext) {
+                        try {
+                            $folder->getFile('artwork_' . $id . $ext)->delete();
+                        } catch (NotFoundException) {
+                        }
+                    }
+                }
+            } catch (NotFoundException) {
+            }
+        }
+
         return new DataResponse([]);
     }
 

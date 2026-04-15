@@ -81,4 +81,22 @@ class CrateShareMapper extends QBMapper
             ->andWhere($qb->expr()->eq('shareable_id', $shareableIdParam));
         $qb->executeStatement();
     }
+
+    /** Delete all shares this user has created (owner side). */
+    public function deleteAllByOwner(string $userId): void
+    {
+        $qb = $this->db->getQueryBuilder();
+        $qb->delete($this->getTableName())
+            ->where($qb->expr()->eq('owner_user_id', $qb->createNamedParameter($userId)));
+        $qb->executeStatement();
+    }
+
+    /** Delete all shares received by this user (recipient side). */
+    public function deleteAllReceivedByUser(string $userId): void
+    {
+        $qb = $this->db->getQueryBuilder();
+        $qb->delete($this->getTableName())
+            ->where($qb->expr()->eq('shared_with_user_id', $qb->createNamedParameter($userId)));
+        $qb->executeStatement();
+    }
 }

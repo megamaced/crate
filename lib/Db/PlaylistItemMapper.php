@@ -85,4 +85,17 @@ class PlaylistItemMapper extends QBMapper
             ->where($qb->expr()->eq('media_item_id', $mediaItemIdParam));
         $qb->executeStatement();
     }
+
+    /** Delete all playlist items belonging to any playlist owned by $userId. */
+    public function deleteByUserPlaylists(string $userId): void
+    {
+        $qb = $this->db->getQueryBuilder();
+        $sub = $this->db->getQueryBuilder();
+        $sub->select('id')
+            ->from('crate_playlists')
+            ->where($sub->expr()->eq('user_id', $sub->createNamedParameter($userId)));
+        $qb->delete($this->getTableName())
+            ->where($qb->expr()->in('playlist_id', $qb->createFunction('(' . $sub->getSQL() . ')')));
+        $qb->executeStatement();
+    }
 }
