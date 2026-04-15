@@ -250,7 +250,7 @@ const viewMode = ref('card')
 const sortKey = ref('artist-asc')
 const filterFormat = ref('')
 
-const heading = computed(() => props.status === 'wanted' ? 'Wishlist' : 'My Collection')
+const heading = computed(() => props.status === 'wanted' ? 'Wishlist' : 'Collection')
 
 const presentFormats = computed(() => {
   const seen = new Set()

@@ -9,7 +9,7 @@
           @click="switchView('home')"
         />
         <NcAppNavigationItem
-          name="My Collection"
+          name="Collection"
           :active="view === 'collection'"
           href="#/collection"
           @click="switchView('collection')"
