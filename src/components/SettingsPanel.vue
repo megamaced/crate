@@ -104,7 +104,7 @@
       name="Danger zone"
     >
       <p class="settings-hint">
-        Permanently delete every item in your collection and wishlist. This cannot be undone.
+        Permanently delete every item in your collection and wishlist, all playlists, and any shares you have created. This cannot be undone.
       </p>
       <div class="settings-actions">
         <NcButton
@@ -126,7 +126,7 @@
         :open="confirmWipe"
         @closing="confirmWipe = false"
       >
-        <p>This will permanently delete <strong>all items</strong> from your collection and wishlist. There is no undo.</p>
+        <p>This will permanently delete <strong>all items</strong> from your collection and wishlist, along with <strong>all playlists</strong> and <strong>shares you have created</strong>. There is no undo.</p>
         <template #actions>
           <NcButton
             type="button"

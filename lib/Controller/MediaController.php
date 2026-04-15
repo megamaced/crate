@@ -137,8 +137,11 @@ class MediaController extends OCSController
         // Shares received from others are not touched — they belong to the sharer
         $this->shareMapper->deleteAllByOwner($userId);
 
-        // Playlist items then playlists
-        $this->playlistItemMapper->deleteByUserPlaylists($userId);
+        // Playlist items (delete per-playlist to avoid subquery issues), then playlists
+        $playlists = $this->playlistMapper->findAll($userId);
+        foreach ($playlists as $playlist) {
+            $this->playlistItemMapper->deleteByPlaylist($playlist->getId());
+        }
         $this->playlistMapper->deleteAllByUser($userId);
 
         // Media items
