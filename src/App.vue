@@ -125,7 +125,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import {
   NcContent, NcAppContent, NcAppNavigation, NcAppNavigationItem,
   NcAppNavigationSettings, NcButton, NcDialog,
@@ -148,6 +148,7 @@ const { autoEnrichOnClick } = useSettings()
 const view = ref('home')
 const previousView = ref('home')
 const selectedItem = ref(null)
+const savedScrollTop = ref(0)
 const settingsOpen = ref(false)
 const items = ref([])
 const loading = ref(false)
@@ -205,6 +206,8 @@ function switchView(newView) {
 }
 
 function showDetail(item) {
+  // Save scroll position so Back can restore it
+  savedScrollTop.value = document.getElementById('app-content-vue')?.scrollTop ?? 0
   previousView.value = view.value
   selectedItem.value = item
   view.value = 'detail'
@@ -232,9 +235,13 @@ async function triggerEnrich(id) {
   }
 }
 
-function goBack() {
+async function goBack() {
   view.value = previousView.value
   selectedItem.value = null
+  // Restore scroll position after the list has re-rendered
+  const top = savedScrollTop.value
+  await nextTick()
+  document.getElementById('app-content-vue')?.scrollTo({ top, behavior: 'instant' })
 }
 
 // ── modal helpers ─────────────────────────────────────────────────────────────
@@ -280,9 +287,8 @@ async function saveItem(payload) {
       saved = res.data.ocs?.data
     }
 
-    closeModal()
-
-    // Update selectedItem immediately if we just edited the item being viewed
+    // Update selectedItem and items list before closing the modal so Vue
+    // flushes the reactive updates in a single batch with the modal close.
     if (saved) {
       // eslint-disable-next-line eqeqeq
       if (selectedItem.value && selectedItem.value.id == saved.id) {
@@ -292,6 +298,8 @@ async function saveItem(payload) {
       const idx = items.value.findIndex(i => i.id == saved.id)
       if (idx !== -1) items.value[idx] = saved
     }
+
+    closeModal()
 
     // Auto-enrich newly added items that have a Discogs ID
     if (!wasEditing && saved?.id && saved?.discogsId) {
