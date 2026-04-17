@@ -263,8 +263,8 @@
           </p>
         </template>
 
-        <!-- Market value progress -->
-        <template v-if="hasToken && autoFetchMarketRates && result.created > 0">
+        <!-- Market value progress — only shown once the queue has been started -->
+        <template v-if="hasToken && autoFetchMarketRates && result.created > 0 && (marketQueue.running.value || marketQueue.total.value > 0)">
           <div class="import-enrich">
             <p class="import-enrich__label">
               <template v-if="marketQueue.finished.value">
