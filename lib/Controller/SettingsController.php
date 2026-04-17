@@ -40,4 +40,23 @@ class SettingsController extends OCSController
         $this->config->setUserValue($this->userId(), 'crate', 'discogs_token', trim($token));
         return new DataResponse([]);
     }
+
+    #[NoAdminRequired]
+    public function getMarketSettings(): DataResponse
+    {
+        $uid = $this->userId();
+        return new DataResponse([
+            'autoFetchMarketRates' => $this->config->getUserValue($uid, 'crate', 'auto_fetch_market_rates', '0') === '1',
+            'marketCurrency'       => $this->config->getUserValue($uid, 'crate', 'market_currency', 'GBP'),
+        ]);
+    }
+
+    #[NoAdminRequired]
+    public function setMarketSettings(bool $autoFetchMarketRates = false, string $marketCurrency = 'GBP'): DataResponse
+    {
+        $uid = $this->userId();
+        $this->config->setUserValue($uid, 'crate', 'auto_fetch_market_rates', $autoFetchMarketRates ? '1' : '0');
+        $this->config->setUserValue($uid, 'crate', 'market_currency', strtoupper($marketCurrency));
+        return new DataResponse([]);
+    }
 }

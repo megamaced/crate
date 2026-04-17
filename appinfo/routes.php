@@ -19,12 +19,17 @@ return [
 		['name' => 'media#destroyAll', 'url' => '/api/v1/media',      'verb' => 'DELETE'],
 
 		// ── Discogs enrichment ─────────────────────────────────────────────────
-		['name' => 'media#enrich',      'url' => '/api/v1/media/{id}/enrich', 'verb' => 'POST'],
-		['name' => 'media#stripEnrich', 'url' => '/api/v1/media/{id}/enrich', 'verb' => 'DELETE'],
+		['name' => 'media#enrich',           'url' => '/api/v1/media/{id}/enrich',       'verb' => 'POST'],
+		['name' => 'media#stripEnrich',      'url' => '/api/v1/media/{id}/enrich',       'verb' => 'DELETE'],
+
+		// ── Market values ──────────────────────────────────────────────────────
+		['name' => 'media#fetchMarketValue', 'url' => '/api/v1/media/{id}/market-value', 'verb' => 'POST'],
 
 		// ── Settings ───────────────────────────────────────────────────────────
-		['name' => 'settings#getDiscogsToken', 'url' => '/api/v1/settings/discogs-token', 'verb' => 'GET'],
-		['name' => 'settings#setDiscogsToken', 'url' => '/api/v1/settings/discogs-token', 'verb' => 'POST'],
+		['name' => 'settings#getDiscogsToken',  'url' => '/api/v1/settings/discogs-token', 'verb' => 'GET'],
+		['name' => 'settings#setDiscogsToken',  'url' => '/api/v1/settings/discogs-token', 'verb' => 'POST'],
+		['name' => 'settings#getMarketSettings', 'url' => '/api/v1/settings/market',       'verb' => 'GET'],
+		['name' => 'settings#setMarketSettings', 'url' => '/api/v1/settings/market',       'verb' => 'POST'],
 
 		// ── Discogs API proxy ──────────────────────────────────────────────────
 		['name' => 'discogs#search',     'url' => '/api/v1/discogs/search',         'verb' => 'GET'],

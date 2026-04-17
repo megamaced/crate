@@ -12,10 +12,16 @@
     <div class="media-card-info">
       <span class="media-card-title">{{ item.title }}</span>
       <span class="media-card-artist">{{ item.artist }}</span>
-      <span
-        v-if="item.year"
-        class="media-card-year"
-      >{{ item.year }}</span>
+      <div class="media-card-footer">
+        <span
+          v-if="item.year"
+          class="media-card-year"
+        >{{ item.year }}</span>
+        <span
+          v-if="item.marketValue"
+          class="media-card-market"
+        >{{ formatMarketValue(item) }}</span>
+      </div>
     </div>
   </div>
 </template>
@@ -36,6 +42,19 @@ const FORMAT_COLOURS = {
   SACD: ['#0f766e', '#2dd4bf'],
   Cassette: ['#b45309', '#fbbf24'],
   MiniDisc: ['#0e7490', '#38bdf8'],
+}
+
+function formatMarketValue(item) {
+  if (!item.marketValue) return ''
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: item.marketValueCurrency ?? 'GBP',
+      minimumFractionDigits: 2,
+    }).format(item.marketValue)
+  } catch {
+    return `${item.marketValueCurrency ?? ''} ${item.marketValue}`
+  }
 }
 
 const artStyle = computed(() => {
@@ -111,9 +130,23 @@ const artStyle = computed(() => {
   text-overflow: ellipsis;
 }
 
+.media-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  margin-top: 2px;
+}
+
 .media-card-year {
   font-size: 0.75em;
   color: var(--color-text-maxcontrast);
-  margin-top: 2px;
+}
+
+.media-card-market {
+  font-size: 0.75em;
+  font-weight: 700;
+  color: var(--color-success, #46ba61);
+  white-space: nowrap;
 }
 </style>

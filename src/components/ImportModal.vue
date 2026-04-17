@@ -166,6 +166,19 @@
           </label>
         </div>
 
+        <div
+          v-if="hasToken"
+          class="import-toggle"
+        >
+          <label class="import-toggle-label">
+            <input
+              v-model="autoFetchMarketRates"
+              type="checkbox"
+            >
+            Fetch market rates after importing
+          </label>
+        </div>
+
         <div class="import-actions">
           <NcButton
             type="button"
@@ -250,6 +263,29 @@
           </p>
         </template>
 
+        <!-- Market value progress -->
+        <template v-if="hasToken && autoFetchMarketRates && result.created > 0">
+          <div class="import-enrich">
+            <p class="import-enrich__label">
+              <template v-if="marketQueue.finished.value">
+                Market rates complete — {{ marketQueue.done.value }} of {{ marketQueue.total.value }} items priced.
+                <template v-if="marketQueue.failed.value > 0">
+                  {{ marketQueue.failed.value }} had no listing.
+                </template>
+              </template>
+              <template v-else>
+                Fetching market rates… {{ marketQueue.done.value }} / {{ marketQueue.total.value }}
+              </template>
+            </p>
+            <div class="import-enrich__bar-wrap">
+              <div
+                class="import-enrich__bar"
+                :style="{ width: marketQueue.progress.value + '%' }"
+              />
+            </div>
+          </div>
+        </template>
+
         <div class="import-actions">
           <NcButton
             type="button"
@@ -270,6 +306,7 @@ import { NcModal, NcButton } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
 import { useEnrichQueue } from '../composables/useEnrichQueue.js'
+import { useMarketValueQueue } from '../composables/useMarketValueQueue.js'
 import { useSettings } from '../composables/useSettings.js'
 
 const props = defineProps({
@@ -279,9 +316,10 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'imported'])
 
-// Shared enrichment queue (survives modal close/reopen)
+// Shared queues (survive modal close/reopen)
 const enrich = useEnrichQueue()
-const { autoEnrichOnImport } = useSettings()
+const marketQueue = useMarketValueQueue()
+const { autoEnrichOnImport, autoFetchMarketRates, marketCurrency } = useSettings()
 
 // ── state ────────────────────────────────────────────────────────────────────
 const step = ref('pick')
@@ -332,8 +370,8 @@ function reset() {
   totalRows.value = 0
   mapping.value = {}
   result.value = null
-  // Only reset enrich state if a previous run has fully completed
   if (enrich.finished.value) enrich.reset()
+  if (marketQueue.finished.value) marketQueue.reset()
 }
 
 // ── file selection ────────────────────────────────────────────────────────────
@@ -423,9 +461,12 @@ async function doImport() {
 
     emit('imported')
 
-    // Start enrichment queue if we have a token, the toggle is on, and there are new items
-    if (props.hasToken && autoEnrichOnImport.value && result.value.itemIds?.length > 0) {
-      enrich.start(result.value.itemIds)
+    const newIds = result.value.itemIds ?? []
+    if (props.hasToken && autoEnrichOnImport.value && newIds.length > 0) {
+      enrich.start(newIds)
+    }
+    if (props.hasToken && autoFetchMarketRates.value && newIds.length > 0) {
+      marketQueue.start(newIds, marketCurrency.value)
     }
   } catch (e) {
     mappingError.value = e.response?.data?.ocs?.data?.error ?? 'Import failed.'

@@ -39,6 +39,12 @@
           <option value="year-desc">
             Year ↓
           </option>
+          <option value="marketValue-desc">
+            Value ↓
+          </option>
+          <option value="marketValue-asc">
+            Value ↑
+          </option>
         </select>
 
         <!-- View mode toggle -->
@@ -190,6 +196,12 @@
               </span>
             </div>
             <div
+              v-if="item.marketValue"
+              class="cv-list-market"
+            >
+              {{ formatMarketValue(item) }}
+            </div>
+            <div
               class="cv-list-actions"
               @click.stop
             >
@@ -279,6 +291,9 @@ const filteredSorted = computed(() => {
     } else if (field === 'year') {
       av = a.year ?? 0
       bv = b.year ?? 0
+    } else if (field === 'marketValue') {
+      av = a.marketValue ?? 0
+      bv = b.marketValue ?? 0
     } else if (field === 'artist') {
       av = stripArticle(a.artist ?? '').toLowerCase()
       bv = stripArticle(b.artist ?? '').toLowerCase()
@@ -429,6 +444,19 @@ const FORMAT_COLOURS = {
   SACD: ['#0f766e', '#2dd4bf'],
   Cassette: ['#b45309', '#fbbf24'],
   MiniDisc: ['#0e7490', '#38bdf8'],
+}
+
+function formatMarketValue(item) {
+  if (!item.marketValue) return ''
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: item.marketValueCurrency ?? 'GBP',
+      minimumFractionDigits: 2,
+    }).format(item.marketValue)
+  } catch {
+    return `${item.marketValueCurrency ?? ''} ${item.marketValue}`
+  }
 }
 
 function thumbStyle(item) {
@@ -625,6 +653,14 @@ function thumbStyle(item) {
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+}
+
+.cv-list-market {
+  font-size: 0.875em;
+  font-weight: 600;
+  color: var(--color-success, #46ba61);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .cv-list-title {

@@ -6,6 +6,7 @@ namespace OCA\Crate\Controller;
 
 use OCA\Crate\Db\CrateShareMapper;
 use OCA\Crate\Service\DiscogsService;
+use OCA\Crate\Service\MarketValueService;
 use OCA\Crate\Service\MediaService;
 use OCA\Crate\Db\PlaylistItemMapper;
 use OCA\Crate\Db\PlaylistMapper;
@@ -25,6 +26,7 @@ class MediaController extends OCSController
         IRequest $request,
         private readonly MediaService $mediaService,
         private readonly DiscogsService $discogsService,
+        private readonly MarketValueService $marketValueService,
         private readonly IUserSession $userSession,
         private readonly PlaylistMapper $playlistMapper,
         private readonly PlaylistItemMapper $playlistItemMapper,
@@ -231,6 +233,31 @@ class MediaController extends OCSController
         } catch (\OCA\Crate\Exception\DiscogsRateLimitException) {
             return new DataResponse(
                 ['error' => 'Discogs rate limit exceeded. The queue will retry automatically.'],
+                Http::STATUS_TOO_MANY_REQUESTS,
+            );
+        }
+    }
+
+    /**
+     * Fetch the current Discogs marketplace lowest price for an item.
+     *
+     * POST /api/v1/media/{id}/market-value
+     */
+    #[NoAdminRequired]
+    public function fetchMarketValue(int $id, string $currency = 'GBP'): DataResponse
+    {
+        try {
+            $updated = $this->marketValueService->fetchAndStore($id, $this->userId(), $currency);
+            if ($updated === null) {
+                return new DataResponse(
+                    ['error' => 'Item has no Discogs ID — enrich it first.'],
+                    Http::STATUS_UNPROCESSABLE_ENTITY,
+                );
+            }
+            return new DataResponse($updated);
+        } catch (\OCA\Crate\Exception\DiscogsRateLimitException) {
+            return new DataResponse(
+                ['error' => 'Discogs rate limit exceeded. Try again shortly.'],
                 Http::STATUS_TOO_MANY_REQUESTS,
             );
         }

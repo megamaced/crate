@@ -24,6 +24,13 @@
         >
           Remove data
         </NcButton>
+        <NcButton
+          v-if="!fetchingMarket"
+          variant="tertiary"
+          @click="fetchMarketValue"
+        >
+          {{ item.marketValue ? 'Refresh market rate' : 'Fetch market rate' }}
+        </NcButton>
         <span
           v-if="enriching"
           class="detail-enriching"
@@ -32,6 +39,10 @@
           v-if="stripping"
           class="detail-enriching"
         >Removing…</span>
+        <span
+          v-if="fetchingMarket"
+          class="detail-enriching"
+        >Fetching price…</span>
         <NcButton
           variant="tertiary"
           @click="$emit('addToPlaylist', item)"
@@ -91,6 +102,17 @@
               class="badge badge-country"
             >{{ item.country }}</span>
           </div>
+
+          <!-- Market value -->
+          <p
+            v-if="item.marketValue"
+            class="detail-market-value"
+          >
+            {{ formatMarketValue(item) }}
+            <span class="detail-market-fetched">
+              as of {{ formatFetchedAt(item.marketValueFetchedAt) }}
+            </span>
+          </p>
 
           <!-- Metadata grid -->
           <dl class="detail-meta">
@@ -181,6 +203,7 @@ import { ref, computed } from 'vue'
 import { NcButton } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateUrl, generateOcsUrl } from '@nextcloud/router'
+import { useSettings } from '../composables/useSettings.js'
 
 const props = defineProps({
   item: { type: Object, required: true },
@@ -188,8 +211,11 @@ const props = defineProps({
 
 const emit = defineEmits(['back', 'edit', 'delete', 'enriched', 'addToPlaylist', 'share'])
 
+const { autoFetchMarketRates, marketCurrency } = useSettings()
+
 const enriching = ref(false)
 const stripping = ref(false)
+const fetchingMarket = ref(false)
 
 // True once full release data has been fetched from Discogs
 const isEnriched = computed(() =>
@@ -239,11 +265,52 @@ async function enrich() {
     const updated = res.data.ocs?.data ?? null
     if (updated) {
       emit('enriched', updated)
+      if (autoFetchMarketRates.value && updated.discogsId) {
+        await fetchMarketValue()
+      }
     }
   } catch (e) {
     console.error('Enrich failed', e)
   } finally {
     enriching.value = false
+  }
+}
+
+async function fetchMarketValue() {
+  fetchingMarket.value = true
+  try {
+    const res = await axios.post(
+      generateOcsUrl('/apps/crate/api/v1/media/' + props.item.id + '/market-value'),
+      { currency: marketCurrency.value },
+    )
+    const updated = res.data.ocs?.data ?? null
+    if (updated) emit('enriched', updated)
+  } catch (e) {
+    console.error('Fetch market value failed', e)
+  } finally {
+    fetchingMarket.value = false
+  }
+}
+
+function formatMarketValue(item) {
+  if (!item.marketValue) return ''
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: item.marketValueCurrency ?? 'GBP',
+      minimumFractionDigits: 2,
+    }).format(item.marketValue)
+  } catch {
+    return `${item.marketValueCurrency ?? ''} ${item.marketValue}`
+  }
+}
+
+function formatFetchedAt(dateStr) {
+  if (!dateStr) return ''
+  try {
+    return new Date(dateStr).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+  } catch {
+    return dateStr
   }
 }
 
@@ -266,6 +333,21 @@ async function stripEnrich() {
 </script>
 
 <style scoped>
+.detail-market-value {
+  font-size: 1.25em;
+  font-weight: 700;
+  color: var(--color-success, #46ba61);
+  margin: 8px 0 0;
+  line-height: 1.2;
+}
+
+.detail-market-fetched {
+  font-size: 0.6em;
+  font-weight: 400;
+  color: var(--color-text-maxcontrast);
+  margin-left: 6px;
+}
+
 .detail-view {
   padding: 0 0 40px;
 }

@@ -100,6 +100,66 @@
     </NcAppSettingsSection>
 
     <NcAppSettingsSection
+      id="crate-settings-market"
+      name="Market values"
+    >
+      <p class="settings-hint">
+        Fetches the current lowest Discogs marketplace price for each album.
+        Prices are cached on the item and shown in the collection, album detail, and home page.
+      </p>
+
+      <div class="settings-enrichment-options">
+        <NcCheckboxRadioSwitch
+          v-model="autoFetchMarketRates"
+          :disabled="!hasToken"
+        >
+          Automatically fetch market rates after enriching an album
+        </NcCheckboxRadioSwitch>
+
+        <div class="settings-field">
+          <label for="market-currency">Currency</label>
+          <select
+            id="market-currency"
+            v-model="marketCurrency"
+            class="settings-currency-select"
+          >
+            <option
+              v-for="c in currencies"
+              :key="c"
+              :value="c"
+            >
+              {{ c }}
+            </option>
+          </select>
+        </div>
+
+        <div class="settings-actions settings-enrich-all">
+          <NcButton
+            variant="secondary"
+            :disabled="!hasToken || marketQueue.running.value"
+            @click="refreshAllMarketRates"
+          >
+            {{ marketQueue.running.value
+              ? `Fetching… ${marketQueue.done.value} / ${marketQueue.total.value}`
+              : 'Refresh all market rates' }}
+          </NcButton>
+          <NcButton
+            v-if="marketQueue.running.value"
+            variant="tertiary"
+            @click="marketQueue.cancel()"
+          >
+            Stop
+          </NcButton>
+          <span
+            v-if="!hasToken"
+            class="settings-hint"
+            style="margin:0"
+          >Add a Discogs token above to enable market rates.</span>
+        </div>
+      </div>
+    </NcAppSettingsSection>
+
+    <NcAppSettingsSection
       id="crate-settings-danger"
       name="Danger zone"
     >
@@ -154,6 +214,7 @@ import { NcAppSettingsDialog, NcAppSettingsSection, NcButton, NcCheckboxRadioSwi
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
 import { useEnrichQueue } from '../composables/useEnrichQueue.js'
+import { useMarketValueQueue } from '../composables/useMarketValueQueue.js'
 import { useSettings } from '../composables/useSettings.js'
 
 defineProps({
@@ -162,7 +223,10 @@ defineProps({
 defineEmits(['update:open'])
 
 const enrich = useEnrichQueue()
-const { autoEnrichOnClick } = useSettings()
+const marketQueue = useMarketValueQueue()
+const { autoEnrichOnClick, autoFetchMarketRates, marketCurrency } = useSettings()
+
+const currencies = ['GBP', 'USD', 'EUR', 'CAD', 'AUD', 'JPY', 'CHF', 'MXN', 'BRL', 'NZD', 'SEK', 'ZAR']
 
 const tokenInput = ref('')
 const hasToken = ref(false)
@@ -233,6 +297,20 @@ async function wipeCollection() {
 }
 
 onMounted(load)
+
+async function refreshAllMarketRates() {
+  if (marketQueue.running.value) return
+  try {
+    const res = await axios.get(generateOcsUrl('/apps/crate/api/v1/media'))
+    const all = res.data.ocs?.data ?? []
+    const ids = all.filter(item => item.discogsId).map(item => item.id)
+    if (ids.length > 0) {
+      marketQueue.start(ids, marketCurrency.value)
+    }
+  } catch (e) {
+    console.error('Failed to load items for market rate refresh', e)
+  }
+}
 
 async function enrichAll() {
   if (enrich.running.value) return
@@ -318,5 +396,22 @@ async function enrichAll() {
 
 .settings-enrich-all {
   margin-top: 4px;
+}
+
+.settings-currency-select {
+  display: block;
+  margin-top: 6px;
+  border: 2px solid var(--color-border-dark);
+  border-radius: var(--border-radius);
+  background: var(--color-main-background);
+  color: var(--color-main-text);
+  padding: 6px 10px;
+  font-size: 1em;
+  min-width: 120px;
+}
+
+.settings-currency-select:focus {
+  border-color: var(--color-primary-element);
+  outline: none;
 }
 </style>

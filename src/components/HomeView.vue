@@ -92,6 +92,21 @@
       </section>
 
       <section
+        v-if="mostValuable.length > 0"
+        class="crate-home-section"
+      >
+        <h3>Most Valuable</h3>
+        <div class="crate-card-grid">
+          <MediaCard
+            v-for="item in mostValuable"
+            :key="'mv' + item.id"
+            :item="item"
+            @detail="$emit('detail', item)"
+          />
+        </div>
+      </section>
+
+      <section
         v-for="row in formatRows"
         :key="row.format"
         class="crate-home-section"
@@ -189,6 +204,13 @@ const formatRows = computed(() => {
 })
 
 const recentItems = computed(() => items.value.slice(0, ROW_COUNT))
+
+const mostValuable = computed(() => {
+  return [...items.value]
+    .filter(i => i.marketValue)
+    .sort((a, b) => (b.marketValue ?? 0) - (a.marketValue ?? 0))
+    .slice(0, ROW_COUNT)
+})
 
 function pluralLabel(fmt) {
   if (fmt === 'Vinyl') return 'Vinyl'
