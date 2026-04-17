@@ -73,6 +73,12 @@
 
         <NcButton
           variant="secondary"
+          @click="exportOpen = true"
+        >
+          Export
+        </NcButton>
+        <NcButton
+          variant="secondary"
           @click="$emit('import')"
         >
           Import
@@ -241,6 +247,12 @@
         {{ shortLabel(group.header) }}
       </button>
     </nav>
+
+  <ExportModal
+    :show="exportOpen"
+    :scope="status"
+    @close="exportOpen = false"
+  />
   </div>
 </template>
 
@@ -249,12 +261,15 @@ import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { NcButton } from '@nextcloud/vue'
 import { generateUrl } from '@nextcloud/router'
 import MediaCard from './MediaCard.vue'
+import ExportModal from './ExportModal.vue'
 
 const props = defineProps({
   items: { type: Array, required: true },
   loading: { type: Boolean, default: false },
   status: { type: String, default: 'owned' }, // 'owned' | 'wanted'
 })
+
+const exportOpen = ref(false)
 
 defineEmits(['add', 'import', 'detail', 'edit', 'delete'])
 
