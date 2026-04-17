@@ -728,7 +728,7 @@ function thumbStyle(item) {
 
 @media (max-width: 480px) {
   .cv-list-actions {
-    opacity: 1;
+    display: none;
   }
   .cv-toolbar-right {
     width: 100%;
