@@ -462,10 +462,12 @@ async function doImport() {
     emit('imported')
 
     const newIds = result.value.itemIds ?? []
+    const doMarket = props.hasToken && autoFetchMarketRates.value && newIds.length > 0
     if (props.hasToken && autoEnrichOnImport.value && newIds.length > 0) {
-      enrich.start(newIds)
-    }
-    if (props.hasToken && autoFetchMarketRates.value && newIds.length > 0) {
+      enrich.start(newIds).then(() => {
+        if (doMarket) marketQueue.start(newIds, marketCurrency.value)
+      })
+    } else if (doMarket) {
       marketQueue.start(newIds, marketCurrency.value)
     }
   } catch (e) {
@@ -482,8 +484,8 @@ function handleClose() {
 <style scoped>
 .import-modal {
   padding: 24px 28px 28px;
-  min-width: min(560px, 92vw);
-  max-width: 700px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .import-modal h2 {
