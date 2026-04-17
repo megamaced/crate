@@ -33,9 +33,10 @@ return [
 		['name' => 'settings#setMarketSettings', 'url' => '/api/v1/settings/market',       'verb' => 'POST'],
 
 		// ── Discogs API proxy ──────────────────────────────────────────────────
-		['name' => 'discogs#search',     'url' => '/api/v1/discogs/search',         'verb' => 'GET'],
-		['name' => 'discogs#getRelease', 'url' => '/api/v1/discogs/release/{id}',   'verb' => 'GET'],
-		['name' => 'discogs#getArtist',  'url' => '/api/v1/discogs/artist/{id}',    'verb' => 'GET'],
+		['name' => 'discogs#search',       'url' => '/api/v1/discogs/search',            'verb' => 'GET'],
+		['name' => 'discogs#barcodeSearch', 'url' => '/api/v1/discogs/barcode/{barcode}', 'verb' => 'GET'],
+		['name' => 'discogs#getRelease',    'url' => '/api/v1/discogs/release/{id}',      'verb' => 'GET'],
+		['name' => 'discogs#getArtist',     'url' => '/api/v1/discogs/artist/{id}',       'verb' => 'GET'],
 
 		// ── Import ─────────────────────────────────────────────────────────────
 		['name' => 'import#preview', 'url' => '/api/v1/import/preview', 'verb' => 'POST'],
@@ -61,6 +62,7 @@ return [
 
 		// ── Android / mobile API ───────────────────────────────────────────────
 		['name' => 'settings#me',                  'url' => '/api/v1/me',                       'verb' => 'GET'],
+		['name' => 'settings#setCurrency',         'url' => '/api/v1/settings/currency',        'verb' => 'PUT'],
 		['name' => 'home#home',                    'url' => '/api/v1/home',                     'verb' => 'GET'],
 		['name' => 'media#refreshAllMarketValues', 'url' => '/api/v1/market-value/refresh-all', 'verb' => 'POST'],
 	],

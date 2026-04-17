@@ -44,6 +44,17 @@ class DiscogsController extends OCSController
     }
 
     /**
+     * Dedicated barcode lookup — wraps search but always uses barcode mode.
+     * GET /api/v1/discogs/barcode/{barcode}
+     */
+    #[NoAdminRequired]
+    public function barcodeSearch(string $barcode): DataResponse
+    {
+        $results = $this->discogsService->searchByBarcode($this->userId(), $barcode);
+        return new DataResponse($results);
+    }
+
+    /**
      * Fetch full release details from Discogs /releases/{id}.
      *
      * Used by the frontend when the user wants to enrich an item before saving,

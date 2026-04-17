@@ -62,6 +62,17 @@ class SettingsController extends OCSController
     }
 
     /**
+     * PUT /api/v1/settings/currency
+     * Update just the market currency preference — convenience endpoint for Android app.
+     */
+    #[NoAdminRequired]
+    public function setCurrency(string $currency = 'GBP'): DataResponse
+    {
+        $this->config->setUserValue($this->userId(), 'crate', 'market_currency', strtoupper($currency));
+        return new DataResponse(['marketCurrency' => strtoupper($currency)]);
+    }
+
+    /**
      * GET /api/v1/me
      * Returns the current user's profile and app settings — used by the Android app.
      */
