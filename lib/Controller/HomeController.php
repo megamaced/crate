@@ -10,7 +10,6 @@ use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\OCSController;
 use OCP\IRequest;
 use OCP\IUserSession;
-
 use OCA\Crate\Controller\UsesAuthenticatedUser;
 
 /**
