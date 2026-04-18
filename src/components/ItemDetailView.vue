@@ -1,79 +1,79 @@
 <template>
   <div class="detail-view">
-    <!-- Top bar -->
-    <div class="detail-topbar">
-      <NcButton
-        variant="tertiary"
-        class="detail-back"
-        @click="$emit('back')"
-      >
-        ← Back
-      </NcButton>
-      <div class="detail-topbar-actions">
-        <NcButton
-          v-if="!enriching && !stripping"
-          variant="tertiary"
-          :disabled="!hasToken"
-          @click="enrich"
-        >
-          {{ isEnriched ? 'Re-enrich' : 'Enrich from Discogs' }}
-        </NcButton>
-        <NcButton
-          v-if="isEnriched && !enriching && !stripping"
-          variant="tertiary"
-          @click="stripEnrich"
-        >
-          Remove data
-        </NcButton>
-        <NcButton
-          v-if="!fetchingMarket"
-          variant="tertiary"
-          :disabled="!hasToken"
-          @click="fetchMarketValue"
-        >
-          {{ item.marketValue ? 'Refresh market rate' : 'Fetch market rate' }}
-        </NcButton>
-        <span
-          v-if="enriching"
-          class="detail-enriching"
-        >Fetching from Discogs…</span>
-        <span
-          v-if="stripping"
-          class="detail-enriching"
-        >Removing…</span>
-        <span
-          v-if="fetchingMarket"
-          class="detail-enriching"
-        >Fetching price…</span>
+    <!-- Sticky header: topbar + hero -->
+    <div class="detail-sticky-header">
+      <!-- Top bar -->
+      <div class="detail-topbar">
         <NcButton
           variant="tertiary"
-          @click="$emit('addToPlaylist', item)"
+          class="detail-back"
+          @click="$emit('back')"
         >
-          Add to playlist
+          ← Back
         </NcButton>
-        <NcButton
-          variant="tertiary"
-          @click="$emit('share', item)"
-        >
-          Share
-        </NcButton>
-        <NcButton
-          variant="tertiary"
-          @click="$emit('edit', item)"
-        >
-          Edit
-        </NcButton>
-        <NcButton
-          variant="error"
-          @click="$emit('delete', item)"
-        >
-          Delete
-        </NcButton>
+        <div class="detail-topbar-actions">
+          <NcButton
+            v-if="!enriching && !stripping"
+            variant="tertiary"
+            :disabled="!hasToken"
+            @click="enrich"
+          >
+            {{ isEnriched ? 'Re-enrich' : 'Enrich from Discogs' }}
+          </NcButton>
+          <NcButton
+            v-if="isEnriched && !enriching && !stripping"
+            variant="tertiary"
+            @click="stripEnrich"
+          >
+            Remove data
+          </NcButton>
+          <NcButton
+            v-if="!fetchingMarket"
+            variant="tertiary"
+            :disabled="!hasToken"
+            @click="fetchMarketValue"
+          >
+            {{ item.marketValue ? 'Refresh market rate' : 'Fetch market rate' }}
+          </NcButton>
+          <span
+            v-if="enriching"
+            class="detail-enriching"
+          >Fetching from Discogs…</span>
+          <span
+            v-if="stripping"
+            class="detail-enriching"
+          >Removing…</span>
+          <span
+            v-if="fetchingMarket"
+            class="detail-enriching"
+          >Fetching price…</span>
+          <NcButton
+            variant="tertiary"
+            @click="$emit('addToPlaylist', item)"
+          >
+            Add to playlist
+          </NcButton>
+          <NcButton
+            variant="tertiary"
+            @click="$emit('share', item)"
+          >
+            Share
+          </NcButton>
+          <NcButton
+            variant="tertiary"
+            @click="$emit('edit', item)"
+          >
+            Edit
+          </NcButton>
+          <NcButton
+            variant="error"
+            @click="$emit('delete', item)"
+          >
+            Delete
+          </NcButton>
+        </div>
       </div>
-    </div>
 
-    <!-- Hero + all content constrained to readable width -->
-    <div class="detail-body">
       <!-- Hero -->
       <div class="detail-hero">
         <div
@@ -137,7 +137,10 @@
           </dl>
         </div>
       </div>
+    </div><!-- /detail-sticky-header -->
 
+    <!-- Scrollable content -->
+    <div class="detail-body">
       <!-- Tracklist -->
       <section
         v-if="tracklist.length > 0"
@@ -367,17 +370,22 @@ async function stripEnrich() {
   padding: 0 20px;
 }
 
+/* Sticky header wrapper */
+.detail-sticky-header {
+  position: sticky;
+  top: 0;
+  background: var(--color-main-background);
+  z-index: 10;
+  padding: 0 20px;
+}
+
 /* Top bar */
 .detail-topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 4px;
-  padding: calc(var(--default-clickable-area, 44px) + 8px) 20px 12px;
-  position: sticky;
-  top: 0;
-  background: var(--color-main-background);
-  z-index: 10;
+  padding: calc(var(--default-clickable-area, 44px) + 8px) 0 12px;
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -408,17 +416,14 @@ async function stripEnrich() {
   display: grid;
   grid-template-columns: 260px 1fr;
   gap: 32px;
-  margin-bottom: 36px;
-  position: sticky;
-  top: calc(var(--default-clickable-area, 44px) + 36px);
-  background: var(--color-main-background);
-  z-index: 9;
   padding-bottom: 16px;
 }
 
 @media (max-width: 640px) {
   .detail-hero {
     grid-template-columns: 1fr;
+  }
+  .detail-sticky-header {
     position: static;
   }
 }
