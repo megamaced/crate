@@ -1,5 +1,8 @@
 <template>
-  <div class="crate-home">
+  <div
+    ref="homeEl"
+    class="crate-home"
+  >
     <p
       v-if="loading"
       class="crate-status"
@@ -126,7 +129,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { NcButton } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl, generateUrl } from '@nextcloud/router'
@@ -137,8 +140,19 @@ defineEmits(['add', 'detail'])
 
 const loading = ref(false)
 const items = ref([])
+const homeEl = ref(null)
+const rowCount = ref(6)
 
-const ROW_COUNT = 6
+function updateRowCount() {
+  const el = homeEl.value?.$el ?? homeEl.value
+  if (!el) return
+  const width = el.clientWidth
+  // Cards: minmax(180px, 1fr) with 12px gap
+  const cols = Math.floor((width + 12) / (180 + 12))
+  rowCount.value = Math.max(cols, 2)
+}
+
+let _resizeObserver = null
 
 async function load() {
   loading.value = true
@@ -199,20 +213,20 @@ const formatRows = computed(() => {
     const pool = items.value.filter(i => i.format === fmt)
     if (pool.length === 0) continue
     const shuffled = seededShuffle(pool, seed + fmt.charCodeAt(0))
-    const picks = shuffled.slice(0, ROW_COUNT)
+    const picks = shuffled.slice(0, rowCount.value)
     picks.forEach(i => seen.add(i.id))
     rows.push({ format: fmt, label: pluralLabel(fmt), items: picks })
   }
   return rows
 })
 
-const recentItems = computed(() => items.value.slice(0, ROW_COUNT))
+const recentItems = computed(() => items.value.slice(0, rowCount.value))
 
 const mostValuable = computed(() => {
   return [...items.value]
     .filter(i => i.marketValue)
     .sort((a, b) => (b.marketValue ?? 0) - (a.marketValue ?? 0))
-    .slice(0, ROW_COUNT)
+    .slice(0, rowCount.value)
 })
 
 function pluralLabel(fmt) {
@@ -230,7 +244,18 @@ function genreList(item) {
   }
 }
 
-onMounted(load)
+onMounted(() => {
+  load()
+  const el = homeEl.value?.$el ?? homeEl.value
+  if (el) {
+    updateRowCount()
+    _resizeObserver = new ResizeObserver(updateRowCount)
+    _resizeObserver.observe(el)
+  }
+})
+onBeforeUnmount(() => {
+  _resizeObserver?.disconnect()
+})
 defineExpose({ load })
 </script>
 

@@ -1,122 +1,125 @@
 <template>
   <div class="collection-view">
-    <!-- Toolbar -->
-    <div class="cv-toolbar">
-      <div class="cv-toolbar-left">
-        <h2 class="cv-heading">
-          {{ heading }}
-        </h2>
-      </div>
-
-      <div class="cv-toolbar-right">
-        <!-- Sort -->
-        <select
-          v-model="sortKey"
-          class="cv-sort-select"
-          aria-label="Sort order"
-        >
-          <option value="createdAt-desc">
-            Date Added ↓
-          </option>
-          <option value="createdAt-asc">
-            Date Added ↑
-          </option>
-          <option value="artist-asc">
-            Artist A–Z
-          </option>
-          <option value="artist-desc">
-            Artist Z–A
-          </option>
-          <option value="title-asc">
-            Album A–Z
-          </option>
-          <option value="title-desc">
-            Album Z–A
-          </option>
-          <option value="year-asc">
-            Year ↑
-          </option>
-          <option value="year-desc">
-            Year ↓
-          </option>
-          <option value="marketValue-desc">
-            Value ↓
-          </option>
-          <option value="marketValue-asc">
-            Value ↑
-          </option>
-        </select>
-
-        <!-- View mode toggle -->
-        <div
-          class="cv-view-toggle"
-          role="group"
-          aria-label="View mode"
-        >
-          <button
-            :class="['cv-toggle-btn', { active: viewMode === 'card' }]"
-            title="Card view"
-            aria-label="Card view"
-            @click="viewMode = 'card'"
-          >
-            ▦
-          </button>
-          <button
-            :class="['cv-toggle-btn', { active: viewMode === 'list' }]"
-            title="List view"
-            aria-label="List view"
-            @click="viewMode = 'list'"
-          >
-            ☰
-          </button>
+    <!-- Sticky header: toolbar + format filter chips -->
+    <div class="cv-sticky-header">
+      <!-- Toolbar -->
+      <div class="cv-toolbar">
+        <div class="cv-toolbar-left">
+          <h2 class="cv-heading">
+            {{ heading }}
+          </h2>
         </div>
 
-        <NcButton
-          variant="secondary"
-          @click="exportOpen = true"
-        >
-          Export
-        </NcButton>
-        <NcButton
-          variant="secondary"
-          @click="$emit('import')"
-        >
-          Import
-        </NcButton>
-        <NcButton
-          variant="primary"
-          @click="$emit('add')"
-        >
-          <template #icon>
-            <span class="cv-plus">+</span>
-          </template>
-          Add item
-        </NcButton>
-      </div>
-    </div>
+        <div class="cv-toolbar-right">
+          <!-- Sort -->
+          <select
+            v-model="sortKey"
+            class="cv-sort-select"
+            aria-label="Sort order"
+          >
+            <option value="createdAt-desc">
+              Date Added ↓
+            </option>
+            <option value="createdAt-asc">
+              Date Added ↑
+            </option>
+            <option value="artist-asc">
+              Artist A–Z
+            </option>
+            <option value="artist-desc">
+              Artist Z–A
+            </option>
+            <option value="title-asc">
+              Album A–Z
+            </option>
+            <option value="title-desc">
+              Album Z–A
+            </option>
+            <option value="year-asc">
+              Year ↑
+            </option>
+            <option value="year-desc">
+              Year ↓
+            </option>
+            <option value="marketValue-desc">
+              Value ↓
+            </option>
+            <option value="marketValue-asc">
+              Value ↑
+            </option>
+          </select>
 
-    <!-- Format filter chips -->
-    <div
-      v-if="presentFormats.length > 1"
-      class="cv-filters"
-      role="group"
-      aria-label="Filter by format"
-    >
-      <button
-        :class="['cv-chip', { active: filterFormat === '' }]"
-        @click="filterFormat = ''"
+          <!-- View mode toggle -->
+          <div
+            class="cv-view-toggle"
+            role="group"
+            aria-label="View mode"
+          >
+            <button
+              :class="['cv-toggle-btn', { active: viewMode === 'card' }]"
+              title="Card view"
+              aria-label="Card view"
+              @click="viewMode = 'card'"
+            >
+              ▦
+            </button>
+            <button
+              :class="['cv-toggle-btn', { active: viewMode === 'list' }]"
+              title="List view"
+              aria-label="List view"
+              @click="viewMode = 'list'"
+            >
+              ☰
+            </button>
+          </div>
+
+          <NcButton
+            variant="secondary"
+            @click="exportOpen = true"
+          >
+            Export
+          </NcButton>
+          <NcButton
+            variant="secondary"
+            @click="$emit('import')"
+          >
+            Import
+          </NcButton>
+          <NcButton
+            variant="primary"
+            @click="$emit('add')"
+          >
+            <template #icon>
+              <span class="cv-plus">+</span>
+            </template>
+            Add item
+          </NcButton>
+        </div>
+      </div>
+
+      <!-- Format filter chips -->
+      <div
+        v-if="presentFormats.length > 1"
+        class="cv-filters"
+        role="group"
+        aria-label="Filter by format"
       >
-        All ({{ items.length }})
-      </button>
-      <button
-        v-for="fmt in presentFormats"
-        :key="fmt"
-        :class="['cv-chip', { active: filterFormat === fmt }]"
-        @click="filterFormat = fmt"
-      >
-        {{ fmt }} ({{ formatCount(fmt) }})
-      </button>
-    </div>
+        <button
+          :class="['cv-chip', { active: filterFormat === '' }]"
+          @click="filterFormat = ''"
+        >
+          All ({{ items.length }})
+        </button>
+        <button
+          v-for="fmt in presentFormats"
+          :key="fmt"
+          :class="['cv-chip', { active: filterFormat === fmt }]"
+          @click="filterFormat = fmt"
+        >
+          {{ fmt }} ({{ formatCount(fmt) }})
+        </button>
+      </div>
+    </div><!-- /cv-sticky-header -->
 
     <!-- Loading -->
     <p
@@ -479,6 +482,15 @@ function thumbStyle(item) {
   }
 }
 
+/* Sticky header wrapper */
+.cv-sticky-header {
+  position: sticky;
+  top: 0;
+  background: var(--color-main-background);
+  z-index: 10;
+  padding-bottom: 4px;
+}
+
 /* Toolbar */
 .cv-toolbar {
   display: flex;
@@ -487,10 +499,6 @@ function thumbStyle(item) {
   gap: 12px;
   flex-wrap: wrap;
   padding: calc(var(--default-clickable-area, 44px) + 8px) 0 16px;
-  position: sticky;
-  top: 0;
-  background: var(--color-main-background);
-  z-index: 10;
 }
 
 .cv-toolbar-left {
@@ -552,12 +560,7 @@ function thumbStyle(item) {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 20px;
-  position: sticky;
-  top: calc(var(--default-clickable-area, 44px) + 40px);
-  background: var(--color-main-background);
-  z-index: 9;
-  padding-bottom: 8px;
+  margin-bottom: 8px;
 }
 
 .cv-chip {
