@@ -220,7 +220,7 @@ import { useSettings } from '../composables/useSettings.js'
 defineProps({
   open: { type: Boolean, required: true },
 })
-defineEmits(['update:open'])
+const emit = defineEmits(['update:open', 'token-changed'])
 
 const enrich = useEnrichQueue()
 const marketQueue = useMarketValueQueue()
@@ -255,6 +255,7 @@ async function save() {
       token: tokenInput.value,
     })
     hasToken.value = tokenInput.value !== ''
+    emit('token-changed', hasToken.value)
     tokenInput.value = ''
     savedMessage.value = 'Saved!'
     setTimeout(() => { savedMessage.value = '' }, 3000)
@@ -271,6 +272,7 @@ async function clearToken() {
   try {
     await axios.post(generateOcsUrl('/apps/crate/api/v1/settings/discogs-token'), { token: '' })
     hasToken.value = false
+    emit('token-changed', false)
     savedMessage.value = 'Token removed.'
     setTimeout(() => { savedMessage.value = '' }, 3000)
   } catch (e) {

@@ -41,7 +41,7 @@
       </template>
     </NcAppNavigation>
 
-    <SettingsPanel v-model:open="settingsOpen" />
+    <SettingsPanel v-model:open="settingsOpen" @token-changed="v => hasDiscogsToken = v" />
 
     <NcAppContent>
       <!-- Item detail view -->
