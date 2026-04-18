@@ -48,6 +48,7 @@
       <ItemDetailView
         v-if="view === 'detail' && selectedItem"
         :item="selectedItem"
+        :has-token="hasDiscogsToken"
         @back="goBack"
         @edit="openEdit"
         @delete="confirmDelete"

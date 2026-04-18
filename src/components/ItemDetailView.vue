@@ -13,6 +13,7 @@
         <NcButton
           v-if="!enriching && !stripping"
           variant="tertiary"
+          :disabled="!hasToken"
           @click="enrich"
         >
           {{ isEnriched ? 'Re-enrich' : 'Enrich from Discogs' }}
@@ -27,6 +28,7 @@
         <NcButton
           v-if="!fetchingMarket"
           variant="tertiary"
+          :disabled="!hasToken"
           @click="fetchMarketValue"
         >
           {{ item.marketValue ? 'Refresh market rate' : 'Fetch market rate' }}
@@ -207,6 +209,7 @@ import { useSettings } from '../composables/useSettings.js'
 
 const props = defineProps({
   item: { type: Object, required: true },
+  hasToken: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['back', 'edit', 'delete', 'enriched', 'addToPlaylist', 'share'])
