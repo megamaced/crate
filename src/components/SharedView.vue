@@ -101,10 +101,13 @@ function thumbStyle(item) {
 }
 
 function playlistCoverStyle(pl) {
-  const first = pl.items?.[0]
-  if (first?.artworkPath) {
-    const url = generateUrl('/apps/crate/artwork/' + first.id)
+  if (pl.coverId) {
+    const url = generateUrl('/apps/crate/artwork/' + pl.coverId)
     return { backgroundImage: `url(${url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+  }
+  const first = pl.items?.[0]
+  if (first) {
+    return artworkStyleFor(first)
   }
   return { background: 'linear-gradient(135deg, #374151, #6b7280)' }
 }

@@ -53,15 +53,23 @@ class SettingsController extends OCSController
     {
         $uid = $this->userId();
         $autoFetch = $this->config->getUserValue($uid, 'crate', 'auto_fetch_market_rates', '0') === '1';
+        $autoEnrichClick = $this->config->getUserValue($uid, 'crate', 'auto_enrich_click', '1') === '1';
+        $autoEnrichImport = $this->config->getUserValue($uid, 'crate', 'auto_enrich_import', '1') === '1';
         return new DataResponse([
             'autoFetchMarketRates' => $autoFetch,
+            'autoEnrichOnClick'    => $autoEnrichClick,
+            'autoEnrichOnImport'   => $autoEnrichImport,
             'marketCurrency'       => $this->config->getUserValue($uid, 'crate', 'market_currency', 'GBP'),
         ]);
     }
 
     #[NoAdminRequired]
-    public function setMarketSettings(bool $autoFetchMarketRates = false, string $marketCurrency = 'GBP'): DataResponse
-    {
+    public function setMarketSettings(
+        bool $autoFetchMarketRates = false,
+        string $marketCurrency = 'GBP',
+        bool $autoEnrichOnClick = true,
+        bool $autoEnrichOnImport = true,
+    ): DataResponse {
         $uid = $this->userId();
         $currency = strtoupper($marketCurrency);
         if (!in_array($currency, MarketValueService::SUPPORTED_CURRENCIES, true)) {
@@ -69,6 +77,8 @@ class SettingsController extends OCSController
         }
         $this->config->setUserValue($uid, 'crate', 'auto_fetch_market_rates', $autoFetchMarketRates ? '1' : '0');
         $this->config->setUserValue($uid, 'crate', 'market_currency', $currency);
+        $this->config->setUserValue($uid, 'crate', 'auto_enrich_click', $autoEnrichOnClick ? '1' : '0');
+        $this->config->setUserValue($uid, 'crate', 'auto_enrich_import', $autoEnrichOnImport ? '1' : '0');
         return new DataResponse([]);
     }
 
@@ -112,6 +122,9 @@ class SettingsController extends OCSController
         $hasToken = (string) ($this->credentialsManager->retrieve($uid, 'crate/discogs_token') ?? '') !== '';
         $autoFetch = $this->config->getUserValue($uid, 'crate', 'auto_fetch_market_rates', '0') === '1';
 
+        $autoEnrichClick = $this->config->getUserValue($uid, 'crate', 'auto_enrich_click', '1') === '1';
+        $autoEnrichImport = $this->config->getUserValue($uid, 'crate', 'auto_enrich_import', '1') === '1';
+
         return new DataResponse([
             'userId'              => $uid,
             'displayName'         => $user->getDisplayName(),
@@ -119,6 +132,8 @@ class SettingsController extends OCSController
             'hasDiscogsToken'     => $hasToken,
             'marketCurrency'      => $currency,
             'autoFetchMarketRates' => $autoFetch,
+            'autoEnrichOnClick'    => $autoEnrichClick,
+            'autoEnrichOnImport'   => $autoEnrichImport,
         ]);
     }
 }

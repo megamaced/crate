@@ -164,7 +164,10 @@ async function createAndAdd() {
       }
       throw addErr
     }
-    playlists.value.push({ ...created, itemCount: 1, coverId: props.item.artworkPath ? props.item.id : null })
+    // Reload the playlist from the server to get the correct coverId
+    const refreshed = await axios.get(generateOcsUrl(`/apps/crate/api/v1/playlists/${created.id}`))
+    const pl = refreshed.data.ocs?.data ?? { ...created, itemCount: 1 }
+    playlists.value.push(pl)
     addedIds.value = new Set([...addedIds.value, created.id])
     newName.value = ''
   } catch (e) {

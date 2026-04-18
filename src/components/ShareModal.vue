@@ -106,11 +106,18 @@ const currentShares = ref([])
 const statusMessage = ref('')
 const statusError = ref(false)
 let searchTimeout = null
+let searchController = null
 
 const displayName = computed(() => props.target?.name ?? '')
 
 watch(() => props.show, async (open) => {
   if (!open) {
+    clearTimeout(searchTimeout)
+    searchTimeout = null
+    if (searchController) {
+      searchController.abort()
+      searchController = null
+    }
     query.value = ''
     searchResults.value = []
     statusMessage.value = ''
@@ -143,13 +150,17 @@ function onQueryInput() {
 }
 
 async function doSearch() {
+  if (searchController) searchController.abort()
+  searchController = new AbortController()
   searching.value = true
   try {
     const res = await axios.get(generateOcsUrl('/apps/crate/api/v1/users/search'), {
       params: { q: query.value.trim() },
+      signal: searchController.signal,
     })
     searchResults.value = res.data.ocs?.data ?? []
   } catch (e) {
+    if (e.name === 'CanceledError' || e.code === 'ERR_CANCELED') return
     console.error('User search failed', e)
     showError('User search failed')
   } finally {
@@ -181,7 +192,7 @@ async function shareWith(user) {
 async function unshare(share) {
   try {
     await axios.delete(generateOcsUrl(`/apps/crate/api/v1/share/${share.id}`))
-    currentShares.value = currentShares.value.filter(s => s.id !== share.id)
+    await loadCurrentShares()
   } catch (e) {
     console.error('Failed to unshare', e)
     showError('Failed to unshare')

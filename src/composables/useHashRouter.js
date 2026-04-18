@@ -10,10 +10,10 @@ export function useHashRouter() {
   const previousView = ref('home')
   const savedScrollTop = ref(0)
 
-  let pendingHashSets = 0
+  let lastSetHash = null
 
   function setHash(hash) {
-    pendingHashSets++
+    lastSetHash = hash
     window.location.hash = hash
   }
 
@@ -39,10 +39,11 @@ export function useHashRouter() {
   }
 
   function consumePendingHash() {
-    if (pendingHashSets > 0) {
-      pendingHashSets--
+    if (lastSetHash !== null && window.location.hash === lastSetHash) {
+      lastSetHash = null
       return true
     }
+    lastSetHash = null
     return false
   }
 

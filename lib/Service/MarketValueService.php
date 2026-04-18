@@ -48,10 +48,11 @@ class MarketValueService
             return null;
         }
 
+        $now = (new \DateTime())->format('Y-m-d H:i:s');
         $item->setMarketValue($stats['value']);
         $item->setMarketValueCurrency($stats['currency']);
-        $item->setMarketValueFetchedAt((new \DateTime())->format('Y-m-d H:i:s'));
-        $item->setUpdatedAt((new \DateTime())->format('Y-m-d H:i:s'));
+        $item->setMarketValueFetchedAt($now);
+        $item->setUpdatedAt($now);
 
         return $this->mapper->update($item);
     }

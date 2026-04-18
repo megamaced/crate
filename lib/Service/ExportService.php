@@ -127,7 +127,14 @@ class ExportService
             return $s;
         }
         $first = $s[0];
-        if ($first === '=' || $first === '+' || $first === '-' || $first === '@' || $first === "\t" || $first === "\r") {
+        if (
+            $first === '='
+            || $first === '+'
+            || $first === '-'
+            || $first === '@'
+            || $first === "\t"
+            || $first === "\r"
+        ) {
             return "'" . $s;
         }
         return $s;
