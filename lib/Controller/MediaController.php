@@ -93,8 +93,17 @@ class MediaController extends OCSController
             return new DataResponse(['error' => 'Invalid status'], Http::STATUS_BAD_REQUEST);
         }
         $data = new MediaItemData(
-            $title, $artist, $format, $year, $barcode,
-            $notes, $status, $discogsId, $artworkPath, $label, $country,
+            $title,
+            $artist,
+            $format,
+            $year,
+            $barcode,
+            $notes,
+            $status,
+            $discogsId,
+            $artworkPath,
+            $label,
+            $country,
         );
         return new DataResponse($this->mediaService->create($this->userId(), $data));
     }
@@ -118,8 +127,17 @@ class MediaController extends OCSController
             return new DataResponse(['error' => 'Invalid status'], Http::STATUS_BAD_REQUEST);
         }
         $data = new MediaItemData(
-            $title, $artist, $format, $year, $barcode,
-            $notes, $status, $discogsId, $artworkPath, $label, $country,
+            $title,
+            $artist,
+            $format,
+            $year,
+            $barcode,
+            $notes,
+            $status,
+            $discogsId,
+            $artworkPath,
+            $label,
+            $country,
         );
         return new DataResponse($this->mediaService->update($id, $this->userId(), $data));
     }
