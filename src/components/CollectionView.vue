@@ -248,18 +248,17 @@
       </button>
     </nav>
 
-  <ExportModal
-    :show="exportOpen"
-    :scope="status"
-    @close="exportOpen = false"
-  />
+    <ExportModal
+      :show="exportOpen"
+      :scope="status"
+      @close="exportOpen = false"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { NcButton } from '@nextcloud/vue'
-import { generateUrl } from '@nextcloud/router'
 import MediaCard from './MediaCard.vue'
 import ExportModal from './ExportModal.vue'
 import { formatMarketValue } from '../utils/formatMarketValue.js'

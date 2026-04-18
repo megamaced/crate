@@ -206,7 +206,6 @@ import { NcButton } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateUrl, generateOcsUrl } from '@nextcloud/router'
 import { useSettings } from '../composables/useSettings.js'
-import { useArtworkStyle } from '../composables/useArtworkStyle.js'
 import { formatMarketValue } from '../utils/formatMarketValue.js'
 
 const props = defineProps({

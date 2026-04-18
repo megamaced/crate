@@ -41,7 +41,10 @@
       </template>
     </NcAppNavigation>
 
-    <SettingsPanel v-model:open="settingsOpen" @token-changed="v => hasDiscogsToken = v" />
+    <SettingsPanel
+      v-model:open="settingsOpen"
+      @token-changed="v => hasDiscogsToken = v"
+    />
 
     <NcAppContent ref="appContentRef">
       <!-- Item detail view -->

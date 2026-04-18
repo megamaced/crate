@@ -3,7 +3,7 @@
  *
  * Manages view state, URL hash sync, and back-navigation with scroll restore.
  */
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, nextTick } from 'vue'
 
 export function useHashRouter() {
   const view = ref('home')

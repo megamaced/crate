@@ -28,7 +28,6 @@
 
 <script setup>
 import { computed } from 'vue'
-import { generateUrl } from '@nextcloud/router'
 import { formatMarketValue } from '../utils/formatMarketValue.js'
 import { artworkStyleFor } from '../composables/useArtworkStyle.js'
 
