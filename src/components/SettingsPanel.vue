@@ -391,7 +391,7 @@ async function enrichAll() {
 
 .settings-saved {
   font-size: 0.875em;
-  color: var(--color-success);
+  color: #4ade80;
 }
 
 .settings-enrichment-options {

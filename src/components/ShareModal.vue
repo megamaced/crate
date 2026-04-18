@@ -307,7 +307,7 @@ async function unshare(share) {
 .share-status {
   margin: 12px 0 0;
   font-size: 0.875em;
-  color: var(--color-success);
+  color: #4ade80;
 }
 
 .share-status--error {

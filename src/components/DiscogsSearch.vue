@@ -154,7 +154,7 @@ function select(result) {
 }
 
 .discogs-hint--warn {
-  color: var(--color-warning);
+  color: #fbbf24;
 }
 
 .discogs-results {

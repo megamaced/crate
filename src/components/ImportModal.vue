@@ -506,7 +506,7 @@ function handleClose() {
 }
 
 .import-hint--warn {
-  color: var(--color-warning);
+  color: #fbbf24;
 }
 
 .import-error {
@@ -656,7 +656,7 @@ function handleClose() {
 }
 
 .import-stat--created .import-stat__num {
-  color: var(--color-success);
+  color: #4ade80;
 }
 
 .import-stat__label {

@@ -114,7 +114,7 @@ const artStyle = computed(() => artworkStyleFor(props.item))
 .media-card-market {
   font-size: 0.75em;
   font-weight: 700;
-  color: var(--color-success, #46ba61);
+  color: #4ade80;
   white-space: nowrap;
 }
 </style>

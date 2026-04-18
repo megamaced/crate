@@ -257,7 +257,7 @@ async function createAndAdd() {
 }
 
 .atp-check {
-  color: var(--color-success);
+  color: #4ade80;
   font-weight: 700;
   flex-shrink: 0;
 }

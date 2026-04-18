@@ -344,15 +344,9 @@ async function stripEnrich() {
 .detail-market-value {
   font-size: 1.8em;
   font-weight: 800;
-  color: #16a34a;
+  color: #4ade80;
   margin: 8px 0 0;
   line-height: 1.2;
-}
-
-@media (prefers-color-scheme: dark) {
-  .detail-market-value {
-    color: #4ade80;
-  }
 }
 
 .detail-market-fetched {
