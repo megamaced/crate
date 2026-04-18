@@ -236,9 +236,8 @@ defineExpose({ load })
 
 <style scoped>
 .crate-home {
-  padding: 20px;
+  padding: 0 36px 40px 20px;
   padding-top: calc(var(--default-clickable-area, 44px) + 8px);
-  max-width: 1280px;
 }
 
 .crate-home-empty {
