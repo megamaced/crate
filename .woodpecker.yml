@@ -1,12 +1,16 @@
 steps:
   - name: lint-php
     image: composer:2
+    when:
+      - event: [push, pull_request]
     commands:
       - composer install --no-interaction
       - vendor/bin/phpcs --standard=PSR12 lib/
 
   - name: build-js
     image: node:20-alpine
+    when:
+      - event: [push, pull_request]
     commands:
       - npm ci
       - npm run lint

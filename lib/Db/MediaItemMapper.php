@@ -76,8 +76,7 @@ class MediaItemMapper extends QBMapper
         ?string $status = null,
         ?string $category = null,
         ?string $updatedSince = null,
-    ): int
-    {
+    ): int {
         $qb = $this->db->getQueryBuilder();
         $qb->select($qb->func()->count('*', 'cnt'))
             ->from($this->getTableName())
