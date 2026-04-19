@@ -58,7 +58,9 @@ class MediaController extends OCSController
         $offset = max(0, $offset);
 
         if ($isPaginated) {
-            $result = $this->mediaService->findPaginated($this->userId(), $status, $category, $updatedSince, $limit, $offset);
+            $result = $this->mediaService->findPaginated(
+                $this->userId(), $status, $category, $updatedSince, $limit, $offset,
+            );
             return new DataResponse([
                 'items'  => $result['items'],
                 'total'  => $result['total'],

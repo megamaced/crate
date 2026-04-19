@@ -71,7 +71,12 @@ class MediaItemMapper extends QBMapper
         return $this->findEntities($qb);
     }
 
-    public function countAll(string $userId, ?string $status = null, ?string $category = null, ?string $updatedSince = null): int
+    public function countAll(
+        string $userId,
+        ?string $status = null,
+        ?string $category = null,
+        ?string $updatedSince = null,
+    ): int
     {
         $qb = $this->db->getQueryBuilder();
         $qb->select($qb->func()->count('*', 'cnt'))
