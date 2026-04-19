@@ -9,6 +9,9 @@ use OCA\Crate\Dto\MediaItemData;
 use OCA\Crate\Service\DiscogsService;
 use OCA\Crate\Service\MarketValueService;
 use OCA\Crate\Service\MediaService;
+use OCA\Crate\Service\OpenLibraryService;
+use OCA\Crate\Service\RawgService;
+use OCA\Crate\Service\TmdbService;
 use OCA\Crate\Db\PlaylistItemMapper;
 use OCA\Crate\Db\PlaylistMapper;
 use OCP\AppFramework\Http;
@@ -28,6 +31,9 @@ class MediaController extends OCSController
         IRequest $request,
         private readonly MediaService $mediaService,
         private readonly DiscogsService $discogsService,
+        private readonly TmdbService $tmdbService,
+        private readonly OpenLibraryService $openLibraryService,
+        private readonly RawgService $rawgService,
         private readonly MarketValueService $marketValueService,
         private readonly IUserSession $userSession,
         private readonly PlaylistMapper $playlistMapper,
@@ -189,22 +195,36 @@ class MediaController extends OCSController
     }
 
     /**
-     * Enrich a media item with full Discogs release details and artist profile.
-     *
-     * Fetches /releases/{discogsId} and, if an artist ID is returned,
-     * also /artists/{artistId}. The results are persisted to the item.
+     * Enrich a media item using the appropriate service for its category.
+     * Music → Discogs; Film → TMDB; Book → Open Library; Game → RAWG.
      *
      * POST /api/v1/media/{id}/enrich
      */
     #[NoAdminRequired]
     public function enrich(int $id): DataResponse
     {
-        $item = $this->mediaService->find($id, $this->userId());
+        $item     = $this->mediaService->find($id, $this->userId());
+        $category = $item->getCategory();
 
+        if ($category === 'film') {
+            return $this->enrichFilm($id, $item);
+        }
+        if ($category === 'book') {
+            return $this->enrichBook($id, $item);
+        }
+        if ($category === 'game') {
+            return $this->enrichGame($id, $item);
+        }
+
+        // Default: music via Discogs
+        return $this->enrichMusic($id, $item);
+    }
+
+    private function enrichMusic(int $id, \OCA\Crate\Db\MediaItem $item): DataResponse
+    {
         try {
-            // If no Discogs ID is stored, search by artist + title and pick the best match.
             if (empty($item->getDiscogsId())) {
-                $query = trim($item->getArtist() . ' ' . $item->getTitle());
+                $query   = trim($item->getArtist() . ' ' . $item->getTitle());
                 $results = $this->discogsService->search($this->userId(), $query);
                 if (empty($results)) {
                     return new DataResponse(
@@ -213,15 +233,12 @@ class MediaController extends OCSController
                     );
                 }
 
-                // Prefer a result whose mapped format matches the item's stored format.
-                // This avoids picking a Vinyl pressing when the item is a CD, etc.
                 $itemFormat = $item->getFormat();
-                $matching = array_values(array_filter(
+                $matching   = array_values(array_filter(
                     $results,
                     fn(array $r) => ($r['format'] ?? '') === $itemFormat,
                 ));
-                $best = !empty($matching) ? $matching[0] : $results[0];
-
+                $best      = !empty($matching) ? $matching[0] : $results[0];
                 $discogsId = $best['discogsId'] ?? '';
                 if ($discogsId === '') {
                     return new DataResponse(
@@ -240,15 +257,13 @@ class MediaController extends OCSController
                 );
             }
 
-            // Fetch artist profile if a Discogs artist ID is available
-            $artist = [];
+            $artist   = [];
             $artistId = $release['discogsArtistId'] ?? $item->getDiscogsArtistId();
             if (!empty($artistId)) {
                 $artist = $this->discogsService->getArtist($this->userId(), $artistId);
             }
 
             $updated = $this->mediaService->applyReleaseData($id, $this->userId(), $release, $artist);
-
             return new DataResponse($updated);
         } catch (\OCA\Crate\Exception\DiscogsRateLimitException) {
             return new DataResponse(
@@ -256,6 +271,98 @@ class MediaController extends OCSController
                 Http::STATUS_TOO_MANY_REQUESTS,
             );
         }
+    }
+
+    private function enrichFilm(int $id, \OCA\Crate\Db\MediaItem $item): DataResponse
+    {
+        $tmdbId = $item->getDiscogsId();
+
+        if (empty($tmdbId)) {
+            $query   = trim($item->getTitle());
+            $results = $this->tmdbService->search($this->userId(), $query);
+            if (empty($results)) {
+                return new DataResponse(
+                    ['error' => 'No TMDB match found. Add a TMDB token in Settings.'],
+                    Http::STATUS_NOT_FOUND,
+                );
+            }
+            $tmdbId = (string)($results[0]['tmdbId'] ?? '');
+        }
+
+        if ($tmdbId === '') {
+            return new DataResponse(['error' => 'No TMDB ID available.'], Http::STATUS_NOT_FOUND);
+        }
+
+        $movie = $this->tmdbService->getMovie($this->userId(), $tmdbId);
+        if (empty($movie)) {
+            return new DataResponse(
+                ['error' => 'Could not fetch film from TMDB. Check your token.'],
+                Http::STATUS_BAD_GATEWAY,
+            );
+        }
+
+        $updated = $this->mediaService->applyTmdbData($id, $this->userId(), $movie);
+        return new DataResponse($updated);
+    }
+
+    private function enrichBook(int $id, \OCA\Crate\Db\MediaItem $item): DataResponse
+    {
+        $workKey = $item->getDiscogsId();
+
+        if (empty($workKey)) {
+            $query   = trim($item->getArtist() . ' ' . $item->getTitle());
+            $results = $this->openLibraryService->search($query);
+            if (empty($results)) {
+                return new DataResponse(
+                    ['error' => 'No Open Library match found.'],
+                    Http::STATUS_NOT_FOUND,
+                );
+            }
+            $workKey = (string)($results[0]['workKey'] ?? '');
+            $doc     = $results[0];
+        } else {
+            $doc = ['workKey' => $workKey];
+        }
+
+        if ($workKey === '') {
+            return new DataResponse(['error' => 'No Open Library work key available.'], Http::STATUS_NOT_FOUND);
+        }
+
+        $work    = $this->openLibraryService->getWork($workKey);
+        $updated = $this->mediaService->applyOpenLibraryData($id, $this->userId(), $doc, $work);
+        return new DataResponse($updated);
+    }
+
+    private function enrichGame(int $id, \OCA\Crate\Db\MediaItem $item): DataResponse
+    {
+        $rawgId = $item->getDiscogsId();
+
+        if (empty($rawgId)) {
+            $query   = trim($item->getTitle());
+            $results = $this->rawgService->search($this->userId(), $query);
+            if (empty($results)) {
+                return new DataResponse(
+                    ['error' => 'No RAWG match found. Add a RAWG API key in Settings.'],
+                    Http::STATUS_NOT_FOUND,
+                );
+            }
+            $rawgId = (string)($results[0]['rawgId'] ?? '');
+        }
+
+        if ($rawgId === '') {
+            return new DataResponse(['error' => 'No RAWG ID available.'], Http::STATUS_NOT_FOUND);
+        }
+
+        $game = $this->rawgService->getGame($this->userId(), $rawgId);
+        if (empty($game)) {
+            return new DataResponse(
+                ['error' => 'Could not fetch game from RAWG. Check your API key.'],
+                Http::STATUS_BAD_GATEWAY,
+            );
+        }
+
+        $updated = $this->mediaService->applyRawgData($id, $this->userId(), $game);
+        return new DataResponse($updated);
     }
 
     /**

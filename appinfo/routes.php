@@ -29,6 +29,10 @@ return [
 		// ── Settings ───────────────────────────────────────────────────────────
 		['name' => 'settings#getDiscogsToken',  'url' => '/api/v1/settings/discogs-token', 'verb' => 'GET'],
 		['name' => 'settings#setDiscogsToken',  'url' => '/api/v1/settings/discogs-token', 'verb' => 'POST'],
+		['name' => 'settings#getTmdbToken',     'url' => '/api/v1/settings/tmdb-token',    'verb' => 'GET'],
+		['name' => 'settings#setTmdbToken',     'url' => '/api/v1/settings/tmdb-token',    'verb' => 'POST'],
+		['name' => 'settings#getRawgKey',       'url' => '/api/v1/settings/rawg-key',      'verb' => 'GET'],
+		['name' => 'settings#setRawgKey',       'url' => '/api/v1/settings/rawg-key',      'verb' => 'POST'],
 		['name' => 'settings#getMarketSettings', 'url' => '/api/v1/settings/market',       'verb' => 'GET'],
 		['name' => 'settings#setMarketSettings', 'url' => '/api/v1/settings/market',       'verb' => 'POST'],
 		['name' => 'settings#getSupportedCurrencies', 'url' => '/api/v1/settings/currencies', 'verb' => 'GET'],
@@ -38,6 +42,18 @@ return [
 		['name' => 'discogs#barcodeSearch', 'url' => '/api/v1/discogs/barcode/{barcode}', 'verb' => 'GET'],
 		['name' => 'discogs#getRelease',    'url' => '/api/v1/discogs/release/{id}',      'verb' => 'GET'],
 		['name' => 'discogs#getArtist',     'url' => '/api/v1/discogs/artist/{id}',       'verb' => 'GET'],
+
+		// ── TMDB API proxy (films) ─────────────────────────────────────────────
+		['name' => 'tmdb#search',    'url' => '/api/v1/tmdb/search',     'verb' => 'GET'],
+		['name' => 'tmdb#getMovie',  'url' => '/api/v1/tmdb/movie/{id}', 'verb' => 'GET'],
+
+		// ── Open Library proxy (books) ─────────────────────────────────────────
+		['name' => 'openLibrary#search',  'url' => '/api/v1/openlibrary/search',    'verb' => 'GET'],
+		['name' => 'openLibrary#getWork', 'url' => '/api/v1/openlibrary/work/{id}', 'verb' => 'GET'],
+
+		// ── RAWG API proxy (games) ─────────────────────────────────────────────
+		['name' => 'rawg#search',   'url' => '/api/v1/rawg/search',    'verb' => 'GET'],
+		['name' => 'rawg#getGame',  'url' => '/api/v1/rawg/game/{id}', 'verb' => 'GET'],
 
 		// ── Import ─────────────────────────────────────────────────────────────
 		['name' => 'import#preview', 'url' => '/api/v1/import/preview', 'verb' => 'POST'],

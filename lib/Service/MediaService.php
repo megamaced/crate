@@ -166,7 +166,164 @@ class MediaService
     }
 
     /**
-     * Strip all Discogs-sourced enrichment fields from an item, preserving the
+     * Enrich a film item with TMDB movie data.
+     * movie comes from TmdbService::getMovie().
+     *
+     * @param array<string, mixed> $movie
+     */
+    public function applyTmdbData(int $id, string $userId, array $movie): MediaItem
+    {
+        $item = $this->mapper->findByUser($id, $userId);
+
+        if ($item->getOriginalTitle() === null) {
+            $item->setOriginalTitle($item->getTitle());
+            $item->setOriginalArtist($item->getArtist());
+            $item->setOriginalYear($item->getYear());
+            $item->setOriginalArtworkPath($item->getArtworkPath());
+        }
+
+        if (!empty($movie['title'])) {
+            $item->setTitle($movie['title']);
+        }
+        if (!empty($movie['artist'])) {
+            $item->setArtist($movie['artist']);
+        }
+        if (isset($movie['year'])) {
+            $item->setYear($movie['year']);
+        }
+        if (!empty($movie['genres'])) {
+            $item->setGenres($movie['genres']);
+        }
+        if (!empty($movie['label'])) {
+            $item->setLabel($movie['label']);
+        }
+        if (!empty($movie['country'])) {
+            $item->setCountry($movie['country']);
+        }
+        if (!empty($movie['overview'])) {
+            $item->setPressingNotes($movie['overview']);
+        }
+        if (!empty($movie['artworkUrl'])) {
+            $item->setArtworkPath($movie['artworkUrl']);
+        }
+        if (!empty($movie['tmdbId'])) {
+            $item->setDiscogsId($movie['tmdbId']);
+        }
+        if (!empty($movie['directorId'])) {
+            $item->setDiscogsArtistId($movie['directorId']);
+        }
+
+        $item->setUpdatedAt((new \DateTime())->format('Y-m-d H:i:s'));
+        return $this->mapper->update($item);
+    }
+
+    /**
+     * Enrich a book item with Open Library work data.
+     * work comes from OpenLibraryService::getWork(); doc is the search result.
+     *
+     * @param array<string, mixed> $doc  Basic fields from search result (title, artist, year, etc.)
+     * @param array<string, mixed> $work Full work details
+     */
+    public function applyOpenLibraryData(int $id, string $userId, array $doc, array $work): MediaItem
+    {
+        $item = $this->mapper->findByUser($id, $userId);
+
+        if ($item->getOriginalTitle() === null) {
+            $item->setOriginalTitle($item->getTitle());
+            $item->setOriginalArtist($item->getArtist());
+            $item->setOriginalYear($item->getYear());
+            $item->setOriginalArtworkPath($item->getArtworkPath());
+        }
+
+        if (!empty($doc['title'])) {
+            $item->setTitle($doc['title']);
+        }
+        if (!empty($doc['artist'])) {
+            $item->setArtist($doc['artist']);
+        }
+        if (isset($doc['year'])) {
+            $item->setYear($doc['year']);
+        }
+        if (!empty($doc['label'])) {
+            $item->setLabel($doc['label']);
+        }
+        if (!empty($doc['barcode'])) {
+            $item->setBarcode($doc['barcode']);
+        }
+
+        // Work detail fields take precedence over search fields
+        $genres = $work['genres'] ?? $doc['genres'] ?? null;
+        if (!empty($genres)) {
+            $item->setGenres($genres);
+        }
+        if (!empty($work['overview'])) {
+            $item->setPressingNotes($work['overview']);
+        }
+        if (!empty($work['artworkUrl'])) {
+            $item->setArtworkPath($work['artworkUrl']);
+        }
+        if (!empty($work['authorBio'])) {
+            $item->setArtistBio($work['authorBio']);
+        }
+        if (!empty($work['authorKey'])) {
+            $item->setDiscogsArtistId($work['authorKey']);
+        }
+        if (!empty($doc['workKey'])) {
+            $item->setDiscogsId($doc['workKey']);
+        }
+
+        $item->setUpdatedAt((new \DateTime())->format('Y-m-d H:i:s'));
+        return $this->mapper->update($item);
+    }
+
+    /**
+     * Enrich a game item with RAWG game data.
+     * game comes from RawgService::getGame().
+     *
+     * @param array<string, mixed> $game
+     */
+    public function applyRawgData(int $id, string $userId, array $game): MediaItem
+    {
+        $item = $this->mapper->findByUser($id, $userId);
+
+        if ($item->getOriginalTitle() === null) {
+            $item->setOriginalTitle($item->getTitle());
+            $item->setOriginalArtist($item->getArtist());
+            $item->setOriginalYear($item->getYear());
+            $item->setOriginalArtworkPath($item->getArtworkPath());
+        }
+
+        if (!empty($game['title'])) {
+            $item->setTitle($game['title']);
+        }
+        if (!empty($game['artist'])) {
+            $item->setArtist($game['artist']);
+        }
+        if (isset($game['year'])) {
+            $item->setYear($game['year']);
+        }
+        if (!empty($game['label'])) {
+            $item->setLabel($game['label']);
+        }
+        if (!empty($game['genres'])) {
+            $item->setGenres($game['genres']);
+        }
+        if (!empty($game['overview'])) {
+            $item->setPressingNotes($game['overview']);
+        }
+        if (!empty($game['artworkUrl'])) {
+            $item->setArtworkPath($game['artworkUrl']);
+        }
+        if (!empty($game['rawgId'])) {
+            $item->setDiscogsId($game['rawgId']);
+        }
+
+        $item->setUpdatedAt((new \DateTime())->format('Y-m-d H:i:s'));
+        return $this->mapper->update($item);
+    }
+
+    /**
+     * Strip all enrichment fields from an item, preserving the
      * user-entered fields (title, artist, format, year, notes, status, artwork).
      * The discogsId is also cleared so the item is treated as unenriched.
      */

@@ -10,11 +10,25 @@
         {{ modalTitle }}
       </h2>
 
-      <!-- Discogs search (music only for now — other enrichment services come later) -->
+      <!-- Enrichment search — component varies by category -->
       <DiscogsSearch
         v-if="form.category === 'music'"
         :has-token="hasToken"
         @select="applyDiscogs"
+      />
+      <TMDBSearch
+        v-else-if="form.category === 'film'"
+        :has-token="hasTmdbToken"
+        @select="applyTmdb"
+      />
+      <OpenLibrarySearch
+        v-else-if="form.category === 'book'"
+        @select="applyOpenLibrary"
+      />
+      <RAWGSearch
+        v-else-if="form.category === 'game'"
+        :has-key="hasRawgKey"
+        @select="applyRawg"
       />
 
       <form @submit.prevent="submit">
@@ -243,6 +257,9 @@ import axios from '@nextcloud/axios'
 import { generateUrl } from '@nextcloud/router'
 import { showError } from '@nextcloud/dialogs'
 import DiscogsSearch from './DiscogsSearch.vue'
+import TMDBSearch from './TMDBSearch.vue'
+import OpenLibrarySearch from './OpenLibrarySearch.vue'
+import RAWGSearch from './RAWGSearch.vue'
 import { FORMAT_GROUPS, FIELD_CONFIG, CATEGORY_LABELS } from '../utils/categoryFormats.js'
 
 const props = defineProps({
@@ -250,6 +267,8 @@ const props = defineProps({
   item:          { type: Object,  default: null },
   defaultStatus: { type: String,  default: 'owned' },
   hasToken:      { type: Boolean, default: false },
+  hasTmdbToken:  { type: Boolean, default: false },
+  hasRawgKey:    { type: Boolean, default: false },
   category:      { type: String,  default: 'music' },
 })
 
@@ -444,6 +463,58 @@ function applyDiscogs(result) {
   if (result.thumb && props.item?.artworkPath) {
     artworkFile.value = null
     replaceArtworkFlag.value = true
+  }
+}
+
+// ── TMDB apply (films) ─────────────────────────────────────────────────────────
+function applyTmdb(result) {
+  form.value.artist    = result.artist    || form.value.artist
+  form.value.title     = result.title     || form.value.title
+  form.value.year      = result.year      || form.value.year
+  form.value.label     = result.label     || form.value.label
+  form.value.discogsId = result.tmdbId    || null
+  if (result.artworkUrl || result.thumb) {
+    form.value.artworkPath = result.artworkUrl || result.thumb
+    discogsThumbnailUrl.value = result.thumb || result.artworkUrl
+    if (props.item?.artworkPath) {
+      artworkFile.value = null
+      replaceArtworkFlag.value = true
+    }
+  }
+}
+
+// ── Open Library apply (books) ─────────────────────────────────────────────────
+function applyOpenLibrary(result) {
+  form.value.artist    = result.artist    || form.value.artist
+  form.value.title     = result.title     || form.value.title
+  form.value.year      = result.year      || form.value.year
+  form.value.label     = result.label     || form.value.label
+  form.value.barcode   = result.barcode   || form.value.barcode
+  form.value.discogsId = result.workKey   || null
+  if (result.artworkUrl || result.thumb) {
+    form.value.artworkPath = result.artworkUrl || result.thumb
+    discogsThumbnailUrl.value = result.artworkUrl || result.thumb
+    if (props.item?.artworkPath) {
+      artworkFile.value = null
+      replaceArtworkFlag.value = true
+    }
+  }
+}
+
+// ── RAWG apply (games) ─────────────────────────────────────────────────────────
+function applyRawg(result) {
+  form.value.artist    = result.artist    || form.value.artist
+  form.value.title     = result.title     || form.value.title
+  form.value.year      = result.year      || form.value.year
+  form.value.label     = result.label     || form.value.label
+  form.value.discogsId = result.rawgId    || null
+  if (result.artworkUrl || result.thumb) {
+    form.value.artworkPath = result.artworkUrl || result.thumb
+    discogsThumbnailUrl.value = result.artworkUrl || result.thumb
+    if (props.item?.artworkPath) {
+      artworkFile.value = null
+      replaceArtworkFlag.value = true
+    }
   }
 }
 

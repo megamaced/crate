@@ -99,6 +99,134 @@
       </div>
     </NcAppSettingsSection>
 
+    <!-- ── TMDB (Films) ── -->
+    <NcAppSettingsSection
+      id="crate-settings-tmdb"
+      name="Films — TMDB"
+    >
+      <p class="settings-hint">
+        Crate uses the
+        <a
+          href="https://www.themoviedb.org/"
+          target="_blank"
+          rel="noopener"
+        >TMDB API</a>
+        to fetch film metadata, posters, and director info.
+        Enter your API Read Access Token — generate one at
+        <a
+          href="https://www.themoviedb.org/settings/api"
+          target="_blank"
+          rel="noopener"
+        >themoviedb.org/settings/api</a>.
+      </p>
+
+      <div class="settings-field">
+        <label for="tmdb-token">API Read Access Token</label>
+        <div class="settings-token-row">
+          <input
+            id="tmdb-token"
+            v-model="tmdbTokenInput"
+            :type="showTmdbToken ? 'text' : 'password'"
+            :placeholder="hasTmdbToken ? '(token saved — paste a new one to replace)' : 'Paste your token here'"
+            autocomplete="off"
+          >
+          <NcButton
+            variant="tertiary"
+            :aria-label="showTmdbToken ? 'Hide token' : 'Show token'"
+            @click="showTmdbToken = !showTmdbToken"
+          >
+            {{ showTmdbToken ? 'Hide' : 'Show' }}
+          </NcButton>
+        </div>
+      </div>
+
+      <div class="settings-actions">
+        <NcButton
+          variant="primary"
+          :disabled="savingTmdb || tmdbTokenInput === ''"
+          @click="saveTmdbToken"
+        >
+          {{ savingTmdb ? 'Saving…' : 'Save token' }}
+        </NcButton>
+        <NcButton
+          v-if="hasTmdbToken"
+          variant="tertiary"
+          :disabled="savingTmdb"
+          @click="clearTmdbToken"
+        >
+          Remove token
+        </NcButton>
+        <span
+          v-if="tmdbSavedMessage"
+          class="settings-saved"
+        >{{ tmdbSavedMessage }}</span>
+      </div>
+    </NcAppSettingsSection>
+
+    <!-- ── RAWG (Games) ── -->
+    <NcAppSettingsSection
+      id="crate-settings-rawg"
+      name="Games — RAWG"
+    >
+      <p class="settings-hint">
+        Crate uses the
+        <a
+          href="https://rawg.io/"
+          target="_blank"
+          rel="noopener"
+        >RAWG API</a>
+        to fetch game metadata and cover art.
+        Get a free API key at
+        <a
+          href="https://rawg.io/apidocs"
+          target="_blank"
+          rel="noopener"
+        >rawg.io/apidocs</a>.
+      </p>
+
+      <div class="settings-field">
+        <label for="rawg-key">API Key</label>
+        <div class="settings-token-row">
+          <input
+            id="rawg-key"
+            v-model="rawgKeyInput"
+            :type="showRawgKey ? 'text' : 'password'"
+            :placeholder="hasRawgKey ? '(key saved — paste a new one to replace)' : 'Paste your API key here'"
+            autocomplete="off"
+          >
+          <NcButton
+            variant="tertiary"
+            :aria-label="showRawgKey ? 'Hide key' : 'Show key'"
+            @click="showRawgKey = !showRawgKey"
+          >
+            {{ showRawgKey ? 'Hide' : 'Show' }}
+          </NcButton>
+        </div>
+      </div>
+
+      <div class="settings-actions">
+        <NcButton
+          variant="primary"
+          :disabled="savingRawg || rawgKeyInput === ''"
+          @click="saveRawgKey"
+        >
+          {{ savingRawg ? 'Saving…' : 'Save key' }}
+        </NcButton>
+        <NcButton
+          v-if="hasRawgKey"
+          variant="tertiary"
+          :disabled="savingRawg"
+          @click="clearRawgKey"
+        >
+          Remove key
+        </NcButton>
+        <span
+          v-if="rawgSavedMessage"
+          class="settings-saved"
+        >{{ rawgSavedMessage }}</span>
+      </div>
+    </NcAppSettingsSection>
+
     <NcAppSettingsSection
       id="crate-settings-market"
       name="Market values"
@@ -221,7 +349,7 @@ import { useSettings } from '../composables/useSettings.js'
 defineProps({
   open: { type: Boolean, required: true },
 })
-const emit = defineEmits(['update:open', 'token-changed', 'collection-wiped'])
+const emit = defineEmits(['update:open', 'token-changed', 'tmdb-token-changed', 'rawg-key-changed', 'collection-wiped'])
 
 const enrich = useEnrichQueue()
 const marketQueue = useMarketValueQueue()
@@ -235,18 +363,36 @@ const showToken = ref(false)
 const saving = ref(false)
 const savedMessage = ref('')
 
+// TMDB
+const tmdbTokenInput = ref('')
+const hasTmdbToken = ref(false)
+const showTmdbToken = ref(false)
+const savingTmdb = ref(false)
+const tmdbSavedMessage = ref('')
+
+// RAWG
+const rawgKeyInput = ref('')
+const hasRawgKey = ref(false)
+const showRawgKey = ref(false)
+const savingRawg = ref(false)
+const rawgSavedMessage = ref('')
+
 const confirmWipe = ref(false)
 const wiping = ref(false)
 const wipedMessage = ref('')
 
 async function load() {
   try {
-    const [tokenRes, currRes] = await Promise.all([
+    const [tokenRes, currRes, tmdbRes, rawgRes] = await Promise.all([
       axios.get(generateOcsUrl('/apps/crate/api/v1/settings/discogs-token')),
       axios.get(generateOcsUrl('/apps/crate/api/v1/settings/currencies')),
+      axios.get(generateOcsUrl('/apps/crate/api/v1/settings/tmdb-token')),
+      axios.get(generateOcsUrl('/apps/crate/api/v1/settings/rawg-key')),
     ])
-    hasToken.value = tokenRes.data.ocs?.data?.hasToken ?? false
-    currencies.value = currRes.data.ocs?.data ?? []
+    hasToken.value    = tokenRes.data.ocs?.data?.hasToken ?? false
+    currencies.value  = currRes.data.ocs?.data ?? []
+    hasTmdbToken.value = tmdbRes.data.ocs?.data?.hasToken ?? false
+    hasRawgKey.value  = rawgRes.data.ocs?.data?.hasKey ?? false
   } catch (e) {
     console.error('Failed to load settings', e)
     showError('Failed to load settings')
@@ -305,6 +451,76 @@ async function wipeCollection() {
     wipedMessage.value = 'Failed — check the console.'
   } finally {
     wiping.value = false
+  }
+}
+
+async function saveTmdbToken() {
+  savingTmdb.value = true
+  tmdbSavedMessage.value = ''
+  try {
+    await axios.post(generateOcsUrl('/apps/crate/api/v1/settings/tmdb-token'), { token: tmdbTokenInput.value })
+    hasTmdbToken.value = tmdbTokenInput.value !== ''
+    emit('tmdb-token-changed', hasTmdbToken.value)
+    tmdbTokenInput.value = ''
+    tmdbSavedMessage.value = 'Saved!'
+    setTimeout(() => { tmdbSavedMessage.value = '' }, 3000)
+  } catch (e) {
+    console.error('Failed to save TMDB token', e)
+    showError('Failed to save TMDB token')
+    tmdbSavedMessage.value = 'Failed to save.'
+  } finally {
+    savingTmdb.value = false
+  }
+}
+
+async function clearTmdbToken() {
+  savingTmdb.value = true
+  try {
+    await axios.post(generateOcsUrl('/apps/crate/api/v1/settings/tmdb-token'), { token: '' })
+    hasTmdbToken.value = false
+    emit('tmdb-token-changed', false)
+    tmdbSavedMessage.value = 'Token removed.'
+    setTimeout(() => { tmdbSavedMessage.value = '' }, 3000)
+  } catch (e) {
+    console.error('Failed to clear TMDB token', e)
+    showError('Failed to clear TMDB token')
+  } finally {
+    savingTmdb.value = false
+  }
+}
+
+async function saveRawgKey() {
+  savingRawg.value = true
+  rawgSavedMessage.value = ''
+  try {
+    await axios.post(generateOcsUrl('/apps/crate/api/v1/settings/rawg-key'), { key: rawgKeyInput.value })
+    hasRawgKey.value = rawgKeyInput.value !== ''
+    emit('rawg-key-changed', hasRawgKey.value)
+    rawgKeyInput.value = ''
+    rawgSavedMessage.value = 'Saved!'
+    setTimeout(() => { rawgSavedMessage.value = '' }, 3000)
+  } catch (e) {
+    console.error('Failed to save RAWG key', e)
+    showError('Failed to save RAWG key')
+    rawgSavedMessage.value = 'Failed to save.'
+  } finally {
+    savingRawg.value = false
+  }
+}
+
+async function clearRawgKey() {
+  savingRawg.value = true
+  try {
+    await axios.post(generateOcsUrl('/apps/crate/api/v1/settings/rawg-key'), { key: '' })
+    hasRawgKey.value = false
+    emit('rawg-key-changed', false)
+    rawgSavedMessage.value = 'Key removed.'
+    setTimeout(() => { rawgSavedMessage.value = '' }, 3000)
+  } catch (e) {
+    console.error('Failed to clear RAWG key', e)
+    showError('Failed to clear RAWG key')
+  } finally {
+    savingRawg.value = false
   }
 }
 

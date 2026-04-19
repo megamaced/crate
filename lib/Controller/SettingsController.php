@@ -49,6 +49,46 @@ class SettingsController extends OCSController
     }
 
     #[NoAdminRequired]
+    public function getTmdbToken(): DataResponse
+    {
+        $token = (string)($this->credentialsManager->retrieve($this->userId(), 'crate/tmdb_token') ?? '');
+        return new DataResponse(['hasToken' => $token !== '']);
+    }
+
+    #[NoAdminRequired]
+    public function setTmdbToken(string $token = ''): DataResponse
+    {
+        $uid     = $this->userId();
+        $trimmed = trim($token);
+        if ($trimmed === '') {
+            $this->credentialsManager->delete($uid, 'crate/tmdb_token');
+        } else {
+            $this->credentialsManager->store($uid, 'crate/tmdb_token', $trimmed);
+        }
+        return new DataResponse([]);
+    }
+
+    #[NoAdminRequired]
+    public function getRawgKey(): DataResponse
+    {
+        $key = (string)($this->credentialsManager->retrieve($this->userId(), 'crate/rawg_key') ?? '');
+        return new DataResponse(['hasKey' => $key !== '']);
+    }
+
+    #[NoAdminRequired]
+    public function setRawgKey(string $key = ''): DataResponse
+    {
+        $uid     = $this->userId();
+        $trimmed = trim($key);
+        if ($trimmed === '') {
+            $this->credentialsManager->delete($uid, 'crate/rawg_key');
+        } else {
+            $this->credentialsManager->store($uid, 'crate/rawg_key', $trimmed);
+        }
+        return new DataResponse([]);
+    }
+
+    #[NoAdminRequired]
     public function getMarketSettings(): DataResponse
     {
         $uid = $this->userId();

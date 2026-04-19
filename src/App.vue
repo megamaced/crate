@@ -56,6 +56,8 @@
     <SettingsPanel
       v-model:open="settingsOpen"
       @token-changed="v => hasDiscogsToken = v"
+      @tmdb-token-changed="v => hasTmdbToken = v"
+      @rawg-key-changed="v => hasRawgKey = v"
       @collection-wiped="handleCollectionWiped"
     />
 
@@ -135,6 +137,8 @@
       :item="editingItem"
       :default-status="'owned'"
       :has-token="hasDiscogsToken"
+      :has-tmdb-token="hasTmdbToken"
+      :has-rawg-key="hasRawgKey"
       :category="modalCategory"
       @close="closeModal"
       @save="saveItem"
@@ -261,6 +265,8 @@ const editingItem = ref(null)
 const deletingItem = ref(null)
 const importOpen = ref(false)
 const hasDiscogsToken = ref(false)
+const hasTmdbToken = ref(false)
+const hasRawgKey = ref(false)
 
 // playlist + sharing state
 const selectedPlaylist = ref(null)
@@ -274,8 +280,14 @@ const showShareModal = ref(false)
 // ── init ──────────────────────────────────────────────────────────────────────
 onMounted(async () => {
   try {
-    const res = await axios.get(generateOcsUrl('/apps/crate/api/v1/settings/discogs-token'))
-    hasDiscogsToken.value = res.data.ocs?.data?.hasToken ?? false
+    const [discogsRes, tmdbRes, rawgRes] = await Promise.all([
+      axios.get(generateOcsUrl('/apps/crate/api/v1/settings/discogs-token')),
+      axios.get(generateOcsUrl('/apps/crate/api/v1/settings/tmdb-token')),
+      axios.get(generateOcsUrl('/apps/crate/api/v1/settings/rawg-key')),
+    ])
+    hasDiscogsToken.value = discogsRes.data.ocs?.data?.hasToken ?? false
+    hasTmdbToken.value    = tmdbRes.data.ocs?.data?.hasToken    ?? false
+    hasRawgKey.value      = rawgRes.data.ocs?.data?.hasKey      ?? false
   } catch { /* ignore */ }
 
   // Restore view from URL hash (supports page refresh and direct links)
