@@ -23,9 +23,9 @@ class MediaService
     }
 
     /** @return MediaItem[] */
-    public function findAll(string $userId): array
+    public function findAll(string $userId, ?string $category = null): array
     {
-        return $this->mapper->findAll($userId);
+        return $this->mapper->findAll($userId, $category);
     }
 
     /**
@@ -35,14 +35,15 @@ class MediaService
     public function findPaginated(
         string $userId,
         ?string $status = null,
+        ?string $category = null,
         ?string $updatedSince = null,
         int $limit = 50,
         int $offset = 0,
     ): array {
         $limit = max(1, min(200, $limit));
         return [
-            'items' => $this->mapper->findPaginated($userId, $status, $updatedSince, $limit, $offset),
-            'total' => $this->mapper->countAll($userId, $status, $updatedSince),
+            'items' => $this->mapper->findPaginated($userId, $status, $category, $updatedSince, $limit, $offset),
+            'total' => $this->mapper->countAll($userId, $status, $category, $updatedSince),
         ];
     }
 
@@ -68,6 +69,7 @@ class MediaService
         $item->setArtworkPath($data->artworkPath);
         $item->setLabel($data->label);
         $item->setCountry($data->country);
+        $item->setCategory($data->category);
         $now = (new \DateTime())->format('Y-m-d H:i:s');
         $item->setCreatedAt($now);
         $item->setUpdatedAt($now);
@@ -100,6 +102,7 @@ class MediaService
         if ($data->country !== null) {
             $item->setCountry($data->country !== '' ? $data->country : null);
         }
+        $item->setCategory($data->category);
         $item->setUpdatedAt((new \DateTime())->format('Y-m-d H:i:s'));
         return $this->mapper->update($item);
     }

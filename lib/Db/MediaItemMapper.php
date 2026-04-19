@@ -22,13 +22,18 @@ class MediaItemMapper extends QBMapper
     /**
      * @return MediaItem[]
      */
-    public function findAll(string $userId): array
+    public function findAll(string $userId, ?string $category = null): array
     {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
             ->from($this->getTableName())
             ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
             ->orderBy('created_at', 'DESC');
+
+        if ($category !== null) {
+            $qb->andWhere($qb->expr()->eq('category', $qb->createNamedParameter($category)));
+        }
+
         return $this->findEntities($qb);
     }
 
@@ -40,6 +45,7 @@ class MediaItemMapper extends QBMapper
     public function findPaginated(
         string $userId,
         ?string $status = null,
+        ?string $category = null,
         ?string $updatedSince = null,
         int $limit = 50,
         int $offset = 0,
@@ -55,6 +61,9 @@ class MediaItemMapper extends QBMapper
         if ($status !== null) {
             $qb->andWhere($qb->expr()->eq('status', $qb->createNamedParameter($status)));
         }
+        if ($category !== null) {
+            $qb->andWhere($qb->expr()->eq('category', $qb->createNamedParameter($category)));
+        }
         if ($updatedSince !== null) {
             $qb->andWhere($qb->expr()->gt('updated_at', $qb->createNamedParameter($updatedSince)));
         }
@@ -62,7 +71,7 @@ class MediaItemMapper extends QBMapper
         return $this->findEntities($qb);
     }
 
-    public function countAll(string $userId, ?string $status = null, ?string $updatedSince = null): int
+    public function countAll(string $userId, ?string $status = null, ?string $category = null, ?string $updatedSince = null): int
     {
         $qb = $this->db->getQueryBuilder();
         $qb->select($qb->func()->count('*', 'cnt'))
@@ -71,6 +80,9 @@ class MediaItemMapper extends QBMapper
 
         if ($status !== null) {
             $qb->andWhere($qb->expr()->eq('status', $qb->createNamedParameter($status)));
+        }
+        if ($category !== null) {
+            $qb->andWhere($qb->expr()->eq('category', $qb->createNamedParameter($category)));
         }
         if ($updatedSince !== null) {
             $qb->andWhere($qb->expr()->gt('updated_at', $qb->createNamedParameter($updatedSince)));

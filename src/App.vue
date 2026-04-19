@@ -9,16 +9,28 @@
           @click="switchView('home')"
         />
         <NcAppNavigationItem
-          name="Collection"
-          :active="view === 'collection'"
-          href="#/collection"
-          @click="switchView('collection')"
+          name="Music"
+          :active="view === 'music'"
+          href="#/music"
+          @click="switchView('music')"
         />
         <NcAppNavigationItem
-          name="Wishlist"
-          :active="view === 'wishlist'"
-          href="#/wishlist"
-          @click="switchView('wishlist')"
+          name="Films"
+          :active="view === 'films'"
+          href="#/films"
+          @click="switchView('films')"
+        />
+        <NcAppNavigationItem
+          name="Books"
+          :active="view === 'books'"
+          href="#/books"
+          @click="switchView('books')"
+        />
+        <NcAppNavigationItem
+          name="Games"
+          :active="view === 'games'"
+          href="#/games"
+          @click="switchView('games')"
         />
         <NcAppNavigationItem
           name="Playlists"
@@ -96,12 +108,11 @@
         @detail="showDetail"
       />
 
-      <!-- Collection / Wishlist -->
+      <!-- Category collection views -->
       <CollectionView
-        v-else
-        :items="items"
-        :loading="loading"
-        :status="view === 'wishlist' ? 'wanted' : 'owned'"
+        v-else-if="COLLECTION_VIEWS.includes(view)"
+        ref="collectionViewRef"
+        :category="VIEW_TO_CATEGORY[view]"
         :scroll-container="appContentRef"
         @add="openAdd"
         @import="importOpen = true"
@@ -121,7 +132,7 @@
     <AddEditModal
       :show="modalOpen"
       :item="editingItem"
-      :default-status="view === 'wishlist' ? 'wanted' : 'owned'"
+      :default-status="'owned'"
       :has-token="hasDiscogsToken"
       @close="closeModal"
       @save="saveItem"
@@ -212,6 +223,9 @@ import { useMarketValueQueue } from './composables/useMarketValueQueue.js'
 import { useSettings } from './composables/useSettings.js'
 import { useHashRouter } from './composables/useHashRouter.js'
 
+const COLLECTION_VIEWS = ['music', 'films', 'books', 'games']
+const VIEW_TO_CATEGORY = { music: 'music', films: 'film', books: 'book', games: 'game' }
+
 const enrich = useEnrichQueue()
 const market = useMarketValueQueue()
 const { autoEnrichOnClick } = useSettings()
@@ -230,9 +244,8 @@ const activeQueue = computed(() => {
 const appContentRef = ref(null)
 const selectedItem = ref(null)
 const settingsOpen = ref(false)
-const items = ref([])
-const loading = ref(false)
 const homeView = ref(null)
+const collectionViewRef = ref(null)
 
 const modalOpen = ref(false)
 const editingItem = ref(null)
@@ -292,9 +305,8 @@ async function restoreFromHash() {
         return
       }
     } catch { /* fall through to home */ }
-  } else if (v === 'collection' || v === 'wishlist') {
+  } else if (COLLECTION_VIEWS.includes(v)) {
     view.value = v
-    loadItems()
     return
   } else if (v === 'playlists' || v === 'shared') {
     view.value = v
@@ -311,23 +323,16 @@ async function handleHashChange() {
   if (v === 'detail' && itemId) {
     // If we're already showing this exact item, nothing to do
     if (view.value === 'detail' && selectedItem.value?.id === itemId) return
-    // Try to find in the already-loaded list first to avoid a fetch
-    const cached = items.value.find(i => i.id === itemId)
-    if (cached) {
-      selectedItem.value = cached
-      view.value = 'detail'
-    } else {
-      // Not cached — fetch from API so back-nav works for deep-linked items
-      try {
-        const res = await axios.get(generateOcsUrl(`/apps/crate/api/v1/media/${itemId}`))
-        const item = res.data.ocs?.data
-        if (item) {
-          selectedItem.value = item
-          previousView.value = 'collection'
-          view.value = 'detail'
-        }
-      } catch { /* item no longer exists — stay on current view */ }
-    }
+    // Fetch from API so back-nav works for deep-linked items
+    try {
+      const res = await axios.get(generateOcsUrl(`/apps/crate/api/v1/media/${itemId}`))
+      const item = res.data.ocs?.data
+      if (item) {
+        selectedItem.value = item
+        previousView.value = 'music'
+        view.value = 'detail'
+      }
+    } catch { /* item no longer exists — stay on current view */ }
   } else if (v === 'playlist-detail' && playlistId) {
     if (view.value === 'playlist-detail' && selectedPlaylist.value?.id === playlistId) return
     // selectedPlaylist should still be in memory from navigation
@@ -338,7 +343,6 @@ async function handleHashChange() {
     view.value = v
     selectedItem.value = null
     selectedPlaylist.value = null
-    if (v === 'collection' || v === 'wishlist') loadItems()
   }
 }
 
@@ -351,24 +355,8 @@ function handleBeforeUnload(e) {
 
 // ── data loading ──────────────────────────────────────────────────────────────
 function handleCollectionWiped() {
-  items.value = []
+  collectionViewRef.value?.reload()
   if (homeView.value?.load) homeView.value.load()
-}
-
-async function loadItems() {
-  loading.value = true
-  try {
-    const response = await axios.get(generateOcsUrl('/apps/crate/api/v1/media'))
-    const all = response.data.ocs?.data ?? []
-    items.value = view.value === 'wishlist'
-      ? all.filter(i => i.status === 'wanted')
-      : all.filter(i => i.status === 'owned')
-  } catch (e) {
-    console.error('Failed to load media items', e)
-    showError('Failed to load your collection')
-  } finally {
-    loading.value = false
-  }
 }
 
 // ── navigation ────────────────────────────────────────────────────────────────
@@ -377,9 +365,7 @@ function switchView(newView) {
   selectedItem.value = null
   selectedPlaylist.value = null
   setHash(hashForView(newView))
-  if (newView === 'collection' || newView === 'wishlist') {
-    loadItems()
-  } else if (newView === 'playlists') {
+  if (newView === 'playlists') {
     nextTick(() => playlistsView.value?.load())
   } else if (newView === 'shared') {
     nextTick(() => sharedView.value?.load())
@@ -405,11 +391,10 @@ async function triggerEnrich(id) {
     const res = await axios.post(generateOcsUrl(`/apps/crate/api/v1/media/${id}/enrich`))
     const enriched = res.data.ocs?.data
     if (enriched) {
+      // eslint-disable-next-line eqeqeq
       if (selectedItem.value && selectedItem.value.id == enriched.id) {
         selectedItem.value = enriched
       }
-      const idx = items.value.findIndex(i => i.id == enriched.id)
-      if (idx !== -1) items.value[idx] = enriched
       if (view.value === 'home') homeView.value?.load()
     }
   } catch (e) {
@@ -497,7 +482,7 @@ function handleImported() {
   if (view.value === 'home') {
     homeView.value?.load()
   } else {
-    loadItems()
+    collectionViewRef.value?.reload()
   }
 }
 
@@ -508,6 +493,7 @@ async function saveItem(payload) {
     // Capture before closeModal clears it
     const wasEditing = !!editingItem.value
     const editId = editingItem.value?.id
+    const editCategory = editingItem.value?.category ?? 'music'
 
     // Pull out artwork side-effects before sending to the API
     const artworkFile = payload._artworkFile ?? null
@@ -517,6 +503,13 @@ async function saveItem(payload) {
     const payloadArtist = payload.artist
     delete payload._artworkFile
     delete payload._removeArtwork
+
+    // Inject category: preserve existing on edit, derive from current view on create
+    if (!payload.category) {
+      payload.category = wasEditing
+        ? editCategory
+        : (VIEW_TO_CATEGORY[view.value] ?? VIEW_TO_CATEGORY[previousView.value] ?? 'music')
+    }
 
     if (wasEditing) {
       const res = await axios.put(
@@ -529,16 +522,12 @@ async function saveItem(payload) {
       saved = res.data.ocs?.data
     }
 
-    // Update selectedItem and items list before closing the modal so Vue
-    // flushes the reactive updates in a single batch with the modal close.
+    // Update selectedItem if it's currently shown in the detail view
     if (saved) {
       // eslint-disable-next-line eqeqeq
       if (selectedItem.value && selectedItem.value.id == saved.id) {
         selectedItem.value = saved
       }
-      // Patch the items list too
-      const idx = items.value.findIndex(i => i.id == saved.id)
-      if (idx !== -1) items.value[idx] = saved
     }
 
     closeModal()
@@ -563,14 +552,12 @@ async function saveItem(payload) {
           const fd = new FormData()
           fd.append('file', artworkFile)
           await axios.post(generateUrl(`/apps/crate/artwork/${targetId}`), fd)
-          // Re-fetch item so artworkPath = 'local' is reflected everywhere
+          // Re-fetch item so artworkPath = 'local' is reflected in detail view
           const r = await axios.get(generateOcsUrl(`/apps/crate/api/v1/media/${targetId}`))
           const fresh = r.data.ocs?.data
           if (fresh) {
             // eslint-disable-next-line eqeqeq
             if (selectedItem.value?.id == fresh.id) selectedItem.value = fresh
-            const idx = items.value.findIndex(i => i.id == fresh.id)
-            if (idx !== -1) items.value[idx] = fresh
             saved = fresh
           }
         } catch (e) {
@@ -585,8 +572,6 @@ async function saveItem(payload) {
           if (fresh) {
             // eslint-disable-next-line eqeqeq
             if (selectedItem.value?.id == fresh.id) selectedItem.value = fresh
-            const idx = items.value.findIndex(i => i.id == fresh.id)
-            if (idx !== -1) items.value[idx] = fresh
             saved = fresh
           }
         } catch (e) {
@@ -602,25 +587,19 @@ async function saveItem(payload) {
     }
 
     if (view.value === 'detail') {
-      // The PUT response data (`saved`) is sometimes not populated due to OCS
-      // response format differences. Always re-fetch the item after an edit to
-      // guarantee the detail view is current.
+      // Always re-fetch after an edit to guarantee the detail view is current.
       if (wasEditing && editId) {
         try {
           const r = await axios.get(generateOcsUrl(`/apps/crate/api/v1/media/${editId}`))
           const fresh = r.data.ocs?.data
-          if (fresh) {
-            // eslint-disable-next-line eqeqeq
-            if (selectedItem.value?.id == fresh.id) selectedItem.value = fresh
-            const idx = items.value.findIndex(i => i.id == fresh.id)
-            if (idx !== -1) items.value[idx] = fresh
-          }
+          // eslint-disable-next-line eqeqeq
+          if (fresh && selectedItem.value?.id == fresh.id) selectedItem.value = fresh
         } catch { /* ignore — view will be stale until next navigation */ }
       }
     } else if (view.value === 'home') {
       homeView.value?.load()
-    } else {
-      await loadItems()
+    } else if (COLLECTION_VIEWS.includes(view.value)) {
+      collectionViewRef.value?.reload()
     }
   } catch (e) {
     console.error('Failed to save item', e)
@@ -640,10 +619,11 @@ async function deleteItem() {
     if (inDetail) {
       goBack()
     }
-    if (previousView.value === 'home' || view.value === 'home') {
+    if (view.value === 'home' || previousView.value === 'home') {
       homeView.value?.load()
     } else {
-      await loadItems()
+      // CollectionView will reload when it remounts (after goBack) or explicitly
+      collectionViewRef.value?.reload()
     }
   } catch (e) {
     console.error('Failed to delete item', e)
@@ -654,11 +634,6 @@ async function deleteItem() {
 // ── enrich ────────────────────────────────────────────────────────────────────
 function handleEnriched(updated) {
   selectedItem.value = updated
-  // Patch item in the items list too
-  const idx = items.value.findIndex(i => i.id === updated.id)
-  if (idx !== -1) {
-    items.value[idx] = updated
-  }
 }
 </script>
 

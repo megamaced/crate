@@ -20,8 +20,10 @@ export function useHashRouter() {
   function hashForView(v, id = null) {
     if (v === 'detail' && id) return `#/detail/${id}`
     if (v === 'playlist-detail' && id) return `#/playlists/${id}`
-    if (v === 'collection') return '#/collection'
-    if (v === 'wishlist') return '#/wishlist'
+    if (v === 'music') return '#/music'
+    if (v === 'films') return '#/films'
+    if (v === 'books') return '#/books'
+    if (v === 'games') return '#/games'
     if (v === 'playlists') return '#/playlists'
     if (v === 'shared') return '#/shared'
     return '#/'
@@ -32,8 +34,12 @@ export function useHashRouter() {
     if (parts[0] === 'detail' && parts[1]) return { view: 'detail', itemId: parseInt(parts[1], 10), playlistId: null }
     if (parts[0] === 'playlists' && parts[1]) return { view: 'playlist-detail', itemId: null, playlistId: parseInt(parts[1], 10) }
     if (parts[0] === 'playlists') return { view: 'playlists', itemId: null, playlistId: null }
-    if (parts[0] === 'collection') return { view: 'collection', itemId: null, playlistId: null }
-    if (parts[0] === 'wishlist') return { view: 'wishlist', itemId: null, playlistId: null }
+    if (parts[0] === 'music') return { view: 'music', itemId: null, playlistId: null }
+    if (parts[0] === 'films') return { view: 'films', itemId: null, playlistId: null }
+    if (parts[0] === 'books') return { view: 'books', itemId: null, playlistId: null }
+    if (parts[0] === 'games') return { view: 'games', itemId: null, playlistId: null }
+    // Legacy hash routes redirect to music
+    if (parts[0] === 'collection' || parts[0] === 'wishlist') return { view: 'music', itemId: null, playlistId: null }
     if (parts[0] === 'shared') return { view: 'shared', itemId: null, playlistId: null }
     return { view: 'home', itemId: null, playlistId: null }
   }

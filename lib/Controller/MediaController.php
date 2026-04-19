@@ -38,9 +38,12 @@ class MediaController extends OCSController
         parent::__construct($appName, $request);
     }
 
+    private const VALID_CATEGORIES = ['music', 'film', 'book', 'game'];
+
     #[NoAdminRequired]
     public function index(
         ?string $status = null,
+        ?string $category = null,
         ?string $updatedSince = null,
         int $limit = 50,
         int $offset = 0,
@@ -55,7 +58,7 @@ class MediaController extends OCSController
         $offset = max(0, $offset);
 
         if ($isPaginated) {
-            $result = $this->mediaService->findPaginated($this->userId(), $status, $updatedSince, $limit, $offset);
+            $result = $this->mediaService->findPaginated($this->userId(), $status, $category, $updatedSince, $limit, $offset);
             return new DataResponse([
                 'items'  => $result['items'],
                 'total'  => $result['total'],
@@ -64,7 +67,7 @@ class MediaController extends OCSController
             ]);
         }
 
-        return new DataResponse($this->mediaService->findAll($this->userId()));
+        return new DataResponse($this->mediaService->findAll($this->userId(), $category));
     }
 
     #[NoAdminRequired]
@@ -88,9 +91,13 @@ class MediaController extends OCSController
         ?string $artworkPath = null,
         ?string $label = null,
         ?string $country = null,
+        string $category = 'music',
     ): DataResponse {
         if (!in_array($status, self::VALID_STATUSES, true)) {
             return new DataResponse(['error' => 'Invalid status'], Http::STATUS_BAD_REQUEST);
+        }
+        if (!in_array($category, self::VALID_CATEGORIES, true)) {
+            return new DataResponse(['error' => 'Invalid category'], Http::STATUS_BAD_REQUEST);
         }
         $data = new MediaItemData(
             $title,
@@ -104,6 +111,7 @@ class MediaController extends OCSController
             $artworkPath,
             $label,
             $country,
+            $category,
         );
         return new DataResponse($this->mediaService->create($this->userId(), $data));
     }
@@ -122,9 +130,13 @@ class MediaController extends OCSController
         ?string $artworkPath = null,
         ?string $label = null,
         ?string $country = null,
+        string $category = 'music',
     ): DataResponse {
         if (!in_array($status, self::VALID_STATUSES, true)) {
             return new DataResponse(['error' => 'Invalid status'], Http::STATUS_BAD_REQUEST);
+        }
+        if (!in_array($category, self::VALID_CATEGORIES, true)) {
+            return new DataResponse(['error' => 'Invalid category'], Http::STATUS_BAD_REQUEST);
         }
         $data = new MediaItemData(
             $title,
@@ -138,6 +150,7 @@ class MediaController extends OCSController
             $artworkPath,
             $label,
             $country,
+            $category,
         );
         return new DataResponse($this->mediaService->update($id, $this->userId(), $data));
     }

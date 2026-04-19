@@ -97,6 +97,26 @@
         </div>
       </div>
 
+      <!-- Status tabs -->
+      <div
+        class="cv-status-tabs"
+        role="group"
+        aria-label="Collection or Wishlist"
+      >
+        <button
+          :class="['cv-status-tab', { active: statusFilter === 'owned' }]"
+          @click="statusFilter = 'owned'; filterFormat = ''"
+        >
+          Collection
+        </button>
+        <button
+          :class="['cv-status-tab', { active: statusFilter === 'wanted' }]"
+          @click="statusFilter = 'wanted'; filterFormat = ''"
+        >
+          Wishlist
+        </button>
+      </div>
+
       <!-- Format filter chips -->
       <div
         v-if="presentFormats.length > 1"
@@ -108,7 +128,7 @@
           :class="['cv-chip', { active: filterFormat === '' }]"
           @click="filterFormat = ''"
         >
-          All ({{ items.length }})
+          All ({{ filteredByStatus.length }})
         </button>
         <button
           v-for="fmt in presentFormats"
@@ -135,7 +155,7 @@
       class="cv-empty"
     >
       <template v-if="filterFormat">
-        <p>No {{ filterFormat }} items in your {{ status === 'wanted' ? 'wishlist' : 'collection' }}.</p>
+        <p>No {{ filterFormat }} items in your {{ statusFilter === 'wanted' ? 'wishlist' : 'collection' }}.</p>
         <NcButton
           variant="tertiary"
           @click="filterFormat = ''"
@@ -144,7 +164,7 @@
         </NcButton>
       </template>
       <template v-else>
-        <p>{{ status === 'wanted' ? 'Your wishlist is empty.' : 'No items yet. Add your first record!' }}</p>
+        <p>{{ statusFilter === 'wanted' ? 'Your wishlist is empty.' : `No ${heading} items yet.` }}</p>
         <NcButton
           variant="primary"
           @click="$emit('add')"
@@ -253,7 +273,7 @@
 
     <ExportModal
       :show="exportOpen"
-      :scope="status"
+      :scope="statusFilter"
       @close="exportOpen = false"
     />
   </div>
@@ -262,44 +282,78 @@
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { NcButton } from '@nextcloud/vue'
+import axios from '@nextcloud/axios'
+import { generateOcsUrl } from '@nextcloud/router'
+import { showError } from '@nextcloud/dialogs'
 import MediaCard from './MediaCard.vue'
 import ExportModal from './ExportModal.vue'
 import { formatMarketValue } from '../utils/formatMarketValue.js'
 import { artworkStyleFor } from '../composables/useArtworkStyle.js'
 
+const CATEGORY_LABELS = {
+  music: 'Music',
+  film:  'Films',
+  book:  'Books',
+  game:  'Games',
+}
+
 const props = defineProps({
-  items: { type: Array, required: true },
-  loading: { type: Boolean, default: false },
-  status: { type: String, default: 'owned' }, // 'owned' | 'wanted'
+  category: { type: String, default: 'music' }, // 'music' | 'film' | 'book' | 'game'
   scrollContainer: { type: Object, default: null },
 })
 
-const exportOpen = ref(false)
-
 defineEmits(['add', 'import', 'detail', 'edit', 'delete'])
 
+const items = ref([])
+const loading = ref(false)
+const statusFilter = ref('owned') // 'owned' | 'wanted'
+const exportOpen = ref(false)
 const viewMode = ref('card')
 const sortKey = ref('artist-asc')
 const filterFormat = ref('')
 
-const heading = computed(() => props.status === 'wanted' ? 'Wishlist' : 'Collection')
+async function load() {
+  loading.value = true
+  try {
+    const res = await axios.get(generateOcsUrl('/apps/crate/api/v1/media'), {
+      params: { category: props.category },
+    })
+    items.value = res.data.ocs?.data ?? []
+  } catch (e) {
+    console.error('Failed to load items', e)
+    showError('Failed to load your collection')
+  } finally {
+    loading.value = false
+  }
+}
+
+defineExpose({ reload: load })
+
+onMounted(load)
+watch(() => props.category, load)
+
+const filteredByStatus = computed(() =>
+  items.value.filter(i => i.status === statusFilter.value),
+)
+
+const heading = computed(() => CATEGORY_LABELS[props.category] ?? 'Collection')
 
 const presentFormats = computed(() => {
   const seen = new Set()
-  for (const item of props.items) {
+  for (const item of filteredByStatus.value) {
     if (item.format) seen.add(item.format)
   }
   return [...seen].sort()
 })
 
 function formatCount(fmt) {
-  return props.items.filter(i => i.format === fmt).length
+  return filteredByStatus.value.filter(i => i.format === fmt).length
 }
 
 const filteredSorted = computed(() => {
   let list = filterFormat.value
-    ? props.items.filter(i => i.format === filterFormat.value)
-    : [...props.items]
+    ? filteredByStatus.value.filter(i => i.format === filterFormat.value)
+    : [...filteredByStatus.value]
 
   const [field, dir] = sortKey.value.split('-')
 
@@ -556,6 +610,37 @@ function thumbStyle(item) {
 
 .cv-plus {
   font-size: 1.1em;
+}
+
+/* Status tabs */
+.cv-status-tabs {
+  display: flex;
+  gap: 0;
+  border: 2px solid var(--color-border-dark);
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  margin-bottom: 8px;
+  width: fit-content;
+}
+
+.cv-status-tab {
+  background: none;
+  border: none;
+  padding: 5px 16px;
+  font-size: 0.875em;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--color-text-maxcontrast);
+  transition: background 0.1s, color 0.1s;
+}
+
+.cv-status-tab + .cv-status-tab {
+  border-left: 2px solid var(--color-border-dark);
+}
+
+.cv-status-tab.active {
+  background: var(--color-primary-element);
+  color: var(--color-primary-element-text);
 }
 
 /* Format filter chips */

@@ -57,6 +57,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setMarketValueCurrency(?string $marketValueCurrency)
  * @method string|null getMarketValueFetchedAt()
  * @method void setMarketValueFetchedAt(?string $marketValueFetchedAt)
+ * @method string getCategory()
+ * @method void setCategory(string $category)
  * @method string|null getCreatedAt()
  * @method void setCreatedAt(string $createdAt)
  * @method string|null getUpdatedAt()
@@ -89,6 +91,7 @@ class MediaItem extends Entity implements \JsonSerializable
     protected ?float $marketValue = null;
     protected ?string $marketValueCurrency = null;
     protected ?string $marketValueFetchedAt = null;
+    protected string $category = 'music';
     protected ?string $createdAt = null;
     protected ?string $updatedAt = null;
 
@@ -128,6 +131,7 @@ class MediaItem extends Entity implements \JsonSerializable
             'marketValue'          => $this->marketValue,
             'marketValueCurrency'  => $this->marketValueCurrency,
             'marketValueFetchedAt' => $this->marketValueFetchedAt,
+            'category'        => $this->category,
             'createdAt'       => $this->createdAt,
             'updatedAt'       => $this->updatedAt,
         ];

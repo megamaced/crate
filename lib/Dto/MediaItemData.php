@@ -23,6 +23,7 @@ class MediaItemData
         public readonly ?string $artworkPath = null,
         public readonly ?string $label = null,
         public readonly ?string $country = null,
+        public readonly string $category = 'music',
     ) {
     }
 }
