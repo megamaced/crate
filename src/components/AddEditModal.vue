@@ -30,6 +30,11 @@
         :has-key="hasRawgKey"
         @select="applyRawg"
       />
+      <ComicVineSearch
+        v-else-if="form.category === 'comic'"
+        :has-key="hasComicVineKey"
+        @select="applyComicVine"
+      />
 
       <form @submit.prevent="submit">
         <!-- Category picker -->
@@ -51,6 +56,9 @@
               </option>
               <option value="game">
                 Games
+              </option>
+              <option value="comic">
+                Comics
               </option>
             </select>
           </div>
@@ -256,6 +264,7 @@ import { NcModal, NcButton } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateUrl } from '@nextcloud/router'
 import { showError } from '@nextcloud/dialogs'
+import ComicVineSearch from './ComicVineSearch.vue'
 import DiscogsSearch from './DiscogsSearch.vue'
 import TMDBSearch from './TMDBSearch.vue'
 import OpenLibrarySearch from './OpenLibrarySearch.vue'
@@ -266,10 +275,11 @@ const props = defineProps({
   show:          { type: Boolean, required: true },
   item:          { type: Object,  default: null },
   defaultStatus: { type: String,  default: 'owned' },
-  hasToken:      { type: Boolean, default: false },
-  hasTmdbToken:  { type: Boolean, default: false },
-  hasRawgKey:    { type: Boolean, default: false },
-  category:      { type: String,  default: 'music' },
+  hasToken:         { type: Boolean, default: false },
+  hasTmdbToken:     { type: Boolean, default: false },
+  hasRawgKey:       { type: Boolean, default: false },
+  hasComicVineKey:  { type: Boolean, default: false },
+  category:         { type: String,  default: 'music' },
 })
 
 const emit = defineEmits(['close', 'save'])
@@ -306,7 +316,7 @@ const previewStyle = computed(() => {
 })
 
 const artworkPlaceholder = computed(() => {
-  const icons = { music: '♪', film: '🎬', book: '📖', game: '🎮' }
+  const icons = { music: '♪', film: '🎬', book: '📖', game: '🎮', comic: '📚' }
   return icons[form.value.category] ?? '♪'
 })
 
@@ -431,17 +441,17 @@ const modalTitle = computed(() => {
 })
 
 const artistPlaceholder = computed(() => {
-  const examples = { music: 'e.g. Pink Floyd', film: 'e.g. Christopher Nolan', book: 'e.g. George Orwell', game: 'e.g. Nintendo' }
+  const examples = { music: 'e.g. Pink Floyd', film: 'e.g. Christopher Nolan', book: 'e.g. George Orwell', game: 'e.g. Nintendo', comic: 'e.g. Alan Moore' }
   return examples[form.value.category] ?? ''
 })
 
 const titlePlaceholder = computed(() => {
-  const examples = { music: 'e.g. The Dark Side of the Moon', film: 'e.g. Inception', book: 'e.g. 1984', game: 'e.g. Super Mario Bros.' }
+  const examples = { music: 'e.g. The Dark Side of the Moon', film: 'e.g. Inception', book: 'e.g. 1984', game: 'e.g. Super Mario Bros.', comic: 'e.g. Watchmen' }
   return examples[form.value.category] ?? ''
 })
 
 const labelPlaceholder = computed(() => {
-  const examples = { music: 'e.g. EMI', film: 'e.g. Warner Bros.', book: 'e.g. Penguin', game: 'e.g. Nintendo' }
+  const examples = { music: 'e.g. EMI', film: 'e.g. Warner Bros.', book: 'e.g. Penguin', game: 'e.g. Nintendo', comic: 'e.g. DC Comics' }
   return examples[form.value.category] ?? ''
 })
 
@@ -508,6 +518,22 @@ function applyRawg(result) {
   form.value.year      = result.year      || form.value.year
   form.value.label     = result.label     || form.value.label
   form.value.discogsId = result.rawgId    || null
+  if (result.artworkUrl || result.thumb) {
+    form.value.artworkPath = result.artworkUrl || result.thumb
+    discogsThumbnailUrl.value = result.artworkUrl || result.thumb
+    if (props.item?.artworkPath) {
+      artworkFile.value = null
+      replaceArtworkFlag.value = true
+    }
+  }
+}
+
+// ── ComicVine apply (comics) ───────────────────────────────────────────────────
+function applyComicVine(result) {
+  form.value.title     = result.title     || form.value.title
+  form.value.year      = result.year      || form.value.year
+  form.value.label     = result.label     || form.value.label
+  form.value.discogsId = result.comicVineId || null
   if (result.artworkUrl || result.thumb) {
     form.value.artworkPath = result.artworkUrl || result.thumb
     discogsThumbnailUrl.value = result.artworkUrl || result.thumb

@@ -89,6 +89,26 @@ class SettingsController extends OCSController
     }
 
     #[NoAdminRequired]
+    public function getComicVineKey(): DataResponse
+    {
+        $key = (string)($this->credentialsManager->retrieve($this->userId(), 'crate/comicvine_key') ?? '');
+        return new DataResponse(['hasKey' => $key !== '']);
+    }
+
+    #[NoAdminRequired]
+    public function setComicVineKey(string $key = ''): DataResponse
+    {
+        $uid     = $this->userId();
+        $trimmed = trim($key);
+        if ($trimmed === '') {
+            $this->credentialsManager->delete($uid, 'crate/comicvine_key');
+        } else {
+            $this->credentialsManager->store($uid, 'crate/comicvine_key', $trimmed);
+        }
+        return new DataResponse([]);
+    }
+
+    #[NoAdminRequired]
     public function getPriceChartingToken(): DataResponse
     {
         $token = (string)($this->credentialsManager->retrieve($this->userId(), 'crate/pricecharting_token') ?? '');

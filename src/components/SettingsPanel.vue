@@ -227,6 +227,70 @@
       </div>
     </NcAppSettingsSection>
 
+    <!-- ── ComicVine (Comics) ── -->
+    <NcAppSettingsSection
+      id="crate-settings-comicvine"
+      name="Comics — ComicVine"
+    >
+      <p class="settings-hint">
+        Crate uses the
+        <a
+          href="https://comicvine.gamespot.com/api/"
+          target="_blank"
+          rel="noopener"
+        >ComicVine API</a>
+        to fetch comic volume metadata, artwork, genres and descriptions.
+        Get a free API key at
+        <a
+          href="https://comicvine.gamespot.com/api/"
+          target="_blank"
+          rel="noopener"
+        >comicvine.gamespot.com/api</a>.
+      </p>
+
+      <div class="settings-field">
+        <label for="comicvine-key">API Key</label>
+        <div class="settings-token-row">
+          <input
+            id="comicvine-key"
+            v-model="comicVineKeyInput"
+            :type="showComicVineKey ? 'text' : 'password'"
+            :placeholder="hasComicVineKey ? '(key saved — paste a new one to replace)' : 'Paste your API key here'"
+            autocomplete="off"
+          >
+          <NcButton
+            variant="tertiary"
+            :aria-label="showComicVineKey ? 'Hide key' : 'Show key'"
+            @click="showComicVineKey = !showComicVineKey"
+          >
+            {{ showComicVineKey ? 'Hide' : 'Show' }}
+          </NcButton>
+        </div>
+      </div>
+
+      <div class="settings-actions">
+        <NcButton
+          variant="primary"
+          :disabled="savingComicVine || comicVineKeyInput === ''"
+          @click="saveComicVineKey"
+        >
+          {{ savingComicVine ? 'Saving…' : 'Save key' }}
+        </NcButton>
+        <NcButton
+          v-if="hasComicVineKey"
+          variant="tertiary"
+          :disabled="savingComicVine"
+          @click="clearComicVineKey"
+        >
+          Remove key
+        </NcButton>
+        <span
+          v-if="comicVineSavedMessage"
+          class="settings-saved"
+        >{{ comicVineSavedMessage }}</span>
+      </div>
+    </NcAppSettingsSection>
+
     <!-- ── PriceCharting (Games & Comics) ── -->
     <NcAppSettingsSection
       id="crate-settings-pricecharting"
@@ -413,7 +477,7 @@ import { useSettings } from '../composables/useSettings.js'
 defineProps({
   open: { type: Boolean, required: true },
 })
-const emit = defineEmits(['update:open', 'token-changed', 'tmdb-token-changed', 'rawg-key-changed', 'pricecharting-token-changed', 'collection-wiped'])
+const emit = defineEmits(['update:open', 'token-changed', 'tmdb-token-changed', 'rawg-key-changed', 'comicvine-key-changed', 'pricecharting-token-changed', 'collection-wiped'])
 
 const enrich = useEnrichQueue()
 const marketQueue = useMarketValueQueue()
@@ -441,6 +505,13 @@ const showRawgKey = ref(false)
 const savingRawg = ref(false)
 const rawgSavedMessage = ref('')
 
+// ComicVine
+const comicVineKeyInput = ref('')
+const hasComicVineKey = ref(false)
+const showComicVineKey = ref(false)
+const savingComicVine = ref(false)
+const comicVineSavedMessage = ref('')
+
 // PriceCharting
 const priceChartingTokenInput = ref('')
 const hasPriceChartingToken = ref(false)
@@ -454,17 +525,19 @@ const wipedMessage = ref('')
 
 async function load() {
   try {
-    const [tokenRes, currRes, tmdbRes, rawgRes, pcRes] = await Promise.all([
+    const [tokenRes, currRes, tmdbRes, rawgRes, cvRes, pcRes] = await Promise.all([
       axios.get(generateOcsUrl('/apps/crate/api/v1/settings/discogs-token')),
       axios.get(generateOcsUrl('/apps/crate/api/v1/settings/currencies')),
       axios.get(generateOcsUrl('/apps/crate/api/v1/settings/tmdb-token')),
       axios.get(generateOcsUrl('/apps/crate/api/v1/settings/rawg-key')),
+      axios.get(generateOcsUrl('/apps/crate/api/v1/settings/comicvine-key')),
       axios.get(generateOcsUrl('/apps/crate/api/v1/settings/pricecharting-token')),
     ])
-    hasToken.value            = tokenRes.data.ocs?.data?.hasToken ?? false
-    currencies.value          = currRes.data.ocs?.data ?? []
-    hasTmdbToken.value        = tmdbRes.data.ocs?.data?.hasToken ?? false
-    hasRawgKey.value          = rawgRes.data.ocs?.data?.hasKey ?? false
+    hasToken.value              = tokenRes.data.ocs?.data?.hasToken ?? false
+    currencies.value            = currRes.data.ocs?.data ?? []
+    hasTmdbToken.value          = tmdbRes.data.ocs?.data?.hasToken ?? false
+    hasRawgKey.value            = rawgRes.data.ocs?.data?.hasKey ?? false
+    hasComicVineKey.value       = cvRes.data.ocs?.data?.hasKey ?? false
     hasPriceChartingToken.value = pcRes.data.ocs?.data?.hasToken ?? false
   } catch (e) {
     console.error('Failed to load settings', e)
@@ -594,6 +667,41 @@ async function clearRawgKey() {
     showError('Failed to clear RAWG key')
   } finally {
     savingRawg.value = false
+  }
+}
+
+async function saveComicVineKey() {
+  savingComicVine.value = true
+  comicVineSavedMessage.value = ''
+  try {
+    await axios.post(generateOcsUrl('/apps/crate/api/v1/settings/comicvine-key'), { key: comicVineKeyInput.value })
+    hasComicVineKey.value = comicVineKeyInput.value !== ''
+    emit('comicvine-key-changed', hasComicVineKey.value)
+    comicVineKeyInput.value = ''
+    comicVineSavedMessage.value = 'Saved!'
+    setTimeout(() => { comicVineSavedMessage.value = '' }, 3000)
+  } catch (e) {
+    console.error('Failed to save ComicVine key', e)
+    showError('Failed to save ComicVine key')
+    comicVineSavedMessage.value = 'Failed to save.'
+  } finally {
+    savingComicVine.value = false
+  }
+}
+
+async function clearComicVineKey() {
+  savingComicVine.value = true
+  try {
+    await axios.post(generateOcsUrl('/apps/crate/api/v1/settings/comicvine-key'), { key: '' })
+    hasComicVineKey.value = false
+    emit('comicvine-key-changed', false)
+    comicVineSavedMessage.value = 'Key removed.'
+    setTimeout(() => { comicVineSavedMessage.value = '' }, 3000)
+  } catch (e) {
+    console.error('Failed to clear ComicVine key', e)
+    showError('Failed to clear ComicVine key')
+  } finally {
+    savingComicVine.value = false
   }
 }
 

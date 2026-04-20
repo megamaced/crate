@@ -6,6 +6,7 @@ namespace OCA\Crate\Controller;
 
 use OCA\Crate\Db\CrateShareMapper;
 use OCA\Crate\Dto\MediaItemData;
+use OCA\Crate\Service\ComicVineService;
 use OCA\Crate\Service\DiscogsService;
 use OCA\Crate\Service\MarketValueService;
 use OCA\Crate\Service\MediaService;
@@ -34,6 +35,7 @@ class MediaController extends OCSController
         private readonly TmdbService $tmdbService,
         private readonly OpenLibraryService $openLibraryService,
         private readonly RawgService $rawgService,
+        private readonly ComicVineService $comicVineService,
         private readonly MarketValueService $marketValueService,
         private readonly IUserSession $userSession,
         private readonly PlaylistMapper $playlistMapper,
@@ -44,7 +46,7 @@ class MediaController extends OCSController
         parent::__construct($appName, $request);
     }
 
-    private const VALID_CATEGORIES = ['music', 'film', 'book', 'game'];
+    private const VALID_CATEGORIES = ['music', 'film', 'book', 'game', 'comic'];
 
     #[NoAdminRequired]
     public function index(
@@ -215,6 +217,9 @@ class MediaController extends OCSController
         if ($category === 'game') {
             return $this->enrichGame($id, $item);
         }
+        if ($category === 'comic') {
+            return $this->enrichComic($id, $item);
+        }
 
         // Default: music via Discogs
         return $this->enrichMusic($id, $item);
@@ -362,6 +367,38 @@ class MediaController extends OCSController
         }
 
         $updated = $this->mediaService->applyRawgData($id, $this->userId(), $game);
+        return new DataResponse($updated);
+    }
+
+    private function enrichComic(int $id, \OCA\Crate\Db\MediaItem $item): DataResponse
+    {
+        $volumeId = $item->getDiscogsId();
+
+        if (empty($volumeId)) {
+            $query   = trim($item->getTitle());
+            $results = $this->comicVineService->search($this->userId(), $query);
+            if (empty($results)) {
+                return new DataResponse(
+                    ['error' => 'No ComicVine match found. Add a ComicVine API key in Settings.'],
+                    Http::STATUS_NOT_FOUND,
+                );
+            }
+            $volumeId = (string)($results[0]['comicVineId'] ?? '');
+        }
+
+        if ($volumeId === '') {
+            return new DataResponse(['error' => 'No ComicVine volume ID available.'], Http::STATUS_NOT_FOUND);
+        }
+
+        $volume = $this->comicVineService->getVolume($this->userId(), $volumeId);
+        if (empty($volume)) {
+            return new DataResponse(
+                ['error' => 'Could not fetch volume from ComicVine. Check your API key.'],
+                Http::STATUS_BAD_GATEWAY,
+            );
+        }
+
+        $updated = $this->mediaService->applyComicVineData($id, $this->userId(), $volume);
         return new DataResponse($updated);
     }
 

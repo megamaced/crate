@@ -3,6 +3,7 @@ export const CATEGORY_LABELS = {
   film:  'Films',
   book:  'Books',
   game:  'Games',
+  comic: 'Comics',
 }
 
 export const FORMAT_GROUPS = {
@@ -62,6 +63,16 @@ export const FORMAT_GROUPS = {
       formats: ['Atari 2600', 'Commodore 64', 'Amiga', 'Neo Geo', 'Tiger'],
     },
   ],
+  comic: [
+    {
+      label: 'Single Issues',
+      formats: ['Single Issue', 'Annual', 'Special', 'One-Shot', 'Mini-Series', 'Limited Series'],
+    },
+    {
+      label: 'Collected',
+      formats: ['Trade Paperback', 'Hardcover', 'Omnibus', 'Graphic Novel', 'Compendium'],
+    },
+  ],
 }
 
 // Flat ordered list per category — used to sort format filter chips
@@ -73,8 +84,9 @@ export const FORMAT_LIST = Object.fromEntries(
 )
 
 export const FIELD_CONFIG = {
-  music: { artist: 'Artist',    title: 'Album / Title', label: 'Label',     barcode: 'Barcode', showBarcode: true  },
-  film:  { artist: 'Director',  title: 'Film Title',    label: 'Studio',    barcode: null,      showBarcode: false },
-  book:  { artist: 'Author',    title: 'Title',         label: 'Publisher', barcode: 'ISBN',    showBarcode: true  },
-  game:  { artist: 'Developer', title: 'Game Title',    label: 'Publisher', barcode: null,      showBarcode: false },
+  music: { artist: 'Artist',    title: 'Album / Title',        label: 'Label',     barcode: 'Barcode', showBarcode: true  },
+  film:  { artist: 'Director',  title: 'Film Title',            label: 'Studio',    barcode: null,      showBarcode: false },
+  book:  { artist: 'Author',    title: 'Title',                 label: 'Publisher', barcode: 'ISBN',    showBarcode: true  },
+  game:  { artist: 'Developer', title: 'Game Title',            label: 'Publisher', barcode: null,      showBarcode: false },
+  comic: { artist: 'Writer',    title: 'Series / Volume Title', label: 'Publisher', barcode: null,      showBarcode: false },
 }

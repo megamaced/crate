@@ -33,6 +33,8 @@ return [
 		['name' => 'settings#setTmdbToken',     'url' => '/api/v1/settings/tmdb-token',    'verb' => 'POST'],
 		['name' => 'settings#getRawgKey',             'url' => '/api/v1/settings/rawg-key',             'verb' => 'GET'],
 		['name' => 'settings#setRawgKey',             'url' => '/api/v1/settings/rawg-key',             'verb' => 'POST'],
+		['name' => 'settings#getComicVineKey',        'url' => '/api/v1/settings/comicvine-key',        'verb' => 'GET'],
+		['name' => 'settings#setComicVineKey',        'url' => '/api/v1/settings/comicvine-key',        'verb' => 'POST'],
 		['name' => 'settings#getPriceChartingToken',  'url' => '/api/v1/settings/pricecharting-token',  'verb' => 'GET'],
 		['name' => 'settings#setPriceChartingToken',  'url' => '/api/v1/settings/pricecharting-token',  'verb' => 'POST'],
 		['name' => 'settings#getMarketSettings', 'url' => '/api/v1/settings/market',       'verb' => 'GET'],
@@ -56,6 +58,10 @@ return [
 		// ── RAWG API proxy (games) ─────────────────────────────────────────────
 		['name' => 'rawg#search',   'url' => '/api/v1/rawg/search',    'verb' => 'GET'],
 		['name' => 'rawg#getGame',  'url' => '/api/v1/rawg/game/{id}', 'verb' => 'GET'],
+
+		// ── ComicVine API proxy (comics) ───────────────────────────────────────────
+		['name' => 'comicVine#search',    'url' => '/api/v1/comicvine/search',      'verb' => 'GET'],
+		['name' => 'comicVine#getVolume', 'url' => '/api/v1/comicvine/volume/{id}', 'verb' => 'GET'],
 
 		// ── Import ─────────────────────────────────────────────────────────────
 		['name' => 'import#preview', 'url' => '/api/v1/import/preview', 'verb' => 'POST'],

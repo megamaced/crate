@@ -261,17 +261,17 @@ const hasMarketValue = computed(() => !['film', 'book'].includes(props.item.cate
 const isPriceChartingCategory = computed(() => ['game', 'comic'].includes(props.item.category))
 
 const enrichSourceLabel = computed(() => {
-  const map = { music: 'Discogs', film: 'TMDB', book: 'Open Library', game: 'RAWG' }
+  const map = { music: 'Discogs', film: 'TMDB', book: 'Open Library', game: 'RAWG', comic: 'ComicVine' }
   return map[props.item.category] ?? 'Discogs'
 })
 
 const notesSectionTitle = computed(() => {
   if (props.item.category === 'film') return 'Overview'
-  if (props.item.category === 'book' || props.item.category === 'game') return 'Description'
+  if (props.item.category === 'book' || props.item.category === 'game' || props.item.category === 'comic') return 'Description'
   return 'Notes'
 })
 
-const showAboutSection = computed(() => props.item.category !== 'game')
+const showAboutSection = computed(() => props.item.category !== 'game' && props.item.category !== 'comic')
 
 const aboutSectionTitle = computed(() => {
   if (props.item.category === 'film') return 'About the Director'
@@ -281,7 +281,7 @@ const aboutSectionTitle = computed(() => {
 
 const labelFieldLabel = computed(() => {
   if (props.item.category === 'film') return 'Studio'
-  if (props.item.category === 'book' || props.item.category === 'game') return 'Publisher'
+  if (props.item.category === 'book' || props.item.category === 'game' || props.item.category === 'comic') return 'Publisher'
   return 'Label'
 })
 

@@ -21,6 +21,12 @@
           @click="switchView('films')"
         />
         <NcAppNavigationItem
+          name="Comics"
+          :active="view === 'comics'"
+          href="#/comics"
+          @click="switchView('comics')"
+        />
+        <NcAppNavigationItem
           name="Games"
           :active="view === 'games'"
           href="#/games"
@@ -58,6 +64,7 @@
       @token-changed="v => hasDiscogsToken = v"
       @tmdb-token-changed="v => hasTmdbToken = v"
       @rawg-key-changed="v => hasRawgKey = v"
+      @comicvine-key-changed="v => hasComicVineKey = v"
       @pricecharting-token-changed="v => hasPriceChartingToken = v"
       @collection-wiped="handleCollectionWiped"
     />
@@ -141,6 +148,7 @@
       :has-token="hasDiscogsToken"
       :has-tmdb-token="hasTmdbToken"
       :has-rawg-key="hasRawgKey"
+      :has-comic-vine-key="hasComicVineKey"
       :category="modalCategory"
       @close="closeModal"
       @save="saveItem"
@@ -231,8 +239,8 @@ import { useMarketValueQueue } from './composables/useMarketValueQueue.js'
 import { useSettings } from './composables/useSettings.js'
 import { useHashRouter } from './composables/useHashRouter.js'
 
-const COLLECTION_VIEWS = ['music', 'films', 'books', 'games']
-const VIEW_TO_CATEGORY = { music: 'music', films: 'film', books: 'book', games: 'game' }
+const COLLECTION_VIEWS = ['music', 'films', 'books', 'comics', 'games']
+const VIEW_TO_CATEGORY = { music: 'music', films: 'film', books: 'book', comics: 'comic', games: 'game' }
 
 const enrich = useEnrichQueue()
 const market = useMarketValueQueue()
@@ -260,6 +268,7 @@ const detailEnrichAvailable = computed(() => {
   if (cat === 'film') return hasTmdbToken.value
   if (cat === 'book') return true
   if (cat === 'game') return hasRawgKey.value
+  if (cat === 'comic') return hasComicVineKey.value
   return hasDiscogsToken.value
 })
 
@@ -283,6 +292,7 @@ const importOpen = ref(false)
 const hasDiscogsToken = ref(false)
 const hasTmdbToken = ref(false)
 const hasRawgKey = ref(false)
+const hasComicVineKey = ref(false)
 const hasPriceChartingToken = ref(false)
 
 // playlist + sharing state
@@ -297,15 +307,17 @@ const showShareModal = ref(false)
 // ── init ──────────────────────────────────────────────────────────────────────
 onMounted(async () => {
   try {
-    const [discogsRes, tmdbRes, rawgRes, pcRes] = await Promise.all([
+    const [discogsRes, tmdbRes, rawgRes, cvRes, pcRes] = await Promise.all([
       axios.get(generateOcsUrl('/apps/crate/api/v1/settings/discogs-token')),
       axios.get(generateOcsUrl('/apps/crate/api/v1/settings/tmdb-token')),
       axios.get(generateOcsUrl('/apps/crate/api/v1/settings/rawg-key')),
+      axios.get(generateOcsUrl('/apps/crate/api/v1/settings/comicvine-key')),
       axios.get(generateOcsUrl('/apps/crate/api/v1/settings/pricecharting-token')),
     ])
     hasDiscogsToken.value       = discogsRes.data.ocs?.data?.hasToken ?? false
     hasTmdbToken.value          = tmdbRes.data.ocs?.data?.hasToken    ?? false
     hasRawgKey.value            = rawgRes.data.ocs?.data?.hasKey      ?? false
+    hasComicVineKey.value       = cvRes.data.ocs?.data?.hasKey        ?? false
     hasPriceChartingToken.value = pcRes.data.ocs?.data?.hasToken      ?? false
   } catch { /* ignore */ }
 
@@ -427,7 +439,8 @@ function showDetail(item) {
     (cat === 'music' && hasDiscogsToken.value) ||
     (cat === 'film' && hasTmdbToken.value) ||
     cat === 'book' ||
-    (cat === 'game' && hasRawgKey.value)
+    (cat === 'game' && hasRawgKey.value) ||
+    (cat === 'comic' && hasComicVineKey.value)
   if (notEnriched && autoEnrichOnClick.value && canAutoEnrich && !enrich.running.value && !market.running.value) {
     triggerEnrich(item.id)
   }

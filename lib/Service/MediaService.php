@@ -323,6 +323,49 @@ class MediaService
     }
 
     /**
+     * Enrich a comic item with ComicVine volume data.
+     * volume comes from ComicVineService::getVolume().
+     *
+     * @param array<string, mixed> $volume
+     */
+    public function applyComicVineData(int $id, string $userId, array $volume): MediaItem
+    {
+        $item = $this->mapper->findByUser($id, $userId);
+
+        if ($item->getOriginalTitle() === null) {
+            $item->setOriginalTitle($item->getTitle());
+            $item->setOriginalArtist($item->getArtist());
+            $item->setOriginalYear($item->getYear());
+            $item->setOriginalArtworkPath($item->getArtworkPath());
+        }
+
+        if (!empty($volume['title'])) {
+            $item->setTitle($volume['title']);
+        }
+        if (isset($volume['year'])) {
+            $item->setYear($volume['year']);
+        }
+        if (!empty($volume['label'])) {
+            $item->setLabel($volume['label']);
+        }
+        if (!empty($volume['genres'])) {
+            $item->setGenres($volume['genres']);
+        }
+        if (!empty($volume['overview'])) {
+            $item->setPressingNotes($volume['overview']);
+        }
+        if (!empty($volume['artworkUrl'])) {
+            $item->setArtworkPath($volume['artworkUrl']);
+        }
+        if (!empty($volume['comicVineId'])) {
+            $item->setDiscogsId($volume['comicVineId']);
+        }
+
+        $item->setUpdatedAt((new \DateTime())->format('Y-m-d H:i:s'));
+        return $this->mapper->update($item);
+    }
+
+    /**
      * Strip all enrichment fields from an item, preserving the
      * user-entered fields (title, artist, format, year, notes, status, artwork).
      * The discogsId is also cleared so the item is treated as unenriched.
