@@ -37,11 +37,11 @@ class ExportService
             $items = array_values($items);
         }
 
-        $headers = $this->buildHeaders($includeEnriched, $includeMarket);
+        $headers = $this->buildHeaders($includeEnriched, $includeMarket, $category);
         $rows    = array_map(fn($i) => $this->itemToRow($i, $includeEnriched, $includeMarket), $items);
 
         $date     = date('Y-m-d');
-        $filename = 'crate-export-' . $date;
+        $filename = 'crate-export-' . ($category ?? 'all') . '-' . $date;
 
         if ($format === 'xlsx') {
             $content  = $this->buildXlsx($headers, $rows);
@@ -53,9 +53,23 @@ class ExportService
     }
 
     /** @return string[] */
-    private function buildHeaders(bool $includeEnriched, bool $includeMarket): array
+    private function buildHeaders(bool $includeEnriched, bool $includeMarket, ?string $category = null): array
     {
-        $h = ['Artist', 'Title', 'Format', 'Year', 'Status', 'DiscogsId', 'Barcode', 'Label', 'Notes'];
+        $artistLabel  = match ($category) {
+            'film'  => 'Director',
+            'book'  => 'Author',
+            'game'  => 'Developer',
+            'comic' => 'Writer',
+            default => 'Artist',
+        };
+        $barcodeLabel = ($category === 'book') ? 'ISBN' : 'Barcode';
+        $labelLabel   = match ($category) {
+            'film'          => 'Studio',
+            'book', 'game', 'comic' => 'Publisher',
+            default         => 'Label',
+        };
+
+        $h = ['Category', $artistLabel, 'Title', 'Format', 'Year', 'Status', 'EnrichmentId', $barcodeLabel, $labelLabel, 'Notes'];
         if ($includeEnriched) {
             array_push($h, 'Genres', 'Country', 'PressingNotes', 'Tracklist', 'ArtistBio');
         }
@@ -69,6 +83,7 @@ class ExportService
     private function itemToRow(MediaItem $item, bool $includeEnriched, bool $includeMarket): array
     {
         $row = [
+            $item->getCategory()  ?? 'music',
             $item->getArtist()    ?? '',
             $item->getTitle()     ?? '',
             $item->getFormat()    ?? '',

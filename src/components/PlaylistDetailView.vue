@@ -60,7 +60,7 @@
           {{ playlist.description }}
         </p>
         <p class="pd-count">
-          {{ playlist.items?.length ?? 0 }} {{ (playlist.items?.length ?? 0) === 1 ? 'album' : 'albums' }}
+          {{ playlist.items?.length ?? 0 }} {{ (playlist.items?.length ?? 0) === 1 ? 'item' : 'items' }}
         </p>
       </div>
     </div>
@@ -70,7 +70,7 @@
       v-if="!playlist.items || playlist.items.length === 0"
       class="pd-empty"
     >
-      <p>No albums in this playlist yet. Open an album and use "Add to playlist" to add it here.</p>
+      <p>No items in this playlist yet. Open any item and use "Add to playlist" to add it here.</p>
     </div>
 
     <div
@@ -91,6 +91,10 @@
           <span class="pd-item-title">{{ item.title }}</span>
           <span class="pd-item-artist">{{ item.artist }}</span>
           <span class="pd-item-meta">
+            <span
+              v-if="item.category && item.category !== 'music'"
+              class="pd-badge pd-badge--cat"
+            >{{ CATEGORY_LABELS[item.category] ?? item.category }}</span>
             <span class="pd-badge">{{ item.format }}</span>
             <template v-if="item.year">&thinsp;{{ item.year }}</template>
           </span>
@@ -189,6 +193,7 @@ import axios from '@nextcloud/axios'
 import { generateUrl, generateOcsUrl } from '@nextcloud/router'
 import { showError } from '@nextcloud/dialogs'
 import { artworkStyleFor } from '../composables/useArtworkStyle.js'
+import { CATEGORY_LABELS } from '../utils/categoryFormats.js'
 
 const props = defineProps({
   playlist: { type: Object, required: true },
@@ -429,6 +434,11 @@ async function removeItem(item) {
   border-radius: 10px;
   font-size: 0.85em;
   font-weight: 600;
+}
+
+.pd-badge--cat {
+  background: var(--color-primary-element-light, rgba(var(--color-primary-element-rgb), 0.15));
+  color: var(--color-primary-element);
 }
 
 .pd-actions {

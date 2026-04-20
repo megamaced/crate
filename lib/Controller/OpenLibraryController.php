@@ -35,6 +35,21 @@ class OpenLibraryController extends OCSController
         return new DataResponse($this->openLibraryService->search($q));
     }
 
+    /** GET /api/v1/openlibrary/isbn/{isbn} */
+    #[NoAdminRequired]
+    public function byIsbn(string $isbn): DataResponse
+    {
+        $clean = preg_replace('/[^0-9Xx]/', '', $isbn);
+        if (strlen($clean) < 10) {
+            return new DataResponse(['error' => 'Invalid ISBN'], Http::STATUS_BAD_REQUEST);
+        }
+        $data = $this->openLibraryService->getByIsbn($clean);
+        if (empty($data)) {
+            return new DataResponse(['error' => 'Book not found for ISBN'], Http::STATUS_NOT_FOUND);
+        }
+        return new DataResponse($data);
+    }
+
     /** GET /api/v1/openlibrary/work/{id} */
     #[NoAdminRequired]
     public function getWork(string $id): DataResponse

@@ -37,23 +37,49 @@ class ImportService
         'mega drive', 'saturn', 'dreamcast',
         // Games — Retro
         'atari 2600', 'commodore 64', 'amiga', 'neo geo', 'tiger',
+        // Comics — Single Issues
+        'single issue', 'annual', 'special', 'one-shot', 'mini-series', 'limited series',
+        // Comics — Collected
+        'omnibus', 'compendium',
     ];
 
     /** Column name aliases → canonical field name */
     private const ALIASES = [
-        'artist'   => 'artist',
-        'album'    => 'title',
-        'title'    => 'title',
-        'format'   => 'format',
-        'year'     => 'year',
-        'notes'    => 'notes',
-        'note'     => 'notes',
-        'status'   => 'status',
-        'discogsid' => 'discogsId',
-        'discogs_id' => 'discogsId',
-        'discogs id' => 'discogsId',
-        'barcode'  => 'barcode',
-        'label'    => 'label',
+        // Artist-equivalent across categories
+        'artist'          => 'artist',
+        'author'          => 'artist',
+        'director'        => 'artist',
+        'developer'       => 'artist',
+        'writer'          => 'artist',
+        // Title
+        'album'           => 'title',
+        'title'           => 'title',
+        // Format / platform
+        'format'          => 'format',
+        'platform'        => 'format',
+        // Year
+        'year'            => 'year',
+        // Notes
+        'notes'           => 'notes',
+        'note'            => 'notes',
+        // Status
+        'status'          => 'status',
+        // Enrichment ID (stored in discogsId regardless of source)
+        'discogsid'       => 'discogsId',
+        'discogs_id'      => 'discogsId',
+        'discogs id'      => 'discogsId',
+        'enrichmentid'    => 'discogsId',
+        'enrichment_id'   => 'discogsId',
+        'enrichment id'   => 'discogsId',
+        // Barcode / ISBN
+        'barcode'         => 'barcode',
+        'isbn'            => 'barcode',
+        // Label / publisher / studio
+        'label'           => 'label',
+        'publisher'       => 'label',
+        'studio'          => 'label',
+        // Category — allows per-row override from exported Category column
+        'category'        => 'category',
     ];
 
     public function __construct(private readonly MediaItemMapper $mapper)
@@ -269,7 +295,9 @@ class ImportService
      * @param  string                            $userId
      * @return array{created: int, duplicates: int, skipped: int, errors: string[], itemIds: int[]}
      */
-    public function import(array $mappedRows, string $userId, string $category = 'music'): array
+    private const VALID_CATEGORIES = ['music', 'film', 'book', 'game', 'comic'];
+
+    public function import(array $mappedRows, string $userId, string $batchCategory = 'music'): array
     {
         $created    = 0;
         $duplicates = 0;
@@ -287,6 +315,12 @@ class ImportService
 
         foreach ($mappedRows as $i => $row) {
             $rowNum = $i + 2; // 1-indexed + header row
+
+            // Per-row category override (e.g. from a re-imported export with Category column)
+            $rowCategoryRaw = strtolower(trim((string)($row['category'] ?? '')));
+            $category       = in_array($rowCategoryRaw, self::VALID_CATEGORIES, true)
+                ? $rowCategoryRaw
+                : $batchCategory;
 
             $artist = $row['artist'] ?? '';
             $title  = $row['title']  ?? '';

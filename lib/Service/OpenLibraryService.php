@@ -94,6 +94,67 @@ class OpenLibraryService
         ];
     }
 
+    /**
+     * Look up a book by ISBN via the Open Library Books API.
+     * Returns the same normalised shape as normaliseDoc().
+     *
+     * @return array<string, mixed>
+     */
+    public function getByIsbn(string $isbn): array
+    {
+        $isbn   = preg_replace('/[^0-9Xx]/', '', $isbn);
+        $bibKey = 'ISBN:' . strtoupper($isbn);
+
+        $body = $this->get('https://openlibrary.org/api/books', [
+            'bibkeys' => $bibKey,
+            'format'  => 'json',
+            'jscmd'   => 'data',
+        ]);
+
+        $data = $body[$bibKey] ?? null;
+        if (empty($data) || !is_array($data)) {
+            return [];
+        }
+
+        $authors = (array)($data['authors'] ?? []);
+        $artist  = !empty($authors[0]['name']) ? (string)$authors[0]['name'] : null;
+
+        $year = null;
+        if (!empty($data['publish_date'])) {
+            if (preg_match('/\d{4}/', (string)$data['publish_date'], $m)) {
+                $year = (int)$m[0];
+            }
+        }
+
+        $publishers = (array)($data['publishers'] ?? []);
+        $label      = !empty($publishers[0]['name']) ? (string)$publishers[0]['name'] : null;
+
+        $artworkUrl = $data['cover']['large']  ?? ($data['cover']['medium'] ?? null);
+        $thumb      = $data['cover']['medium'] ?? null;
+
+        $subjects = array_slice(
+            array_map(fn($s) => isset($s['name']) ? (string)$s['name'] : null, (array)($data['subjects'] ?? [])),
+            0, 10,
+        );
+        $subjects = array_values(array_filter($subjects));
+        $genres   = $subjects ? implode(', ', $subjects) : null;
+
+        $works   = (array)($data['works'] ?? []);
+        $workKey = !empty($works[0]['key']) ? (string)$works[0]['key'] : '';
+
+        return [
+            'workKey'    => $workKey,
+            'title'      => (string)($data['title'] ?? ''),
+            'artist'     => $artist,
+            'year'       => $year,
+            'thumb'      => $thumb,
+            'artworkUrl' => $artworkUrl,
+            'label'      => $label,
+            'barcode'    => $isbn,
+            'genres'     => $genres,
+        ];
+    }
+
     // -------------------------------------------------------------------------
 
     /**

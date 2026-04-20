@@ -168,7 +168,29 @@
           class="crate-field"
         >
           <label for="field-barcode">{{ fieldConfig.barcode }}</label>
+          <div
+            v-if="form.category === 'book'"
+            class="crate-barcode-row"
+          >
+            <input
+              id="field-barcode"
+              v-model="form.barcode"
+              type="text"
+              :placeholder="barcodePlaceholder"
+              autocomplete="off"
+              @keydown.enter.prevent="lookupIsbn"
+            >
+            <NcButton
+              type="button"
+              variant="secondary"
+              :disabled="!form.barcode || isbnLooking"
+              @click="lookupIsbn"
+            >
+              {{ isbnLooking ? 'Looking up…' : 'Look up' }}
+            </NcButton>
+          </div>
           <input
+            v-else
             id="field-barcode"
             v-model="form.barcode"
             type="text"
@@ -262,7 +284,7 @@
 import { ref, watch, computed } from 'vue'
 import { NcModal, NcButton } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
-import { generateUrl } from '@nextcloud/router'
+import { generateUrl, generateOcsUrl } from '@nextcloud/router'
 import { showError } from '@nextcloud/dialogs'
 import ComicVineSearch from './ComicVineSearch.vue'
 import DiscogsSearch from './DiscogsSearch.vue'
@@ -528,6 +550,29 @@ function applyRawg(result) {
   }
 }
 
+// ── ISBN lookup (books) ────────────────────────────────────────────────────────
+const isbnLooking = ref(false)
+
+async function lookupIsbn() {
+  if (!form.value.barcode || isbnLooking.value) return
+  isbnLooking.value = true
+  try {
+    const res = await axios.get(
+      generateOcsUrl(`/apps/crate/api/v1/openlibrary/isbn/${encodeURIComponent(form.value.barcode.trim())}`),
+    )
+    const data = res.data.ocs?.data
+    if (data && data.title) {
+      applyOpenLibrary(data)
+    } else {
+      showError('ISBN not found in Open Library')
+    }
+  } catch {
+    showError('ISBN not found in Open Library')
+  } finally {
+    isbnLooking.value = false
+  }
+}
+
 // ── ComicVine apply (comics) ───────────────────────────────────────────────────
 function applyComicVine(result) {
   form.value.title     = result.title     || form.value.title
@@ -594,6 +639,16 @@ async function submit() {
 
 .crate-field--year {
   flex: 0 0 110px;
+}
+
+.crate-barcode-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.crate-barcode-row input {
+  flex: 1;
 }
 
 /* Fields */

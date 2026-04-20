@@ -325,6 +325,7 @@ import { generateOcsUrl } from '@nextcloud/router'
 import { useEnrichQueue } from '../composables/useEnrichQueue.js'
 import { useMarketValueQueue } from '../composables/useMarketValueQueue.js'
 import { useSettings } from '../composables/useSettings.js'
+import { FIELD_CONFIG } from '../utils/categoryFormats.js'
 
 const props = defineProps({
   show:     { type: Boolean, required: true },
@@ -354,18 +355,25 @@ const mapping = ref({}) // colIndex => field name or ''
 
 const result = ref(null)
 
-// ── field options for mapping UI ──────────────────────────────────────────────
-const mappableFields = [
-  { value: 'artist',    label: 'Artist' },
-  { value: 'title',     label: 'Title / Album' },
-  { value: 'format',    label: 'Format' },
-  { value: 'year',      label: 'Year' },
-  { value: 'notes',     label: 'Notes' },
-  { value: 'status',    label: 'Status' },
-  { value: 'discogsId', label: 'Discogs ID' },
-  { value: 'barcode',   label: 'Barcode' },
-  { value: 'label',     label: 'Label' },
-]
+// ── field options for mapping UI (category-aware labels) ──────────────────────
+const mappableFields = computed(() => {
+  const cfg = FIELD_CONFIG[selectedCategory.value] ?? FIELD_CONFIG.music
+  return [
+    { value: 'artist',    label: cfg.artist },
+    { value: 'title',     label: cfg.title },
+    { value: 'format',    label: cfg.showBarcode ? 'Format' : 'Format / Platform' },
+    { value: 'year',      label: 'Year' },
+    { value: 'notes',     label: 'Notes' },
+    { value: 'status',    label: 'Status (owned / wanted)' },
+    { value: 'discogsId', label: 'Enrichment ID' },
+    ...(cfg.showBarcode ? [{ value: 'barcode', label: cfg.barcode }] : []),
+    { value: 'label',     label: cfg.label },
+    { value: 'category',  label: 'Category' },
+  ]
+})
+
+// Reset mapping when category changes (field labels differ)
+watch(selectedCategory, () => { mapping.value = {} })
 
 const mappingValid = computed(() => {
   const mapped = Object.values(mapping.value).filter(Boolean)

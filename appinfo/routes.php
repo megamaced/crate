@@ -52,8 +52,9 @@ return [
 		['name' => 'tmdb#getMovie',  'url' => '/api/v1/tmdb/movie/{id}', 'verb' => 'GET'],
 
 		// ── Open Library proxy (books) ─────────────────────────────────────────
-		['name' => 'openLibrary#search',  'url' => '/api/v1/openlibrary/search',    'verb' => 'GET'],
-		['name' => 'openLibrary#getWork', 'url' => '/api/v1/openlibrary/work/{id}', 'verb' => 'GET'],
+		['name' => 'openLibrary#search',  'url' => '/api/v1/openlibrary/search',      'verb' => 'GET'],
+		['name' => 'openLibrary#getWork', 'url' => '/api/v1/openlibrary/work/{id}',  'verb' => 'GET'],
+		['name' => 'openLibrary#byIsbn',  'url' => '/api/v1/openlibrary/isbn/{isbn}', 'verb' => 'GET'],
 
 		// ── RAWG API proxy (games) ─────────────────────────────────────────────
 		['name' => 'rawg#search',   'url' => '/api/v1/rawg/search',    'verb' => 'GET'],
