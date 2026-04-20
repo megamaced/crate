@@ -54,6 +54,25 @@ class CrateShareMapper extends QBMapper
         return $this->findEntity($qb);
     }
 
+    /** True if $viewerUserId has been granted access to $type/$shareableId. */
+    public function isSharedWith(string $viewerUserId, string $type, int $shareableId): bool
+    {
+        $qb = $this->db->getQueryBuilder();
+        $shareableIdParam = $qb->createNamedParameter($shareableId, IQueryBuilder::PARAM_INT);
+        $qb->select('id')
+            ->from($this->getTableName())
+            ->where($qb->expr()->eq('shared_with_user_id', $qb->createNamedParameter($viewerUserId)))
+            ->andWhere($qb->expr()->eq('shareable_type', $qb->createNamedParameter($type)))
+            ->andWhere($qb->expr()->eq('shareable_id', $shareableIdParam))
+            ->setMaxResults(1);
+        try {
+            $this->findEntity($qb);
+            return true;
+        } catch (DoesNotExistException) {
+            return false;
+        }
+    }
+
     public function alreadyShared(string $ownerUserId, string $sharedWithUserId, string $type, int $shareableId): bool
     {
         $qb = $this->db->getQueryBuilder();

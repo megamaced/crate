@@ -87,7 +87,7 @@ class RawgService
             return json_decode($response->getBody(), true) ?? [];
         } catch (\Exception $e) {
             $this->logger->warning('RAWG API error for {url}: {msg}', [
-                'url' => $url,
+                'url' => strtok($url, '?') ?: $url,
                 'msg' => $e->getMessage(),
                 'app' => 'crate',
             ]);

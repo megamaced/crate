@@ -9,6 +9,7 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
+use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\Http\FileDisplayResponse;
 use OCP\AppFramework\Http\Response;
@@ -20,6 +21,25 @@ use OCP\IUserSession;
 
 class ArtworkController extends Controller
 {
+    /** Hosts permitted for remote-artwork fetch. Matches the enrichment sources. */
+    private const REMOTE_IMAGE_HOSTS = [
+        // Discogs
+        'i.discogs.com', 'img.discogs.com', 'st.discogs.com',
+        // TMDB
+        'image.tmdb.org',
+        // RAWG
+        'media.rawg.io',
+        // ComicVine
+        'comicvine.gamespot.com', 'static.comicvine.com',
+        // Open Library
+        'covers.openlibrary.org',
+    ];
+
+    /** Content-Type values accepted for remote artwork and uploads. */
+    private const ALLOWED_IMAGE_MIMES = [
+        'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+    ];
+
     public function __construct(
         string $appName,
         IRequest $request,
@@ -87,10 +107,9 @@ class ArtworkController extends Controller
             return new Response(Http::STATUS_NOT_FOUND);
         }
 
-        // SSRF mitigation: only allow Discogs image CDN URLs
+        // SSRF mitigation: only allow image hosts we actually enrich from.
         $host = parse_url($artworkPath, PHP_URL_HOST) ?? '';
-        $allowed = ['i.discogs.com', 'img.discogs.com', 'st.discogs.com'];
-        if (!in_array($host, $allowed, true)) {
+        if (!in_array($host, self::REMOTE_IMAGE_HOSTS, true)) {
             return new Response(Http::STATUS_FORBIDDEN);
         }
 
@@ -111,6 +130,15 @@ class ArtworkController extends Controller
                     'headers' => ['User-Agent' => 'CrateNextcloudApp/0.1'],
                     'timeout' => 10,
                 ]);
+                // Reject non-image responses to prevent cache-poisoning via
+                // compromised upstream or MITM returning HTML / scripts.
+                $contentType = strtolower(trim(
+                    (string) ($download->getHeader('Content-Type') ?: '')
+                ));
+                $contentType = explode(';', $contentType, 2)[0];
+                if (!in_array($contentType, self::ALLOWED_IMAGE_MIMES, true)) {
+                    return new Response(Http::STATUS_BAD_GATEWAY);
+                }
                 $imageData = $download->getBody();
             } catch (\Exception) {
                 return new Response(Http::STATUS_BAD_GATEWAY);
@@ -174,6 +202,7 @@ class ArtworkController extends Controller
      * POST /artwork/{itemId}
      */
     #[NoAdminRequired]
+    #[UserRateLimit(limit: 30, period: 60)]
     public function upload(int $itemId): Response
     {
         $user = $this->userSession->getUser();

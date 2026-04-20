@@ -92,7 +92,7 @@ class ComicVineService
             return json_decode($response->getBody(), true) ?? [];
         } catch (\Exception $e) {
             $this->logger->warning('ComicVine API error for {url}: {msg}', [
-                'url' => $url,
+                'url' => strtok($url, '?') ?: $url,
                 'msg' => $e->getMessage(),
                 'app' => 'crate',
             ]);

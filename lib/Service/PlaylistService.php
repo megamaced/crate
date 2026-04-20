@@ -61,9 +61,15 @@ class PlaylistService
         return $this->hydrateWithItems($playlist);
     }
 
-    /** Find a playlist without ownership check — for shared access. */
-    public function findForSharedAccess(int $id): array
+    /**
+     * Find a playlist that has been shared with $viewerUserId.
+     * Throws DoesNotExistException if no active share exists.
+     */
+    public function findForSharedAccess(int $id, string $viewerUserId): array
     {
+        if (!$this->shareMapper->isSharedWith($viewerUserId, 'playlist', $id)) {
+            throw new DoesNotExistException('Playlist not shared with user');
+        }
         $playlist = $this->playlistMapper->findById($id);
         return $this->hydrateWithItems($playlist, $playlist->getUserId());
     }

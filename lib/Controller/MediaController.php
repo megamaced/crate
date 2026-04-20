@@ -48,6 +48,11 @@ class MediaController extends OCSController
 
     private const VALID_CATEGORIES = ['music', 'film', 'book', 'game', 'comic'];
 
+    /** Max offset accepted by paginated endpoints. Protects against DoS via absurd offsets. */
+    private const MAX_OFFSET = 100000;
+    /** Max limit accepted by paginated endpoints. */
+    private const MAX_LIMIT = 200;
+
     #[NoAdminRequired]
     public function index(
         ?string $status = null,
@@ -63,7 +68,8 @@ class MediaController extends OCSController
             || $this->request->getParam('updatedSince') !== null
             || $this->request->getParam('status') !== null;
 
-        $offset = max(0, $offset);
+        $offset = max(0, min($offset, self::MAX_OFFSET));
+        $limit  = max(1, min($limit, self::MAX_LIMIT));
 
         if ($isPaginated) {
             $result = $this->mediaService->findPaginated(

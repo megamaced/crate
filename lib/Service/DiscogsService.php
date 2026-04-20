@@ -177,8 +177,11 @@ class DiscogsService
         } catch (\OCA\Crate\Exception\DiscogsRateLimitException $e) {
             throw $e;
         } catch (\Exception $e) {
+            // Strip query parameters before logging to avoid leaking tokens
+            // or request details.
+            $logUrl = strtok($url, '?') ?: $url;
             $this->logger->warning('Discogs API error for {url}: {msg}', [
-                'url' => $url,
+                'url' => $logUrl,
                 'msg' => $e->getMessage(),
                 'app' => 'crate',
             ]);

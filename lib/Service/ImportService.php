@@ -169,8 +169,8 @@ class ImportService
         $sharedStrings = [];
         $ssXml = $zip->getFromName('xl/sharedStrings.xml');
         if ($ssXml !== false) {
-            $ss = simplexml_load_string($ssXml, \SimpleXMLElement::class, LIBXML_NONET);
-            if ($ss !== false) {
+            $ss = $this->parseXmlSafe($ssXml);
+            if ($ss !== null) {
                 foreach ($ss->si as $si) {
                     // Concatenate all <t> elements (handles rich text runs)
                     $text = '';
@@ -190,8 +190,8 @@ class ImportService
             throw new \RuntimeException('Could not read worksheet from spreadsheet');
         }
 
-        $sheet = simplexml_load_string($sheetXml, \SimpleXMLElement::class, LIBXML_NONET);
-        if ($sheet === false) {
+        $sheet = $this->parseXmlSafe($sheetXml);
+        if ($sheet === null) {
             throw new \RuntimeException('Could not parse worksheet XML');
         }
 
@@ -236,6 +236,23 @@ class ImportService
         }
 
         return ['headers' => $headers, 'rows' => $rows];
+    }
+
+    /**
+     * Parse an XML string with hardening against XXE and DTD-based attacks.
+     * Rejects DOCTYPE/ENTITY declarations up-front and disables network access
+     * for the libxml parser. Returns null if the document is malformed or unsafe.
+     */
+    private function parseXmlSafe(string $xml): ?\SimpleXMLElement
+    {
+        // Reject any DOCTYPE / ENTITY / ELEMENT declaration — well-formed XLSX
+        // parts (sharedStrings.xml, sheet1.xml) never contain these, so their
+        // presence signals a crafted file.
+        if (preg_match('/<!\s*(DOCTYPE|ENTITY|ELEMENT)\b/i', $xml) === 1) {
+            return null;
+        }
+        $parsed = simplexml_load_string($xml, \SimpleXMLElement::class, LIBXML_NONET | LIBXML_NOCDATA);
+        return $parsed !== false ? $parsed : null;
     }
 
     private function colLetterToIndex(string $letters): int

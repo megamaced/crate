@@ -106,12 +106,12 @@ class ShareService
 
         foreach ($playlistShares as $share) {
             try {
-                $data = $this->playlistService->findForSharedAccess($share->getShareableId());
+                $data = $this->playlistService->findForSharedAccess($share->getShareableId(), $userId);
                 $data['shareId']      = $share->getId();
                 $data['sharedByUser'] = $share->getOwnerUserId();
                 $playlists[] = $data;
             } catch (DoesNotExistException) {
-                // Shared playlist was deleted — skip
+                // Shared playlist was deleted or revoked — skip
             }
         }
 

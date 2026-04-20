@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace OCA\Crate\Controller;
 
+use OCA\Crate\Db\MediaItemMapper;
+use OCA\Crate\Db\PlaylistMapper;
 use OCA\Crate\Service\ShareService;
+use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
@@ -23,6 +26,8 @@ class ShareController extends OCSController
         private readonly ShareService $shareService,
         private readonly IUserSession $userSession,
         private readonly IUserManager $userManager,
+        private readonly MediaItemMapper $mediaItemMapper,
+        private readonly PlaylistMapper $playlistMapper,
     ) {
         parent::__construct($appName, $request);
     }
@@ -70,6 +75,11 @@ class ShareController extends OCSController
     #[NoAdminRequired]
     public function sharesForAlbum(int $id): DataResponse
     {
+        try {
+            $this->mediaItemMapper->findByUser($id, $this->userId());
+        } catch (DoesNotExistException) {
+            return new DataResponse(['error' => 'Album not found'], Http::STATUS_NOT_FOUND);
+        }
         return new DataResponse($this->shareService->getSharesForAlbum($this->userId(), $id));
     }
 
@@ -90,6 +100,11 @@ class ShareController extends OCSController
     #[NoAdminRequired]
     public function sharesForPlaylist(int $id): DataResponse
     {
+        try {
+            $this->playlistMapper->findByUser($id, $this->userId());
+        } catch (DoesNotExistException) {
+            return new DataResponse(['error' => 'Playlist not found'], Http::STATUS_NOT_FOUND);
+        }
         return new DataResponse($this->shareService->getSharesForPlaylist($this->userId(), $id));
     }
 

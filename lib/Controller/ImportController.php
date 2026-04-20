@@ -7,6 +7,7 @@ namespace OCA\Crate\Controller;
 use OCA\Crate\Service\ImportService;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
+use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\OCSController;
 use OCP\IRequest;
@@ -15,6 +16,17 @@ use OCP\IUserSession;
 class ImportController extends OCSController
 {
     use UsesAuthenticatedUser;
+
+    /**
+     * Canonical field names a column may be mapped to. Matches the values
+     * in ImportService::ALIASES.
+     */
+    private const VALID_MAPPING_FIELDS = [
+        'artist', 'title', 'format', 'year', 'notes',
+        'status', 'discogsId', 'barcode', 'label', 'category',
+    ];
+
+    private const VALID_CATEGORIES = ['music', 'film', 'book', 'game', 'comic'];
 
     public function __construct(
         string $appName,
@@ -33,6 +45,7 @@ class ImportController extends OCSController
      * Expects multipart/form-data with field "file".
      */
     #[NoAdminRequired]
+    #[UserRateLimit(limit: 20, period: 60)]
     public function preview(): DataResponse
     {
         $file = $this->request->getUploadedFile('file');
@@ -67,6 +80,7 @@ class ImportController extends OCSController
      *   - mapping: JSON string, array keyed by column index => field name or ""
      */
     #[NoAdminRequired]
+    #[UserRateLimit(limit: 10, period: 60)]
     public function commit(): DataResponse
     {
         $file = $this->request->getUploadedFile('file');
@@ -82,10 +96,23 @@ class ImportController extends OCSController
             return new DataResponse(['error' => 'Invalid mapping'], Http::STATUS_BAD_REQUEST);
         }
 
-        // Normalise: keys are column indices (int), values are field names or null
+        // Normalise and validate: keys are column indices (int), values are
+        // canonical field names from VALID_MAPPING_FIELDS or null. Reject any
+        // unknown field name rather than silently dropping it.
         $mapping = [];
         foreach ($rawMapping as $colIdx => $field) {
-            $mapping[(int)$colIdx] = $field !== '' ? (string)$field : null;
+            if ($field === '' || $field === null) {
+                $mapping[(int)$colIdx] = null;
+                continue;
+            }
+            $fieldStr = (string)$field;
+            if (!in_array($fieldStr, self::VALID_MAPPING_FIELDS, true)) {
+                return new DataResponse(
+                    ['error' => "Unknown mapping field: {$fieldStr}"],
+                    Http::STATUS_BAD_REQUEST,
+                );
+            }
+            $mapping[(int)$colIdx] = $fieldStr;
         }
 
         try {
@@ -96,7 +123,7 @@ class ImportController extends OCSController
 
         $mappedRows = $this->importService->applyMapping($parsed['rows'], $mapping);
         $rawCategory = $this->request->getParam('category', 'music');
-        $category    = in_array($rawCategory, ['music', 'film', 'book', 'game'], true)
+        $category    = in_array($rawCategory, self::VALID_CATEGORIES, true)
             ? $rawCategory
             : 'music';
         $result = $this->importService->import($mappedRows, $this->userId(), $category);
