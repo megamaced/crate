@@ -58,6 +58,7 @@
       @token-changed="v => hasDiscogsToken = v"
       @tmdb-token-changed="v => hasTmdbToken = v"
       @rawg-key-changed="v => hasRawgKey = v"
+      @pricecharting-token-changed="v => hasPriceChartingToken = v"
       @collection-wiped="handleCollectionWiped"
     />
 
@@ -67,6 +68,7 @@
         v-if="view === 'detail' && selectedItem"
         :item="selectedItem"
         :has-token="detailEnrichAvailable"
+        :has-market-token="detailMarketAvailable"
         :queue-busy="enrich.running.value || market.running.value"
         @back="goBack"
         @edit="openEdit"
@@ -261,6 +263,12 @@ const detailEnrichAvailable = computed(() => {
   return hasDiscogsToken.value
 })
 
+const detailMarketAvailable = computed(() => {
+  const cat = selectedItem.value?.category ?? 'music'
+  if (cat === 'game' || cat === 'comic') return hasPriceChartingToken.value
+  return hasDiscogsToken.value
+})
+
 // ── state ─────────────────────────────────────────────────────────────────────
 const appContentRef = ref(null)
 const selectedItem = ref(null)
@@ -275,6 +283,7 @@ const importOpen = ref(false)
 const hasDiscogsToken = ref(false)
 const hasTmdbToken = ref(false)
 const hasRawgKey = ref(false)
+const hasPriceChartingToken = ref(false)
 
 // playlist + sharing state
 const selectedPlaylist = ref(null)
@@ -288,14 +297,16 @@ const showShareModal = ref(false)
 // ── init ──────────────────────────────────────────────────────────────────────
 onMounted(async () => {
   try {
-    const [discogsRes, tmdbRes, rawgRes] = await Promise.all([
+    const [discogsRes, tmdbRes, rawgRes, pcRes] = await Promise.all([
       axios.get(generateOcsUrl('/apps/crate/api/v1/settings/discogs-token')),
       axios.get(generateOcsUrl('/apps/crate/api/v1/settings/tmdb-token')),
       axios.get(generateOcsUrl('/apps/crate/api/v1/settings/rawg-key')),
+      axios.get(generateOcsUrl('/apps/crate/api/v1/settings/pricecharting-token')),
     ])
-    hasDiscogsToken.value = discogsRes.data.ocs?.data?.hasToken ?? false
-    hasTmdbToken.value    = tmdbRes.data.ocs?.data?.hasToken    ?? false
-    hasRawgKey.value      = rawgRes.data.ocs?.data?.hasKey      ?? false
+    hasDiscogsToken.value       = discogsRes.data.ocs?.data?.hasToken ?? false
+    hasTmdbToken.value          = tmdbRes.data.ocs?.data?.hasToken    ?? false
+    hasRawgKey.value            = rawgRes.data.ocs?.data?.hasKey      ?? false
+    hasPriceChartingToken.value = pcRes.data.ocs?.data?.hasToken      ?? false
   } catch { /* ignore */ }
 
   // Restore view from URL hash (supports page refresh and direct links)

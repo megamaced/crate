@@ -24,17 +24,29 @@ class MarketValueService
         private readonly MediaItemMapper $mapper,
         private readonly IClientService $clientService,
         private readonly ICredentialsManager $credentialsManager,
+        private readonly PriceChartingService $priceChartingService,
     ) {
     }
 
     /**
-     * Fetch the current lowest marketplace price for an item and persist it.
-     * The item must have a discogsId; returns null if it does not.
+     * Fetch market value(s) for an item and persist them.
+     * Dispatches to PriceCharting for game/comic, Discogs for music.
+     * Returns null when no enrichment ID is available or fetch fails.
      */
     public function fetchAndStore(int $id, string $userId, string $currency): ?MediaItem
     {
-        $item = $this->mapper->findByUser($id, $userId);
+        $item     = $this->mapper->findByUser($id, $userId);
+        $category = $item->getCategory();
 
+        if (in_array($category, ['game', 'comic'], true)) {
+            return $this->fetchAndStorePriceCharting($item, $userId);
+        }
+
+        return $this->fetchAndStoreDiscogs($item, $userId, $currency);
+    }
+
+    private function fetchAndStoreDiscogs(MediaItem $item, string $userId, string $currency): ?MediaItem
+    {
         if (empty($item->getDiscogsId())) {
             return null;
         }
@@ -50,7 +62,32 @@ class MarketValueService
 
         $now = (new \DateTime())->format('Y-m-d H:i:s');
         $item->setMarketValue($stats['value']);
+        $item->setMarketValueLoose(null);
+        $item->setMarketValueNew(null);
         $item->setMarketValueCurrency($stats['currency']);
+        $item->setMarketValueFetchedAt($now);
+        $item->setUpdatedAt($now);
+
+        return $this->mapper->update($item);
+    }
+
+    private function fetchAndStorePriceCharting(MediaItem $item, string $userId): ?MediaItem
+    {
+        $query  = trim($item->getTitle());
+        if ($query === '') {
+            return null;
+        }
+
+        $prices = $this->priceChartingService->searchAndFetchPrices($userId, $query);
+        if ($prices === null) {
+            return null;
+        }
+
+        $now = (new \DateTime())->format('Y-m-d H:i:s');
+        $item->setMarketValue($prices['cib']);
+        $item->setMarketValueLoose($prices['loose']);
+        $item->setMarketValueNew($prices['new']);
+        $item->setMarketValueCurrency('USD');
         $item->setMarketValueFetchedAt($now);
         $item->setUpdatedAt($now);
 

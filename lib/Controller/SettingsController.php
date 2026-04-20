@@ -89,6 +89,26 @@ class SettingsController extends OCSController
     }
 
     #[NoAdminRequired]
+    public function getPriceChartingToken(): DataResponse
+    {
+        $token = (string)($this->credentialsManager->retrieve($this->userId(), 'crate/pricecharting_token') ?? '');
+        return new DataResponse(['hasToken' => $token !== '']);
+    }
+
+    #[NoAdminRequired]
+    public function setPriceChartingToken(string $token = ''): DataResponse
+    {
+        $uid     = $this->userId();
+        $trimmed = trim($token);
+        if ($trimmed === '') {
+            $this->credentialsManager->delete($uid, 'crate/pricecharting_token');
+        } else {
+            $this->credentialsManager->store($uid, 'crate/pricecharting_token', $trimmed);
+        }
+        return new DataResponse([]);
+    }
+
+    #[NoAdminRequired]
     public function getMarketSettings(): DataResponse
     {
         $uid = $this->userId();

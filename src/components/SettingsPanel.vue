@@ -227,6 +227,70 @@
       </div>
     </NcAppSettingsSection>
 
+    <!-- ── PriceCharting (Games & Comics) ── -->
+    <NcAppSettingsSection
+      id="crate-settings-pricecharting"
+      name="Games &amp; Comics — PriceCharting"
+    >
+      <p class="settings-hint">
+        Crate uses the
+        <a
+          href="https://www.pricecharting.com/"
+          target="_blank"
+          rel="noopener"
+        >PriceCharting API</a>
+        to fetch loose, CIB, and new market prices for games and comics.
+        Get a free access token at
+        <a
+          href="https://www.pricecharting.com/api"
+          target="_blank"
+          rel="noopener"
+        >pricecharting.com/api</a>.
+      </p>
+
+      <div class="settings-field">
+        <label for="pricecharting-token">Access Token</label>
+        <div class="settings-token-row">
+          <input
+            id="pricecharting-token"
+            v-model="priceChartingTokenInput"
+            :type="showPriceChartingToken ? 'text' : 'password'"
+            :placeholder="hasPriceChartingToken ? '(token saved — paste a new one to replace)' : 'Paste your token here'"
+            autocomplete="off"
+          >
+          <NcButton
+            variant="tertiary"
+            :aria-label="showPriceChartingToken ? 'Hide token' : 'Show token'"
+            @click="showPriceChartingToken = !showPriceChartingToken"
+          >
+            {{ showPriceChartingToken ? 'Hide' : 'Show' }}
+          </NcButton>
+        </div>
+      </div>
+
+      <div class="settings-actions">
+        <NcButton
+          variant="primary"
+          :disabled="savingPriceCharting || priceChartingTokenInput === ''"
+          @click="savePriceChartingToken"
+        >
+          {{ savingPriceCharting ? 'Saving…' : 'Save token' }}
+        </NcButton>
+        <NcButton
+          v-if="hasPriceChartingToken"
+          variant="tertiary"
+          :disabled="savingPriceCharting"
+          @click="clearPriceChartingToken"
+        >
+          Remove token
+        </NcButton>
+        <span
+          v-if="priceChartingSavedMessage"
+          class="settings-saved"
+        >{{ priceChartingSavedMessage }}</span>
+      </div>
+    </NcAppSettingsSection>
+
     <NcAppSettingsSection
       id="crate-settings-market"
       name="Market values"
@@ -349,7 +413,7 @@ import { useSettings } from '../composables/useSettings.js'
 defineProps({
   open: { type: Boolean, required: true },
 })
-const emit = defineEmits(['update:open', 'token-changed', 'tmdb-token-changed', 'rawg-key-changed', 'collection-wiped'])
+const emit = defineEmits(['update:open', 'token-changed', 'tmdb-token-changed', 'rawg-key-changed', 'pricecharting-token-changed', 'collection-wiped'])
 
 const enrich = useEnrichQueue()
 const marketQueue = useMarketValueQueue()
@@ -377,22 +441,31 @@ const showRawgKey = ref(false)
 const savingRawg = ref(false)
 const rawgSavedMessage = ref('')
 
+// PriceCharting
+const priceChartingTokenInput = ref('')
+const hasPriceChartingToken = ref(false)
+const showPriceChartingToken = ref(false)
+const savingPriceCharting = ref(false)
+const priceChartingSavedMessage = ref('')
+
 const confirmWipe = ref(false)
 const wiping = ref(false)
 const wipedMessage = ref('')
 
 async function load() {
   try {
-    const [tokenRes, currRes, tmdbRes, rawgRes] = await Promise.all([
+    const [tokenRes, currRes, tmdbRes, rawgRes, pcRes] = await Promise.all([
       axios.get(generateOcsUrl('/apps/crate/api/v1/settings/discogs-token')),
       axios.get(generateOcsUrl('/apps/crate/api/v1/settings/currencies')),
       axios.get(generateOcsUrl('/apps/crate/api/v1/settings/tmdb-token')),
       axios.get(generateOcsUrl('/apps/crate/api/v1/settings/rawg-key')),
+      axios.get(generateOcsUrl('/apps/crate/api/v1/settings/pricecharting-token')),
     ])
-    hasToken.value    = tokenRes.data.ocs?.data?.hasToken ?? false
-    currencies.value  = currRes.data.ocs?.data ?? []
-    hasTmdbToken.value = tmdbRes.data.ocs?.data?.hasToken ?? false
-    hasRawgKey.value  = rawgRes.data.ocs?.data?.hasKey ?? false
+    hasToken.value            = tokenRes.data.ocs?.data?.hasToken ?? false
+    currencies.value          = currRes.data.ocs?.data ?? []
+    hasTmdbToken.value        = tmdbRes.data.ocs?.data?.hasToken ?? false
+    hasRawgKey.value          = rawgRes.data.ocs?.data?.hasKey ?? false
+    hasPriceChartingToken.value = pcRes.data.ocs?.data?.hasToken ?? false
   } catch (e) {
     console.error('Failed to load settings', e)
     showError('Failed to load settings')
@@ -521,6 +594,41 @@ async function clearRawgKey() {
     showError('Failed to clear RAWG key')
   } finally {
     savingRawg.value = false
+  }
+}
+
+async function savePriceChartingToken() {
+  savingPriceCharting.value = true
+  priceChartingSavedMessage.value = ''
+  try {
+    await axios.post(generateOcsUrl('/apps/crate/api/v1/settings/pricecharting-token'), { token: priceChartingTokenInput.value })
+    hasPriceChartingToken.value = priceChartingTokenInput.value !== ''
+    emit('pricecharting-token-changed', hasPriceChartingToken.value)
+    priceChartingTokenInput.value = ''
+    priceChartingSavedMessage.value = 'Saved!'
+    setTimeout(() => { priceChartingSavedMessage.value = '' }, 3000)
+  } catch (e) {
+    console.error('Failed to save PriceCharting token', e)
+    showError('Failed to save PriceCharting token')
+    priceChartingSavedMessage.value = 'Failed to save.'
+  } finally {
+    savingPriceCharting.value = false
+  }
+}
+
+async function clearPriceChartingToken() {
+  savingPriceCharting.value = true
+  try {
+    await axios.post(generateOcsUrl('/apps/crate/api/v1/settings/pricecharting-token'), { token: '' })
+    hasPriceChartingToken.value = false
+    emit('pricecharting-token-changed', false)
+    priceChartingSavedMessage.value = 'Token removed.'
+    setTimeout(() => { priceChartingSavedMessage.value = '' }, 3000)
+  } catch (e) {
+    console.error('Failed to clear PriceCharting token', e)
+    showError('Failed to clear PriceCharting token')
+  } finally {
+    savingPriceCharting.value = false
   }
 }
 

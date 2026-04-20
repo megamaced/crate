@@ -53,6 +53,10 @@ use OCP\AppFramework\Db\Entity;
  * @method void setOriginalArtworkPath(?string $originalArtworkPath)
  * @method float|null getMarketValue()
  * @method void setMarketValue(?float $marketValue)
+ * @method float|null getMarketValueLoose()
+ * @method void setMarketValueLoose(?float $marketValueLoose)
+ * @method float|null getMarketValueNew()
+ * @method void setMarketValueNew(?float $marketValueNew)
  * @method string|null getMarketValueCurrency()
  * @method void setMarketValueCurrency(?string $marketValueCurrency)
  * @method string|null getMarketValueFetchedAt()
@@ -89,6 +93,8 @@ class MediaItem extends Entity implements \JsonSerializable
     protected ?int $originalYear = null;
     protected ?string $originalArtworkPath = null;
     protected ?float $marketValue = null;
+    protected ?float $marketValueLoose = null;
+    protected ?float $marketValueNew = null;
     protected ?string $marketValueCurrency = null;
     protected ?string $marketValueFetchedAt = null;
     protected string $category = 'music';
@@ -100,6 +106,8 @@ class MediaItem extends Entity implements \JsonSerializable
         $this->addType('year', 'integer');
         $this->addType('originalYear', 'integer');
         $this->addType('marketValue', 'float');
+        $this->addType('marketValueLoose', 'float');
+        $this->addType('marketValueNew', 'float');
     }
 
     public function jsonSerialize(): array
@@ -129,6 +137,8 @@ class MediaItem extends Entity implements \JsonSerializable
                 ? json_decode($this->artistMembers, true)
                 : null,
             'marketValue'          => $this->marketValue,
+            'marketValueLoose'     => $this->marketValueLoose,
+            'marketValueNew'       => $this->marketValueNew,
             'marketValueCurrency'  => $this->marketValueCurrency,
             'marketValueFetchedAt' => $this->marketValueFetchedAt,
             'category'        => $this->category,

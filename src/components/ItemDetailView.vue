@@ -30,7 +30,7 @@
           <NcButton
             v-if="hasMarketValue && !fetchingMarket"
             variant="tertiary"
-            :disabled="!hasToken || queueBusy"
+            :disabled="!hasMarketToken || queueBusy"
             @click="fetchMarketValue"
           >
             {{ item.marketValue ? 'Refresh market rate' : 'Fetch market rate' }}
@@ -105,16 +105,45 @@
             >{{ item.country }}</span>
           </div>
 
-          <!-- Market value -->
-          <p
-            v-if="item.marketValue"
-            class="detail-market-value"
+          <!-- Market value — single price for music, three-tier for games/comics -->
+          <div
+            v-if="item.marketValue || item.marketValueLoose || item.marketValueNew"
+            class="detail-market-block"
           >
-            {{ formatMarketValue(item) }}
+            <template v-if="isPriceChartingCategory">
+              <div class="detail-market-prices">
+                <span
+                  v-if="item.marketValueLoose"
+                  class="detail-market-price"
+                >
+                  <span class="detail-market-price-label">Loose</span>
+                  {{ formatPrice(item.marketValueLoose, item.marketValueCurrency) }}
+                </span>
+                <span
+                  v-if="item.marketValue"
+                  class="detail-market-price detail-market-price--cib"
+                >
+                  <span class="detail-market-price-label">CIB</span>
+                  {{ formatPrice(item.marketValue, item.marketValueCurrency) }}
+                </span>
+                <span
+                  v-if="item.marketValueNew"
+                  class="detail-market-price"
+                >
+                  <span class="detail-market-price-label">New</span>
+                  {{ formatPrice(item.marketValueNew, item.marketValueCurrency) }}
+                </span>
+              </div>
+            </template>
+            <template v-else>
+              <p class="detail-market-value">
+                {{ formatMarketValue(item) }}
+              </p>
+            </template>
             <span class="detail-market-fetched">
               as of {{ formatFetchedAt(item.marketValueFetchedAt) }}
             </span>
-          </p>
+          </div>
 
           <!-- Metadata grid -->
           <dl class="detail-meta">
@@ -215,6 +244,7 @@ import { useArtworkStyle } from '../composables/useArtworkStyle.js'
 const props = defineProps({
   item: { type: Object, required: true },
   hasToken: { type: Boolean, default: false },
+  hasMarketToken: { type: Boolean, default: false },
   queueBusy: { type: Boolean, default: false },
 })
 
@@ -228,6 +258,7 @@ const fetchingMarket = ref(false)
 
 const isMusic = computed(() => !props.item.category || props.item.category === 'music')
 const hasMarketValue = computed(() => !['film', 'book'].includes(props.item.category))
+const isPriceChartingCategory = computed(() => ['game', 'comic'].includes(props.item.category))
 
 const enrichSourceLabel = computed(() => {
   const map = { music: 'Discogs', film: 'TMDB', book: 'Open Library', game: 'RAWG' }
@@ -313,6 +344,16 @@ async function fetchMarketValue() {
   }
 }
 
+function formatPrice(value, currency) {
+  if (value == null) return ''
+  const c = currency ?? 'USD'
+  try {
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency: c }).format(value)
+  } catch {
+    return `${c} ${value.toFixed(2)}`
+  }
+}
+
 function formatFetchedAt(dateStr) {
   if (!dateStr) return ''
   try {
@@ -323,16 +364,18 @@ function formatFetchedAt(dateStr) {
 }
 
 function shouldAutoFetchMarket() {
-  return isMusic.value && autoFetchMarketRates.value && props.item.discogsId && !props.item.marketValue
-  // games/comics: auto-fetch added in Batch D when PriceCharting backend is wired up
+  if (!autoFetchMarketRates.value || props.item.marketValue) return false
+  if (isMusic.value) return !!(props.item.discogsId && props.hasMarketToken)
+  if (isPriceChartingCategory.value) return !!(props.item.title && props.hasMarketToken)
+  return false
 }
 
 onMounted(() => {
   if (shouldAutoFetchMarket()) fetchMarketValue()
 })
 
-// Fires when App.vue's triggerEnrich auto-enriches and updates props.item —
-// discogsId goes from falsy to a real value, so fetch market rate if needed.
+// Fires when enrichment completes and updates props.item — fetch market rate if configured.
+// Music: triggers when discogsId is first set. Games: triggers when discogsId (RAWG ID) is set.
 watch(() => props.item.discogsId, (newId, oldId) => {
   if (newId && !oldId && shouldAutoFetchMarket()) fetchMarketValue()
 })
@@ -577,5 +620,37 @@ async function stripEnrich() {
 .detail-members {
   font-size: 0.875em;
   color: var(--color-text-maxcontrast);
+}
+
+/* PriceCharting three-tier price display */
+.detail-market-block {
+  margin: 8px 0 0;
+}
+
+.detail-market-prices {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+
+.detail-market-price {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.detail-market-price-label {
+  font-size: 0.65em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-maxcontrast);
+}
+
+.detail-market-price--cib {
+  font-size: 1.3em;
+  font-weight: 800;
+  color: #4ade80;
 }
 </style>
