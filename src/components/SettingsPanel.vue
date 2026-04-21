@@ -419,15 +419,15 @@
       name="Danger zone"
     >
       <p class="settings-hint">
-        Permanently delete every item in your collection and wishlist, all playlists, and any shares you have created. This cannot be undone.
+        Permanently delete selected data from your collection. You choose what to wipe in the confirmation dialog. This cannot be undone.
       </p>
       <div class="settings-actions">
         <NcButton
           variant="error"
           :disabled="wiping"
-          @click="confirmWipe = true"
+          @click="openWipeDialog"
         >
-          {{ wiping ? 'Wiping…' : 'Wipe collection' }}
+          {{ wiping ? 'Wiping…' : 'Wipe data…' }}
         </NcButton>
         <span
           v-if="wipedMessage"
@@ -437,11 +437,21 @@
 
       <NcDialog
         v-if="confirmWipe"
-        name="Wipe collection"
+        name="Wipe data"
         :open="confirmWipe"
         @closing="confirmWipe = false"
       >
-        <p>This will permanently delete <strong>all items</strong> from your collection and wishlist, along with <strong>all playlists</strong> and <strong>shares you have created</strong>. There is no undo.</p>
+        <p>Tick the categories you want to permanently delete. There is no undo.</p>
+        <div class="wipe-scopes">
+          <NcCheckboxRadioSwitch
+            v-for="scope in wipeScopes"
+            :key="scope.value"
+            :model-value="wipeSelection.includes(scope.value)"
+            @update:model-value="toggleWipeScope(scope.value, $event)"
+          >
+            {{ scope.label }}
+          </NcCheckboxRadioSwitch>
+        </div>
         <template #actions>
           <NcButton
             type="button"
@@ -453,9 +463,10 @@
           <NcButton
             type="button"
             variant="error"
+            :disabled="wipeSelection.length === 0"
             @click="wipeCollection"
           >
-            Yes, wipe everything
+            Wipe selected
           </NcButton>
         </template>
       </NcDialog>
@@ -522,6 +533,30 @@ const priceChartingSavedMessage = ref('')
 const confirmWipe = ref(false)
 const wiping = ref(false)
 const wipedMessage = ref('')
+
+const wipeScopes = [
+  { value: 'music',     label: 'Music' },
+  { value: 'film',      label: 'Films' },
+  { value: 'book',      label: 'Books' },
+  { value: 'game',      label: 'Games' },
+  { value: 'comic',     label: 'Comics' },
+  { value: 'playlists', label: 'Playlists and shares' },
+]
+const wipeSelection = ref([])
+
+function openWipeDialog() {
+  // Default: everything selected.
+  wipeSelection.value = wipeScopes.map(s => s.value)
+  confirmWipe.value = true
+}
+
+function toggleWipeScope(value, checked) {
+  if (checked) {
+    if (!wipeSelection.value.includes(value)) wipeSelection.value.push(value)
+  } else {
+    wipeSelection.value = wipeSelection.value.filter(v => v !== value)
+  }
+}
 
 async function load() {
   try {
@@ -721,12 +756,20 @@ async function clearPriceChartingToken() {
 }
 
 async function wipeCollection() {
+  const scopes = [...wipeSelection.value]
+  if (scopes.length === 0) return
+
   confirmWipe.value = false
   wiping.value = true
   wipedMessage.value = ''
   try {
-    await axios.delete(generateOcsUrl('/apps/crate/api/v1/media'))
-    wipedMessage.value = 'Collection wiped.'
+    await axios.delete(generateOcsUrl('/apps/crate/api/v1/media'), {
+      params: { scopes: scopes.join(',') },
+    })
+    const allSelected = scopes.length === wipeScopes.length
+    wipedMessage.value = allSelected
+      ? 'Collection wiped.'
+      : `Wiped: ${scopes.join(', ')}.`
     emit('collection-wiped')
     setTimeout(() => { wipedMessage.value = '' }, 4000)
   } catch (e) {
@@ -776,6 +819,13 @@ onMounted(load)
 </script>
 
 <style scoped>
+.wipe-scopes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 12px 0 4px;
+}
+
 .settings-hint {
   font-size: 0.875em;
   color: var(--color-text-maxcontrast);

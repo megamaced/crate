@@ -166,11 +166,36 @@ class MediaController extends OCSController
         return new DataResponse([]);
     }
 
+    /**
+     * Wipe selected scopes of a user's data.
+     *
+     * `scopes` is a comma-separated query param; allowed values are the five
+     * category names (music / film / book / game / comic) and the literal
+     * 'playlists' (which also removes playlist shares). With no scopes
+     * parameter the entire user collection + playlists is wiped, preserving
+     * the original behaviour of this endpoint.
+     */
     #[NoAdminRequired]
-    public function destroyAll(): DataResponse
+    public function destroyAll(?string $scopes = null): DataResponse
     {
-        $this->mediaService->wipeUserData($this->userId());
-        return new DataResponse([]);
+        if ($scopes === null || $scopes === '') {
+            $this->mediaService->wipeUserData($this->userId());
+            return new DataResponse([]);
+        }
+
+        $requested = array_values(array_filter(array_map('trim', explode(',', $scopes))));
+        $valid     = array_merge(CrateCategories::ALL, ['playlists']);
+        $unknown   = array_values(array_diff($requested, $valid));
+
+        if (!empty($unknown)) {
+            return new DataResponse(
+                ['error' => 'Unknown wipe scope(s): ' . implode(', ', $unknown)],
+                Http::STATUS_BAD_REQUEST,
+            );
+        }
+
+        $this->mediaService->wipeScopes($this->userId(), $requested);
+        return new DataResponse(['scopes' => $requested]);
     }
 
     /**

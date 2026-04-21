@@ -137,6 +137,15 @@ class MediaItemMapper extends QBMapper
         $qb->executeStatement();
     }
 
+    public function deleteAllByUserAndCategory(string $userId, string $category): void
+    {
+        $qb = $this->db->getQueryBuilder();
+        $qb->delete($this->getTableName())
+            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->eq('category', $qb->createNamedParameter($category)));
+        $qb->executeStatement();
+    }
+
     /** Find by id without user ownership check — used for shared-item access. */
     public function findById(int $id): MediaItem
     {

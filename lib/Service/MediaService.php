@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Crate\Service;
 
+use OCA\Crate\CrateCategories;
 use OCA\Crate\Db\CrateShareMapper;
 use OCA\Crate\Db\MediaItem;
 use OCA\Crate\Db\MediaItemMapper;
@@ -153,88 +154,91 @@ class MediaService
         }
     }
 
-    public function deleteAll(string $userId): void
-    {
-        $this->mapper->deleteAllByUser($userId);
-    }
-
     /**
-     * Wipe everything for a user — media items, playlists, playlist items,
-     * and shares — in a single transaction. Artwork files are cleared after
-     * commit so a filesystem failure doesn't leave orphan DB rows.
+     * Convenience wipe — removes everything for a user (all five categories
+     * + playlists). Delegates to the scoped variant.
      */
     public function wipeUserData(string $userId): void
     {
-        $items     = $this->findAll($userId);
-        $playlists = $this->playlistMapper->findAll($userId);
-
-        $this->db->beginTransaction();
-        try {
-            foreach ($playlists as $playlist) {
-                $this->shareMapper->deleteByShareable('playlist', $playlist->getId());
-                $this->playlistItemMapper->deleteByPlaylist($playlist->getId());
-            }
-            $this->playlistMapper->deleteAllByUser($userId);
-
-            foreach ($items as $item) {
-                $this->playlistItemMapper->deleteByMediaItem($item->getId());
-                $this->shareMapper->deleteByShareable('album', $item->getId());
-            }
-            $this->mapper->deleteAllByUser($userId);
-
-            $this->db->commit();
-        } catch (\Throwable $e) {
-            $this->db->rollBack();
-            throw $e;
-        }
-
-        foreach ($items as $item) {
-            $this->deleteArtworkFiles($item->getId());
-        }
-
-        $this->logger->warning('Wiped all Crate data for user {user} ({items} items, {playlists} playlists)', [
-            'items'     => count($items),
-            'playlists' => count($playlists),
-            'user'      => $userId,
-            'app'       => 'crate',
-        ]);
+        $this->wipeScopes(
+            $userId,
+            array_merge(CrateCategories::ALL, ['playlists']),
+        );
     }
 
     /**
-     * Delete all media items for a user, including related data cleanup.
-     * Handles artwork files, playlist-item references, and album shares.
-     * Database operations run in a single transaction so a mid-loop failure
-     * leaves no orphaned playlist_item / share rows.
+     * Scoped wipe — removes items in the specified categories and / or
+     * playlists. Valid scope values are the five CrateCategories (music,
+     * film, book, game, comic) and the literal 'playlists' (which also
+     * removes playlist shares). All DB work runs in a single transaction;
+     * artwork files are deleted afterwards so a filesystem failure cannot
+     * undo the DB commit.
+     *
+     * Unknown scopes are silently ignored — validation is the controller's
+     * job.
+     *
+     * @param list<string> $scopes
      */
-    public function deleteAllForUser(string $userId): void
+    public function wipeScopes(string $userId, array $scopes): void
     {
-        $items = $this->findAll($userId);
+        $categories = array_values(array_intersect($scopes, CrateCategories::ALL));
+        $wipePlaylists = in_array('playlists', $scopes, true);
+
+        if (empty($categories) && !$wipePlaylists) {
+            return;
+        }
+
+        // Load before the transaction so we know which artwork files to sweep.
+        $itemsToDelete = [];
+        foreach ($categories as $category) {
+            foreach ($this->mapper->findAll($userId, $category) as $item) {
+                $itemsToDelete[] = $item;
+            }
+        }
+        $playlistsToDelete = $wipePlaylists ? $this->playlistMapper->findAll($userId) : [];
 
         $this->db->beginTransaction();
         try {
-            foreach ($items as $item) {
+            if ($wipePlaylists) {
+                foreach ($playlistsToDelete as $playlist) {
+                    $this->shareMapper->deleteByShareable('playlist', $playlist->getId());
+                    $this->playlistItemMapper->deleteByPlaylist($playlist->getId());
+                }
+                $this->playlistMapper->deleteAllByUser($userId);
+            }
+
+            foreach ($itemsToDelete as $item) {
+                // FK cascade handles playlist_items, but we still clear the
+                // polymorphic share rows and (where applicable) keep the
+                // playlist_items delete as belt-and-braces for legacy installs
+                // that predate migration 0001's consolidated FK schema.
                 $this->playlistItemMapper->deleteByMediaItem($item->getId());
                 $this->shareMapper->deleteByShareable('album', $item->getId());
             }
-            $this->mapper->deleteAllByUser($userId);
+            foreach ($categories as $category) {
+                $this->mapper->deleteAllByUserAndCategory($userId, $category);
+            }
+
             $this->db->commit();
         } catch (\Throwable $e) {
             $this->db->rollBack();
             throw $e;
         }
 
-        // Artwork files are deleted outside the transaction — if the filesystem
-        // delete fails we still want the DB rows gone, and stale files are
-        // harmless (they'll be overwritten or garbage-collected).
-        foreach ($items as $item) {
+        foreach ($itemsToDelete as $item) {
             $this->deleteArtworkFiles($item->getId());
         }
 
-        $this->logger->warning('Deleted all {count} media items for user {user}', [
-            'count' => count($items),
-            'user'  => $userId,
-            'app'   => 'crate',
-        ]);
+        $this->logger->warning(
+            'Wiped Crate data for user {user}: scopes={scopes}, items={items}, playlists={playlists}',
+            [
+                'user'      => $userId,
+                'scopes'    => implode(',', $scopes),
+                'items'     => count($itemsToDelete),
+                'playlists' => count($playlistsToDelete),
+                'app'       => 'crate',
+            ],
+        );
     }
 
     /**
