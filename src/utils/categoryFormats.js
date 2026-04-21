@@ -48,19 +48,29 @@ export const FORMAT_GROUPS = {
     },
     {
       label: 'Nintendo',
-      formats: ['Switch 2', 'Switch', 'Wii U', 'Wii', 'GameCube', 'N64', 'SNES', 'NES', '3DS', 'DS', 'Game Boy Advance', 'Game Boy'],
+      formats: ['Switch 2', 'Switch', 'Wii U', 'Wii', 'GameCube', 'N64', 'SNES', 'NES', '3DS', 'DS', 'Game Boy Advance', 'Game Boy Color', 'Game Boy', 'Virtual Boy'],
     },
     {
       label: 'Sega',
-      formats: ['Dreamcast', 'Saturn', 'Mega Drive', 'Master System'],
+      // "Mega Drive / Genesis" keeps both regional names visible — our UK
+      // users know it as Mega Drive, but both RAWG and PriceCharting key on
+      // "Genesis", so the combined label matches a user-typed CSV either way.
+      formats: ['Dreamcast', 'Saturn', 'Mega Drive / Genesis', 'Master System', 'Game Gear', 'Sega CD', 'Sega 32X'],
+    },
+    {
+      label: 'Atari',
+      formats: ['Atari 2600', 'Atari 5200', 'Atari 7800', 'Atari Lynx', 'Jaguar'],
+    },
+    {
+      label: 'SNK',
+      // PriceCharting splits the Neo Geo line into four distinct SKUs;
+      // RAWG lumps them under a single "Neo Geo" but PriceCharting drives
+      // the split (since market values come from there).
+      formats: ['Neo Geo MVS', 'Neo Geo AES', 'Neo Geo CD', 'Neo Geo Pocket Color'],
     },
     {
       label: 'PC',
       formats: ['PC'],
-    },
-    {
-      label: 'Other',
-      formats: ['Neo Geo', 'Atari 2600', 'Commodore 64', 'Amiga'],
     },
   ],
   comic: [

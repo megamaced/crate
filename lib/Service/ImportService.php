@@ -32,13 +32,16 @@ class ImportService
         'xbox series x|s', 'xbox one', 'xbox 360', 'xbox',
         // Games — Nintendo
         'switch 2', 'switch', 'wii u', 'wii', 'gamecube', 'n64', 'snes', 'nes',
-        '3ds', 'ds', 'game boy advance', 'game boy',
+        '3ds', 'ds', 'game boy advance', 'game boy color', 'game boy', 'virtual boy',
         // Games — Sega
-        'dreamcast', 'saturn', 'mega drive', 'master system',
+        'dreamcast', 'saturn', 'mega drive / genesis', 'master system',
+        'game gear', 'sega cd', 'sega 32x',
+        // Games — Atari
+        'atari 2600', 'atari 5200', 'atari 7800', 'atari lynx', 'jaguar',
+        // Games — SNK
+        'neo geo mvs', 'neo geo aes', 'neo geo cd', 'neo geo pocket color',
         // Games — PC
         'pc',
-        // Games — Other
-        'neo geo', 'atari 2600', 'commodore 64', 'amiga',
         // Comics — Single Issues
         'single issue', 'annual', 'special', 'one-shot', 'mini-series', 'limited series',
         // Comics — Collected
