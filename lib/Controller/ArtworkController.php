@@ -19,6 +19,7 @@ use OCP\Http\Client\IClientService;
 use OCP\IDBConnection;
 use OCP\IRequest;
 use OCP\IUserSession;
+use Psr\Log\LoggerInterface;
 
 class ArtworkController extends Controller
 {
@@ -52,6 +53,7 @@ class ArtworkController extends Controller
         private readonly IAppDataFactory $appDataFactory,
         private readonly IClientService $clientService,
         private readonly IDBConnection $db,
+        private readonly LoggerInterface $logger,
     ) {
         parent::__construct($appName, $request);
     }
@@ -163,20 +165,41 @@ class ArtworkController extends Controller
 
     /**
      * Resize image bytes to a 200×200-bounded thumbnail using GD.
-     * Falls back to the original data if GD is unavailable.
+     * Falls back to the original data if GD is unavailable or the image
+     * cannot be decoded. Errors are logged rather than swallowed by `@`.
      */
     private function thumbResponse(string $data, string $mime): Response
     {
         $thumbSize = 200;
         if (function_exists('imagecreatefromstring') && function_exists('imagescale')) {
-            $src = @imagecreatefromstring($data);
+            $src = false;
+            try {
+                // imagecreatefromstring emits a warning (not an exception) for
+                // malformed input; convert warnings into exceptions for this
+                // call so we get a clean boolean failure path.
+                set_error_handler(static function (int $severity, string $message): bool {
+                    throw new \RuntimeException($message, $severity);
+                });
+                try {
+                    $src = imagecreatefromstring($data);
+                } finally {
+                    restore_error_handler();
+                }
+            } catch (\Throwable $e) {
+                $this->logger->warning('Artwork thumbnail decode failed: {msg}', [
+                    'msg' => $e->getMessage(),
+                    'app' => 'crate',
+                ]);
+                $src = false;
+            }
+
             if ($src !== false) {
-                $w = imagesx($src);
-                $h = imagesy($src);
+                $w     = imagesx($src);
+                $h     = imagesy($src);
                 $scale = min($thumbSize / $w, $thumbSize / $h, 1.0);
-                $nw = max(1, (int) round($w * $scale));
-                $nh = max(1, (int) round($h * $scale));
-                $dst = imagescale($src, $nw, $nh, IMG_BILINEAR_FIXED);
+                $nw    = max(1, (int) round($w * $scale));
+                $nh    = max(1, (int) round($h * $scale));
+                $dst   = imagescale($src, $nw, $nh, IMG_BILINEAR_FIXED);
                 imagedestroy($src);
                 if ($dst !== false) {
                     ob_start();
@@ -184,7 +207,7 @@ class ArtworkController extends Controller
                     $out = ob_get_clean();
                     imagedestroy($dst);
                     if ($out !== false && $out !== '') {
-                        $headers = ['Content-Type' => 'image/jpeg'];
+                        $headers  = ['Content-Type' => 'image/jpeg'];
                         $response = new \OCP\AppFramework\Http\DataDisplayResponse(
                             $out,
                             Http::STATUS_OK,

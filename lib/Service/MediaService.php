@@ -13,6 +13,7 @@ use OCA\Crate\Dto\MediaItemData;
 use OCP\Files\AppData\IAppDataFactory;
 use OCP\Files\NotFoundException;
 use OCP\IDBConnection;
+use Psr\Log\LoggerInterface;
 
 class MediaService
 {
@@ -23,6 +24,7 @@ class MediaService
         private readonly PlaylistMapper $playlistMapper,
         private readonly IAppDataFactory $appDataFactory,
         private readonly IDBConnection $db,
+        private readonly LoggerInterface $logger,
     ) {
     }
 
@@ -128,6 +130,12 @@ class MediaService
 
         // Files are deleted after commit — a failed unlink shouldn't undo the DB delete.
         $this->deleteArtworkFiles($id);
+
+        $this->logger->info('Deleted media item {id} for user {user}', [
+            'id'   => $id,
+            'user' => $userId,
+            'app'  => 'crate',
+        ]);
     }
 
     /** Remove cached/uploaded artwork files for a single item. */
@@ -183,6 +191,13 @@ class MediaService
         foreach ($items as $item) {
             $this->deleteArtworkFiles($item->getId());
         }
+
+        $this->logger->warning('Wiped all Crate data for user {user} ({items} items, {playlists} playlists)', [
+            'items'     => count($items),
+            'playlists' => count($playlists),
+            'user'      => $userId,
+            'app'       => 'crate',
+        ]);
     }
 
     /**
@@ -214,6 +229,12 @@ class MediaService
         foreach ($items as $item) {
             $this->deleteArtworkFiles($item->getId());
         }
+
+        $this->logger->warning('Deleted all {count} media items for user {user}', [
+            'count' => count($items),
+            'user'  => $userId,
+            'app'   => 'crate',
+        ]);
     }
 
     /**

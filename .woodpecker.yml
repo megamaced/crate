@@ -7,6 +7,14 @@ steps:
       - composer install --no-interaction
       - vendor/bin/phpcs --standard=PSR12 lib/
 
+  - name: test-php
+    image: composer:2
+    when:
+      - event: [push, pull_request]
+    commands:
+      - composer install --no-interaction
+      - vendor/bin/phpunit --testsuite unit
+
   - name: build-js
     image: node:20-alpine
     when:

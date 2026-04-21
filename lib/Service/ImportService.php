@@ -6,6 +6,7 @@ namespace OCA\Crate\Service;
 
 use OCA\Crate\CrateCategories;
 use OCA\Crate\Db\MediaItemMapper;
+use Psr\Log\LoggerInterface;
 
 class ImportService
 {
@@ -97,8 +98,10 @@ class ImportService
         'category'        => 'category',
     ];
 
-    public function __construct(private readonly MediaItemMapper $mapper)
-    {
+    public function __construct(
+        private readonly MediaItemMapper $mapper,
+        private readonly LoggerInterface $logger,
+    ) {
     }
 
     /**
@@ -430,6 +433,18 @@ class ImportService
             $itemIds[] = $saved->getId();
             $created++;
         }
+
+        $this->logger->info(
+            'Import for user {user} ({cat}): {created} created, {dup} duplicates, {skip} skipped',
+            [
+                'user'    => $userId,
+                'cat'     => $batchCategory,
+                'created' => $created,
+                'dup'     => $duplicates,
+                'skip'    => $skipped,
+                'app'     => 'crate',
+            ],
+        );
 
         return [
             'created'    => $created,
