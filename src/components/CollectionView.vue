@@ -623,26 +623,30 @@ function thumbStyle(item) {
   font-size: 1.4em;
 }
 
-/* Sort */
-/* Unified baseline for every bordered toolbar control: same font-size,
-   same vertical padding, same line-height. Internal elements (the view
-   toggle and status tabs live inside bordered wrappers) drop their own
-   border and inherit the wrapper's, so they end up with the exact same
-   external height as the bare <select>. */
+/* Every bordered toolbar control is forced to the same external height
+   (--default-clickable-area, same as NcButton's min-height) so the sort
+   select, view toggle, status tabs, and the Export / Import / Add item
+   buttons all share one horizontal line.
+
+   The native <select> can't be a flex container, so we size it with an
+   explicit height + line-height to vertically centre its text. The
+   <div> wrappers for view-toggle and status-tabs use align-items:
+   stretch and let their child buttons fill via flex centering. */
 .cv-sort-select,
-.cv-toggle-btn,
-.cv-status-tab {
-  font-size: 0.875em;
-  line-height: 1.4;
-  padding: 6px 12px;
+.cv-view-toggle,
+.cv-status-tabs {
+  height: var(--default-clickable-area, 44px);
   box-sizing: border-box;
+  border: 2px solid var(--color-border-dark);
+  border-radius: var(--border-radius);
 }
 
 .cv-sort-select {
-  border: 2px solid var(--color-border-dark);
-  border-radius: var(--border-radius);
   background: var(--color-main-background);
   color: var(--color-main-text);
+  padding: 0 12px;
+  font-size: 0.9em;
+  line-height: 1;
   cursor: pointer;
 }
 
@@ -650,19 +654,18 @@ function thumbStyle(item) {
 .cv-view-toggle {
   display: inline-flex;
   align-items: stretch;
-  border: 2px solid var(--color-border-dark);
-  border-radius: var(--border-radius);
   overflow: hidden;
 }
 
 .cv-toggle-btn {
   background: none;
   border: none;
-  min-width: 40px;
+  min-width: 44px;
+  padding: 0 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 1em;
+  font-size: 1.15em;
   cursor: pointer;
   color: var(--color-text-maxcontrast);
   transition: background 0.1s, color 0.1s;
@@ -682,8 +685,6 @@ function thumbStyle(item) {
   display: inline-flex;
   align-items: stretch;
   gap: 0;
-  border: 2px solid var(--color-border-dark);
-  border-radius: var(--border-radius);
   overflow: hidden;
   flex-shrink: 0;
 }
@@ -691,9 +692,10 @@ function thumbStyle(item) {
 .cv-status-tab {
   background: none;
   border: none;
-  padding: 6px 16px;
+  padding: 0 18px;
   display: inline-flex;
   align-items: center;
+  font-size: 0.9em;
   font-weight: 500;
   cursor: pointer;
   color: var(--color-text-maxcontrast);
