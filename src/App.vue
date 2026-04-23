@@ -452,6 +452,7 @@ function switchView(newView) {
 }
 
 function showDetail(item) {
+  saveScroll(appContentRef.value?.$el)
   previousView.value = view.value
   selectedItem.value = item
   view.value = 'detail'

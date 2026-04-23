@@ -18,10 +18,10 @@
             aria-label="Sort order"
           >
             <option value="createdAt-desc">
-              Date Added ↓
+              Newest First
             </option>
             <option value="createdAt-asc">
-              Date Added ↑
+              Oldest First
             </option>
             <option value="artist-asc">
               {{ sortLabels.artist }} A–Z
@@ -36,10 +36,10 @@
               {{ sortLabels.title }} Z–A
             </option>
             <option value="year-asc">
-              Year ↑
+              Year (Oldest)
             </option>
             <option value="year-desc">
-              Year ↓
+              Year (Newest)
             </option>
             <template v-if="sortLabels.hasFormat">
               <option value="format-asc">
@@ -51,10 +51,10 @@
             </template>
             <template v-if="sortLabels.hasValue">
               <option value="marketValue-desc">
-                Value ↓
+                Value (Highest)
               </option>
               <option value="marketValue-asc">
-                Value ↑
+                Value (Lowest)
               </option>
             </template>
           </select>
@@ -693,6 +693,7 @@ function thumbStyle(item) {
   background: none;
   border: 2px solid var(--color-border-dark);
   box-sizing: border-box;
+  margin: 0;
   min-width: 44px;
   padding: 0 12px;
   display: inline-flex;
@@ -740,6 +741,7 @@ function thumbStyle(item) {
   background: none;
   border: 2px solid var(--color-border-dark);
   box-sizing: border-box;
+  margin: 0;
   padding: 0 18px;
   display: inline-flex;
   align-items: center;
