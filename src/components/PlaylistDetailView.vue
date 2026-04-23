@@ -97,6 +97,11 @@
             >{{ CATEGORY_LABELS[item.category] ?? item.category }}</span>
             <span class="pd-badge">{{ item.format }}</span>
             <template v-if="item.year">&thinsp;{{ item.year }}</template>
+            <span
+              v-if="item.status"
+              class="pd-badge"
+              :class="item.status === 'wanted' ? 'pd-badge--wanted' : 'pd-badge--owned'"
+            >{{ item.status === 'wanted' ? 'Wishlist' : 'Owned' }}</span>
           </span>
         </div>
         <div
@@ -439,6 +444,16 @@ async function removeItem(item) {
 .pd-badge--cat {
   background: var(--color-primary-element-light, rgba(var(--color-primary-element-rgb), 0.15));
   color: var(--color-primary-element);
+}
+
+.pd-badge--wanted {
+  background: var(--color-warning);
+  color: #fff;
+}
+
+.pd-badge--owned {
+  background: var(--color-background-dark);
+  color: var(--color-main-text);
 }
 
 .pd-actions {

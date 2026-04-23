@@ -96,9 +96,9 @@
               class="badge badge-year"
             >{{ item.year }}</span>
             <span
-              v-if="item.status === 'wanted'"
-              class="badge badge-wanted"
-            >Wishlist</span>
+              class="badge"
+              :class="item.status === 'wanted' ? 'badge-wanted' : 'badge-owned'"
+            >{{ item.status === 'wanted' ? 'Wishlist' : 'Owned' }}</span>
             <span
               v-if="item.country"
               class="badge badge-country"
@@ -534,6 +534,11 @@ async function stripEnrich() {
 .badge-wanted {
   background: var(--color-warning);
   color: #fff;
+}
+
+.badge-owned {
+  background: var(--color-background-dark);
+  color: var(--color-main-text);
 }
 
 /* Metadata */

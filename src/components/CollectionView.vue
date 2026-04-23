@@ -231,6 +231,10 @@
               <span class="cv-list-meta">
                 <span class="cv-badge">{{ item.format }}</span>
                 <template v-if="item.year">&thinsp;{{ item.year }}</template>
+                <span
+                  v-if="item.status === 'wanted'"
+                  class="cv-badge cv-badge--wanted"
+                >Wishlist</span>
                 <template v-if="item.label">&ensp;·&ensp;{{ item.label }}</template>
               </span>
             </div>
@@ -923,6 +927,11 @@ function thumbStyle(item) {
   border-radius: 10px;
   font-size: 0.85em;
   font-weight: 600;
+}
+
+.cv-badge--wanted {
+  background: var(--color-warning);
+  color: #fff;
 }
 
 .cv-list-actions {
