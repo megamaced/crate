@@ -659,6 +659,14 @@ async function load() {
     hasRawgKey.value            = rawgRes.data.ocs?.data?.hasKey ?? false
     hasComicVineKey.value       = cvRes.data.ocs?.data?.hasKey ?? false
     hasPriceChartingToken.value = pcRes.data.ocs?.data?.hasToken ?? false
+    // Populate the inputs with the saved secrets so the Show toggle has
+    // something to reveal. The input type is still `password` by default, so
+    // the value is masked until the user clicks Show.
+    tokenInput.value               = tokenRes.data.ocs?.data?.token ?? ''
+    tmdbTokenInput.value           = tmdbRes.data.ocs?.data?.token ?? ''
+    rawgKeyInput.value             = rawgRes.data.ocs?.data?.key ?? ''
+    comicVineKeyInput.value        = cvRes.data.ocs?.data?.key ?? ''
+    priceChartingTokenInput.value  = pcRes.data.ocs?.data?.token ?? ''
   } catch (e) {
     console.error('Failed to load settings', e)
     showError('Failed to load settings')
@@ -672,7 +680,6 @@ async function save() {
     await axios.post(generateOcsUrl('/apps/crate/api/v1/settings/discogs-token'), { token: tokenInput.value })
     hasToken.value = tokenInput.value !== ''
     emit('token-changed', hasToken.value)
-    tokenInput.value = ''
     savedMessage.value = 'Saved!'
     setTimeout(() => { savedMessage.value = '' }, 3000)
   } catch (e) {
@@ -689,6 +696,7 @@ async function clearToken() {
   try {
     await axios.post(generateOcsUrl('/apps/crate/api/v1/settings/discogs-token'), { token: '' })
     hasToken.value = false
+    tokenInput.value = ''
     emit('token-changed', false)
     savedMessage.value = 'Token removed.'
     setTimeout(() => { savedMessage.value = '' }, 3000)
@@ -707,7 +715,6 @@ async function saveTmdbToken() {
     await axios.post(generateOcsUrl('/apps/crate/api/v1/settings/tmdb-token'), { token: tmdbTokenInput.value })
     hasTmdbToken.value = tmdbTokenInput.value !== ''
     emit('tmdb-token-changed', hasTmdbToken.value)
-    tmdbTokenInput.value = ''
     tmdbSavedMessage.value = 'Saved!'
     setTimeout(() => { tmdbSavedMessage.value = '' }, 3000)
   } catch (e) {
@@ -724,6 +731,7 @@ async function clearTmdbToken() {
   try {
     await axios.post(generateOcsUrl('/apps/crate/api/v1/settings/tmdb-token'), { token: '' })
     hasTmdbToken.value = false
+    tmdbTokenInput.value = ''
     emit('tmdb-token-changed', false)
     tmdbSavedMessage.value = 'Token removed.'
     setTimeout(() => { tmdbSavedMessage.value = '' }, 3000)
@@ -742,7 +750,6 @@ async function saveRawgKey() {
     await axios.post(generateOcsUrl('/apps/crate/api/v1/settings/rawg-key'), { key: rawgKeyInput.value })
     hasRawgKey.value = rawgKeyInput.value !== ''
     emit('rawg-key-changed', hasRawgKey.value)
-    rawgKeyInput.value = ''
     rawgSavedMessage.value = 'Saved!'
     setTimeout(() => { rawgSavedMessage.value = '' }, 3000)
   } catch (e) {
@@ -759,6 +766,7 @@ async function clearRawgKey() {
   try {
     await axios.post(generateOcsUrl('/apps/crate/api/v1/settings/rawg-key'), { key: '' })
     hasRawgKey.value = false
+    rawgKeyInput.value = ''
     emit('rawg-key-changed', false)
     rawgSavedMessage.value = 'Key removed.'
     setTimeout(() => { rawgSavedMessage.value = '' }, 3000)
@@ -777,7 +785,6 @@ async function saveComicVineKey() {
     await axios.post(generateOcsUrl('/apps/crate/api/v1/settings/comicvine-key'), { key: comicVineKeyInput.value })
     hasComicVineKey.value = comicVineKeyInput.value !== ''
     emit('comicvine-key-changed', hasComicVineKey.value)
-    comicVineKeyInput.value = ''
     comicVineSavedMessage.value = 'Saved!'
     setTimeout(() => { comicVineSavedMessage.value = '' }, 3000)
   } catch (e) {
@@ -794,6 +801,7 @@ async function clearComicVineKey() {
   try {
     await axios.post(generateOcsUrl('/apps/crate/api/v1/settings/comicvine-key'), { key: '' })
     hasComicVineKey.value = false
+    comicVineKeyInput.value = ''
     emit('comicvine-key-changed', false)
     comicVineSavedMessage.value = 'Key removed.'
     setTimeout(() => { comicVineSavedMessage.value = '' }, 3000)
@@ -812,7 +820,6 @@ async function savePriceChartingToken() {
     await axios.post(generateOcsUrl('/apps/crate/api/v1/settings/pricecharting-token'), { token: priceChartingTokenInput.value })
     hasPriceChartingToken.value = priceChartingTokenInput.value !== ''
     emit('pricecharting-token-changed', hasPriceChartingToken.value)
-    priceChartingTokenInput.value = ''
     priceChartingSavedMessage.value = 'Saved!'
     setTimeout(() => { priceChartingSavedMessage.value = '' }, 3000)
   } catch (e) {
@@ -829,6 +836,7 @@ async function clearPriceChartingToken() {
   try {
     await axios.post(generateOcsUrl('/apps/crate/api/v1/settings/pricecharting-token'), { token: '' })
     hasPriceChartingToken.value = false
+    priceChartingTokenInput.value = ''
     emit('pricecharting-token-changed', false)
     priceChartingSavedMessage.value = 'Token removed.'
     setTimeout(() => { priceChartingSavedMessage.value = '' }, 3000)

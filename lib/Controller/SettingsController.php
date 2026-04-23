@@ -32,7 +32,7 @@ class SettingsController extends OCSController
     public function getDiscogsToken(): DataResponse
     {
         $token = (string) ($this->credentialsManager->retrieve($this->userId(), 'crate/discogs_token') ?? '');
-        return new DataResponse(['hasToken' => $token !== '']);
+        return new DataResponse(['hasToken' => $token !== '', 'token' => $token]);
     }
 
     #[NoAdminRequired]
@@ -52,7 +52,7 @@ class SettingsController extends OCSController
     public function getTmdbToken(): DataResponse
     {
         $token = (string)($this->credentialsManager->retrieve($this->userId(), 'crate/tmdb_token') ?? '');
-        return new DataResponse(['hasToken' => $token !== '']);
+        return new DataResponse(['hasToken' => $token !== '', 'token' => $token]);
     }
 
     #[NoAdminRequired]
@@ -72,7 +72,7 @@ class SettingsController extends OCSController
     public function getRawgKey(): DataResponse
     {
         $key = (string)($this->credentialsManager->retrieve($this->userId(), 'crate/rawg_key') ?? '');
-        return new DataResponse(['hasKey' => $key !== '']);
+        return new DataResponse(['hasKey' => $key !== '', 'key' => $key]);
     }
 
     #[NoAdminRequired]
@@ -92,7 +92,7 @@ class SettingsController extends OCSController
     public function getComicVineKey(): DataResponse
     {
         $key = (string)($this->credentialsManager->retrieve($this->userId(), 'crate/comicvine_key') ?? '');
-        return new DataResponse(['hasKey' => $key !== '']);
+        return new DataResponse(['hasKey' => $key !== '', 'key' => $key]);
     }
 
     #[NoAdminRequired]
@@ -112,7 +112,7 @@ class SettingsController extends OCSController
     public function getPriceChartingToken(): DataResponse
     {
         $token = (string)($this->credentialsManager->retrieve($this->userId(), 'crate/pricecharting_token') ?? '');
-        return new DataResponse(['hasToken' => $token !== '']);
+        return new DataResponse(['hasToken' => $token !== '', 'token' => $token]);
     }
 
     #[NoAdminRequired]
