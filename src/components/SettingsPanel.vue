@@ -389,7 +389,7 @@
           href="https://www.pricecharting.com/"
           target="_blank"
           rel="noopener"
-        >PriceCharting</a>. Films and books have no market-value source.
+        >PriceCharting</a> (paid API &mdash; requires a subscription). Films and books have no market-value source.
       </p>
 
       <div class="settings-enrichment-options">
@@ -426,12 +426,12 @@
       <div class="settings-field">
         <label for="pricecharting-token">PriceCharting API key</label>
         <p class="settings-sub-hint pricecharting-helper">
-          Get a free access token at
+          API access is a paid subscription &mdash; see
           <a
             href="https://www.pricecharting.com/api"
             target="_blank"
             rel="noopener"
-          >pricecharting.com/api</a>.
+          >pricecharting.com/api</a> for pricing.
         </p>
         <div class="settings-token-row">
           <input
