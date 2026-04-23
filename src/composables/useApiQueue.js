@@ -23,6 +23,10 @@ export function createApiQueue(urlFn, payloadFn = () => ({}), opts = {}) {
   let cancelRequested = false
   /** Live args — updated via `updateArgs()` and read fresh per item. */
   let liveArgs = []
+  /** Pending ids awaiting processing. Appended to by subsequent start() calls. */
+  const pending = []
+  /** Promise resolvers waiting for the current drain to complete. */
+  const finishWaiters = []
 
   const progress = computed(() =>
     total.value === 0 ? 100 : Math.round((done.value / total.value) * 100),
@@ -30,26 +34,59 @@ export function createApiQueue(urlFn, payloadFn = () => ({}), opts = {}) {
 
   const running = computed(() => !finished.value && total.value > 0)
 
+  /**
+   * Enqueue a batch for processing. If the queue is idle, starts a new
+   * drain loop; if one is already running, the new ids are appended and
+   * picked up sequentially as part of the same run. The returned
+   * promise resolves when the full queue (including any items appended
+   * by callers after you) has drained.
+   *
+   * This prevents the previous silent-drop behaviour where a second
+   * start() call mid-run was ignored — two imports in succession would
+   * leave the second batch un-enriched with no feedback.
+   */
   async function start(itemIds, ...args) {
     if (!itemIds?.length) return
-    if (!finished.value) return
 
+    const waiter = new Promise(resolve => finishWaiters.push(resolve))
+
+    if (!finished.value) {
+      // Already running: append and extend the progress bar. `liveArgs`
+      // isn't overwritten — the in-flight call owns them — but callers
+      // can still mutate via updateArgs() if needed (e.g. currency).
+      pending.push(...itemIds)
+      total.value += itemIds.length
+      return waiter
+    }
+
+    // Fresh start.
     total.value = itemIds.length
     done.value = 0
     failed.value = 0
     finished.value = false
     cancelRequested = false
     liveArgs = args
+    pending.push(...itemIds)
 
-    for (const id of itemIds) {
+    // Fire the drain loop without awaiting here — callers await via `waiter`.
+    drainLoop()
+    return waiter
+  }
+
+  async function drainLoop() {
+    while (pending.length > 0) {
       if (cancelRequested) break
+      const id = pending.shift()
       const ok = await processWithRetry(id)
       if (!ok) failed.value++
       done.value++
-      if (!cancelRequested) await sleep(delay)
+      if (!cancelRequested && pending.length > 0) await sleep(delay)
     }
-
     finished.value = true
+    // Resolve every caller waiting on this drain in one pass, then clear
+    // the list so the next start() begins with a clean waiter set.
+    const resolvers = finishWaiters.splice(0)
+    for (const r of resolvers) r()
   }
 
   /**
@@ -91,6 +128,9 @@ export function createApiQueue(urlFn, payloadFn = () => ({}), opts = {}) {
 
   function cancel() {
     cancelRequested = true
+    // Drop everything still awaiting processing so the drain loop exits
+    // promptly and a subsequent start() doesn't inherit orphan ids.
+    pending.length = 0
   }
 
   function reset() {
@@ -100,6 +140,10 @@ export function createApiQueue(urlFn, payloadFn = () => ({}), opts = {}) {
     finished.value = true
     cancelRequested = false
     liveArgs = []
+    pending.length = 0
+    // Any orphaned waiters (cancelled drain) resolve so awaiters don't hang.
+    const resolvers = finishWaiters.splice(0)
+    for (const r of resolvers) r()
   }
 
   function sleep(ms) {
