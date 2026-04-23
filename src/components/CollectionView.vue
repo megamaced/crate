@@ -632,8 +632,13 @@ function thumbStyle(item) {
    explicit height + line-height to vertically centre its text. The
    <div> wrappers for view-toggle and status-tabs use align-items:
    stretch and let their child buttons fill via flex centering. */
-.cv-sort-select,
-.cv-view-toggle,
+.cv-sort-select {
+  height: var(--default-clickable-area, 44px);
+  box-sizing: border-box;
+  border: 2px solid var(--color-border-dark);
+  border-radius: var(--border-radius);
+}
+
 .cv-status-tabs {
   height: var(--default-clickable-area, 44px);
   box-sizing: border-box;
@@ -658,30 +663,47 @@ function thumbStyle(item) {
   cursor: pointer;
 }
 
-/* View toggle */
+/* View toggle – button-group pattern: each button owns its border,
+   adjacent borders collapse via negative margin, outer corners rounded. */
 .cv-view-toggle {
   display: inline-flex;
   align-items: stretch;
-  overflow: hidden;
+  height: var(--default-clickable-area, 44px);
 }
 
 .cv-toggle-btn {
   background: none;
-  border: none;
-  min-width: 40px;
-  padding: 0 10px;
+  border: 2px solid var(--color-border-dark);
+  box-sizing: border-box;
+  min-width: 44px;
+  padding: 0 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-size: 1.15em;
   cursor: pointer;
   color: var(--color-text-maxcontrast);
-  transition: background 0.1s, color 0.1s;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+
+.cv-toggle-btn + .cv-toggle-btn {
+  margin-left: -2px;
+}
+
+.cv-toggle-btn:first-child {
+  border-radius: var(--border-radius) 0 0 var(--border-radius);
+}
+
+.cv-toggle-btn:last-child {
+  border-radius: 0 var(--border-radius) var(--border-radius) 0;
 }
 
 .cv-toggle-btn.active {
   background: var(--color-primary-element);
   color: var(--color-primary-element-text);
+  border-color: var(--color-primary-element);
+  position: relative;
+  z-index: 1;
 }
 
 .cv-plus {
