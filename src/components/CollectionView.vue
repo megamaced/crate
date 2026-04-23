@@ -285,6 +285,8 @@
       :show="exportOpen"
       :scope="statusFilter"
       :category="props.category"
+      :has-discogs-token="props.hasDiscogsToken"
+      :has-price-charting-token="props.hasPriceChartingToken"
       @close="exportOpen = false"
     />
   </div>
@@ -320,8 +322,11 @@ const CATEGORY_SORT_LABELS = {
 }
 
 const props = defineProps({
-  category: { type: String, default: 'music' }, // 'music' | 'film' | 'book' | 'game'
-  scrollContainer: { type: Object, default: null },
+  category:               { type: String, default: 'music' },
+  scrollContainer:        { type: Object, default: null },
+  hasDiscogsToken:        { type: Boolean, default: false },
+  hasPriceChartingToken:  { type: Boolean, default: false },
+  visible:                { type: Boolean, default: true },
 })
 
 defineEmits(['add', 'import', 'detail', 'edit', 'delete'])
@@ -353,7 +358,22 @@ async function load() {
 
 defineExpose({ reload: load })
 
-onMounted(load)
+// Defer initial load until the view is actually visible. When the parent
+// uses v-show, the component mounts immediately (even while hidden), so
+// we watch the visible prop to avoid a wasted API call on the home page.
+const loaded = ref(false)
+onMounted(() => {
+  if (props.visible) {
+    load()
+    loaded.value = true
+  }
+})
+watch(() => props.visible, (vis) => {
+  if (vis && !loaded.value) {
+    load()
+    loaded.value = true
+  }
+})
 watch(() => props.category, load)
 
 // If we land on a category that doesn't support the active sort axis,

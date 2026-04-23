@@ -2,7 +2,7 @@
   <NcModal
     :show="show"
     label-id="import-modal-title"
-    size="large"
+    size="normal"
     @close="handleClose"
   >
     <div class="import-modal">

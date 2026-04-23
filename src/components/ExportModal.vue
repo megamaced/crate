@@ -1,7 +1,7 @@
 <template>
   <NcModal
     :show="show"
-    size="small"
+    size="normal"
     label-id="export-modal-title"
     @close="$emit('close')"
   >
@@ -159,9 +159,11 @@ import { generateUrl, generateOcsUrl } from '@nextcloud/router'
 import { showError } from '@nextcloud/dialogs'
 
 const props = defineProps({
-  show:     { type: Boolean, required: true },
-  scope:    { type: String,  default: 'owned' },
-  category: { type: String,  default: 'music' },
+  show:                   { type: Boolean, required: true },
+  scope:                  { type: String,  default: 'owned' },
+  category:               { type: String,  default: 'music' },
+  hasDiscogsToken:        { type: Boolean, default: false },
+  hasPriceChartingToken:  { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['close'])
@@ -213,7 +215,14 @@ const enrichedHint = computed(() => ENRICHED_HINTS[selectedCategory.value] ?? 'g
 //   - films and books have no market-value source
 //   - "all" includes every category with market data
 const CATEGORIES_WITH_MARKET = ['music', 'game', 'comic', 'all']
-const categoryHasMarket = computed(() => CATEGORIES_WITH_MARKET.includes(selectedCategory.value))
+const categoryHasMarket = computed(() => {
+  const cat = selectedCategory.value
+  if (!CATEGORIES_WITH_MARKET.includes(cat)) return false
+  if (cat === 'music') return props.hasDiscogsToken
+  if (cat === 'game' || cat === 'comic') return props.hasPriceChartingToken
+  // 'all' — needs at least one market token
+  return props.hasDiscogsToken || props.hasPriceChartingToken
+})
 
 const MARKET_HINTS = {
   music: '(Discogs lowest price, currency, fetched date)',

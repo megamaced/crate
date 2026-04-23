@@ -119,12 +119,18 @@
         @detail="showDetail"
       />
 
-      <!-- Category collection views -->
+      <!-- Category collection views — kept alive with v-show so scroll
+           position is preserved when navigating to/from item detail. The
+           :key ensures re-mount when switching between categories. -->
       <CollectionView
-        v-else-if="COLLECTION_VIEWS.includes(view)"
+        v-show="collectionViewVisible"
+        :key="activeCollectionCategory"
         ref="collectionViewRef"
-        :category="VIEW_TO_CATEGORY[view]"
+        :category="activeCollectionCategory"
+        :visible="collectionViewVisible"
         :scroll-container="appContentRef"
+        :has-discogs-token="hasDiscogsToken"
+        :has-price-charting-token="hasPriceChartingToken"
         @add="openAdd"
         @import="importOpen = true"
         @detail="showDetail"
@@ -286,6 +292,12 @@ const detailMarketAvailable = computed(() => {
   return hasDiscogsToken.value
 })
 
+// CollectionView is rendered via v-show (not v-if) so scroll position and DOM
+// state are preserved when navigating to/from item detail.  The category
+// tracks the last-visited collection so it stays correct while viewing detail.
+const activeCollectionCategory = ref('music')
+const collectionViewVisible = computed(() => COLLECTION_VIEWS.includes(view.value))
+
 // ── state ─────────────────────────────────────────────────────────────────────
 const appContentRef = ref(null)
 const selectedItem = ref(null)
@@ -366,6 +378,7 @@ async function restoreFromHash() {
       }
     } catch { /* fall through to home */ }
   } else if (COLLECTION_VIEWS.includes(v)) {
+    activeCollectionCategory.value = VIEW_TO_CATEGORY[v]
     view.value = v
     return
   } else if (v === 'playlists' || v === 'shared') {
@@ -400,6 +413,9 @@ async function handleHashChange() {
       view.value = 'playlist-detail'
     }
   } else if (v !== view.value) {
+    if (COLLECTION_VIEWS.includes(v)) {
+      activeCollectionCategory.value = VIEW_TO_CATEGORY[v]
+    }
     view.value = v
     selectedItem.value = null
     selectedPlaylist.value = null
@@ -425,6 +441,9 @@ function switchView(newView) {
   selectedItem.value = null
   selectedPlaylist.value = null
   setHash(hashForView(newView))
+  if (COLLECTION_VIEWS.includes(newView)) {
+    activeCollectionCategory.value = VIEW_TO_CATEGORY[newView]
+  }
   if (newView === 'playlists') {
     nextTick(() => playlistsView.value?.load())
   } else if (newView === 'shared') {
@@ -433,8 +452,6 @@ function switchView(newView) {
 }
 
 function showDetail(item) {
-  // Save scroll position so Back can restore it
-  saveScroll(appContentRef.value?.$el)
   previousView.value = view.value
   selectedItem.value = item
   view.value = 'detail'
@@ -476,8 +493,10 @@ async function goBack() {
   selectedItem.value = null
   if (dest !== 'playlist-detail') selectedPlaylist.value = null
   setHash(hashForView(dest))
-  // Restore scroll position after the list has re-rendered
-  await restoreScroll(appContentRef.value?.$el)
+  // For non-collection views (e.g. playlists), restore scroll position
+  if (!COLLECTION_VIEWS.includes(dest)) {
+    await restoreScroll(appContentRef.value?.$el)
+  }
 }
 
 // ── playlist navigation ───────────────────────────────────────────────────────
