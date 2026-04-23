@@ -26,31 +26,52 @@ class PlaylistService
 
     // ── Playlists ──────────────────────────────────────────────────────────────
 
-    /** @return array<int, mixed> List of playlists with itemCount, coverId, and coverIds */
+    /** @return array<int, mixed> List of playlists with itemCount, coverId, coverIds, and categories */
     public function findAll(string $userId): array
     {
         $playlists = $this->playlistMapper->findAll($userId);
-        $result = [];
+
+        // First pass: collect items per playlist and all unique media-item IDs
+        $allMediaIds = [];
+        $playlistItems = [];
         foreach ($playlists as $playlist) {
             $items = $this->playlistItemMapper->findByPlaylist($playlist->getId());
+            $playlistItems[$playlist->getId()] = $items;
+            foreach ($items as $item) {
+                $allMediaIds[$item->getMediaItemId()] = true;
+            }
+        }
+
+        // Batch-fetch categories for all referenced media items
+        $categoryMap = [];
+        if (!empty($allMediaIds)) {
+            foreach ($this->mediaItemMapper->findByIds(array_keys($allMediaIds)) as $mi) {
+                $categoryMap[$mi->getId()] = $mi->getCategory() ?? 'music';
+            }
+        }
+
+        // Second pass: build result with coverIds and categories
+        $result = [];
+        foreach ($playlists as $playlist) {
+            $items = $playlistItems[$playlist->getId()];
             $data = $playlist->jsonSerialize();
             $data['itemCount'] = count($items);
             $data['coverId']   = count($items) > 0 ? $items[0]->getMediaItemId() : null;
-            // Return up to 4 unique media-item IDs that have artwork, for grid cover
+
             $coverIds = [];
             $seen = [];
+            $cats = [];
             foreach ($items as $item) {
                 $mid = $item->getMediaItemId();
-                if (isset($seen[$mid])) {
-                    continue;
-                }
-                $seen[$mid] = true;
-                $coverIds[] = $mid;
-                if (count($coverIds) >= 4) {
-                    break;
+                if (!isset($seen[$mid])) {
+                    $seen[$mid] = true;
+                    $coverIds[] = $mid;
+                    $cat = $categoryMap[$mid] ?? 'music';
+                    $cats[$cat] = true;
                 }
             }
-            $data['coverIds'] = $coverIds;
+            $data['coverIds']   = array_slice($coverIds, 0, 4);
+            $data['categories'] = array_keys($cats);
             $result[] = $data;
         }
         return $result;
@@ -87,9 +108,10 @@ class PlaylistService
         $playlist->setUpdatedAt($now);
         $saved = $this->playlistMapper->insert($playlist);
         $data = $saved->jsonSerialize();
-        $data['itemCount'] = 0;
-        $data['coverId']   = null;
-        $data['items']     = [];
+        $data['itemCount']  = 0;
+        $data['coverId']    = null;
+        $data['categories'] = [];
+        $data['items']      = [];
         return $data;
     }
 

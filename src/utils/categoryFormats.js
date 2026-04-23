@@ -6,6 +6,28 @@ export const CATEGORY_LABELS = {
   comic: 'Comics',
 }
 
+const CATEGORY_COUNT_LABELS = {
+  music: ['album', 'albums'],
+  film:  ['film', 'films'],
+  book:  ['book', 'books'],
+  game:  ['game', 'games'],
+  comic: ['comic', 'comics'],
+}
+
+/**
+ * Returns a human-readable count label for a playlist, e.g. "2 films", "mixed".
+ * @param {number} count  - number of items in the playlist
+ * @param {string[]} categories - distinct category keys in the playlist
+ */
+export function playlistCountLabel(count, categories = []) {
+  if (count === 0) return 'empty'
+  if (categories.length === 1) {
+    const [singular, plural] = CATEGORY_COUNT_LABELS[categories[0]] ?? ['item', 'items']
+    return `${count} ${count === 1 ? singular : plural}`
+  }
+  return 'mixed'
+}
+
 export const FORMAT_GROUPS = {
   music: [
     {

@@ -38,7 +38,7 @@
           />
           <div class="atp-row-info">
             <span class="atp-row-name">{{ pl.name }}</span>
-            <span class="atp-row-count">{{ pl.itemCount }} albums</span>
+            <span class="atp-row-count">{{ playlistCountLabel(pl.itemCount, pl.categories) }}</span>
           </div>
           <span
             v-if="addedIds.has(pl.id)"
@@ -82,6 +82,7 @@ import { NcModal, NcButton } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateUrl, generateOcsUrl } from '@nextcloud/router'
 import { showError } from '@nextcloud/dialogs'
+import { playlistCountLabel } from '../utils/categoryFormats.js'
 
 const props = defineProps({
   show: { type: Boolean, required: true },

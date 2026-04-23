@@ -74,7 +74,7 @@
             />
             <div class="sv-pl-info">
               <span class="sv-pl-name">{{ pl.name }}</span>
-              <span class="sv-pl-meta">{{ pl.itemCount }} albums · by {{ pl.sharedByUser }}</span>
+              <span class="sv-pl-meta">{{ playlistCountLabel(pl.itemCount, pl.categories) }} · by {{ pl.sharedByUser }}</span>
             </div>
           </div>
         </div>
@@ -88,6 +88,7 @@ import { ref, onMounted } from 'vue'
 import axios from '@nextcloud/axios'
 import { generateUrl, generateOcsUrl } from '@nextcloud/router'
 import { showError } from '@nextcloud/dialogs'
+import { playlistCountLabel } from '../utils/categoryFormats.js'
 import { artworkStyleFor } from '../composables/useArtworkStyle.js'
 
 defineEmits(['detail', 'playlist'])

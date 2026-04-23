@@ -61,7 +61,7 @@
               :style="artCellStyle(cid)"
             />
           </div>
-          <span class="pv-card-count">{{ pl.itemCount }} {{ pl.itemCount === 1 ? 'album' : 'albums' }}</span>
+          <span class="pv-card-count">{{ playlistCountLabel(pl.itemCount, pl.categories) }}</span>
         </div>
         <div class="pv-card-info">
           <span class="pv-card-name">{{ pl.name }}</span>
@@ -195,7 +195,7 @@
       :open="!!deletingPlaylist"
       @closing="deletingPlaylist = null"
     >
-      <p>Delete <strong>{{ deletingPlaylist.name }}</strong>? The albums in it won't be deleted.</p>
+      <p>Delete <strong>{{ deletingPlaylist.name }}</strong>? The items in it won't be deleted.</p>
       <template #actions>
         <NcButton
           variant="tertiary"
@@ -220,6 +220,7 @@ import { NcButton, NcDialog } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateUrl, generateOcsUrl } from '@nextcloud/router'
 import { showError } from '@nextcloud/dialogs'
+import { playlistCountLabel } from '../utils/categoryFormats.js'
 
 defineEmits(['open'])
 
@@ -273,7 +274,7 @@ async function doCreate() {
       description: createDesc.value.trim() || null,
     })
     const created = res.data.ocs?.data
-    if (created) playlists.value.push({ ...created, itemCount: 0, coverId: null })
+    if (created) playlists.value.push({ ...created, itemCount: 0, coverId: null, categories: [] })
     showCreate.value = false
     createName.value = ''
     createDesc.value = ''

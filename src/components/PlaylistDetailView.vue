@@ -60,7 +60,7 @@
           {{ playlist.description }}
         </p>
         <p class="pd-count">
-          {{ playlist.items?.length ?? 0 }} {{ (playlist.items?.length ?? 0) === 1 ? 'item' : 'items' }}
+          {{ playlistItemCountLabel }}
         </p>
       </div>
     </div>
@@ -198,7 +198,7 @@ import axios from '@nextcloud/axios'
 import { generateUrl, generateOcsUrl } from '@nextcloud/router'
 import { showError } from '@nextcloud/dialogs'
 import { artworkStyleFor } from '../composables/useArtworkStyle.js'
-import { CATEGORY_LABELS } from '../utils/categoryFormats.js'
+import { CATEGORY_LABELS, playlistCountLabel } from '../utils/categoryFormats.js'
 
 const props = defineProps({
   playlist: { type: Object, required: true },
@@ -211,6 +211,12 @@ const editOpen = ref(false)
 const editName = ref('')
 const editDesc = ref('')
 const saving = ref(false)
+
+const playlistItemCountLabel = computed(() => {
+  const items = props.playlist.items ?? []
+  const cats = [...new Set(items.map(i => i.category ?? 'music'))]
+  return playlistCountLabel(items.length, cats)
+})
 
 function startEdit() {
   editName.value = props.playlist.name
