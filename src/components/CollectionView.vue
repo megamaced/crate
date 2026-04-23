@@ -662,7 +662,6 @@ function thumbStyle(item) {
 .cv-view-toggle {
   display: inline-flex;
   align-items: stretch;
-  overflow: hidden;
 }
 
 .cv-toggle-btn {
@@ -677,6 +676,14 @@ function thumbStyle(item) {
   cursor: pointer;
   color: var(--color-text-maxcontrast);
   transition: background 0.1s, color 0.1s;
+}
+
+.cv-toggle-btn:first-child {
+  border-radius: calc(var(--border-radius) - 2px) 0 0 calc(var(--border-radius) - 2px);
+}
+
+.cv-toggle-btn:last-child {
+  border-radius: 0 calc(var(--border-radius) - 2px) calc(var(--border-radius) - 2px) 0;
 }
 
 .cv-toggle-btn.active {
