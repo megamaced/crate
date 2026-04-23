@@ -548,6 +548,7 @@ async function stripEnrich() {
 .detail-meta dt {
   color: var(--color-text-maxcontrast);
   white-space: nowrap;
+  text-align: left;
 }
 
 .detail-meta dd {
@@ -604,8 +605,6 @@ async function stripEnrich() {
   color: var(--color-main-text);
   white-space: pre-line;
   margin: 0 0 10px;
-  max-height: 220px;
-  overflow-y: auto;
 }
 
 .detail-notes-text {
@@ -613,8 +612,6 @@ async function stripEnrich() {
   line-height: 1.6;
   white-space: pre-line;
   margin: 0;
-  max-height: 180px;
-  overflow-y: auto;
 }
 
 .detail-members {
