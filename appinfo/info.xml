@@ -5,7 +5,7 @@
     <name>Crate</name>
     <summary>Physical media catalogue</summary>
     <description><![CDATA[Catalogue your physical music collection — vinyl, CDs, cassettes, MiniDiscs and more. Add items manually or by barcode, pull metadata from Discogs, and keep track of what you own and what you want.]]></description>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
     <licence>agpl</licence>
     <author mail="david@macemail.co.uk" homepage="https://gitea.macecloud.co.uk/macebox/crate">David Mace</author>
     <namespace>Crate</namespace>
