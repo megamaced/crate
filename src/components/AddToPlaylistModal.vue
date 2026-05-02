@@ -142,7 +142,7 @@ async function addTo(pl) {
 async function createAndAdd() {
   if (!newName.value.trim() || !props.item) return
   creating.value = true
-  let created = null
+  let created
   try {
     // Create playlist
     const res = await axios.post(generateOcsUrl('/apps/crate/api/v1/playlists'), {

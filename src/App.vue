@@ -478,13 +478,13 @@ async function triggerEnrich(id) {
     const res = await axios.post(generateOcsUrl(`/apps/crate/api/v1/media/${id}/enrich`))
     const enriched = res.data.ocs?.data
     if (enriched) {
-      // eslint-disable-next-line eqeqeq
+       
       if (selectedItem.value && selectedItem.value.id == enriched.id) {
         selectedItem.value = enriched
       }
       if (view.value === 'home') homeView.value?.load()
     }
-  } catch (e) {
+  } catch {
     // Discogs unavailable or no token — silently skip
   }
 }
@@ -614,7 +614,7 @@ async function saveItem(payload) {
 
     // Update selectedItem if it's currently shown in the detail view
     if (saved) {
-      // eslint-disable-next-line eqeqeq
+       
       if (selectedItem.value && selectedItem.value.id == saved.id) {
         selectedItem.value = saved
       }
@@ -646,7 +646,7 @@ async function saveItem(payload) {
           const r = await axios.get(generateOcsUrl(`/apps/crate/api/v1/media/${targetId}`))
           const fresh = r.data.ocs?.data
           if (fresh) {
-            // eslint-disable-next-line eqeqeq
+             
             if (selectedItem.value?.id == fresh.id) selectedItem.value = fresh
             saved = fresh
           }
@@ -660,7 +660,7 @@ async function saveItem(payload) {
           const r = await axios.get(generateOcsUrl(`/apps/crate/api/v1/media/${targetId}`))
           const fresh = r.data.ocs?.data
           if (fresh) {
-            // eslint-disable-next-line eqeqeq
+             
             if (selectedItem.value?.id == fresh.id) selectedItem.value = fresh
             saved = fresh
           }
@@ -675,7 +675,7 @@ async function saveItem(payload) {
           const r = await axios.get(generateOcsUrl(`/apps/crate/api/v1/media/${targetId}`))
           const fresh = r.data.ocs?.data
           if (fresh) {
-            // eslint-disable-next-line eqeqeq
+             
             if (selectedItem.value?.id == fresh.id) selectedItem.value = fresh
             saved = fresh
           }
@@ -694,7 +694,7 @@ async function saveItem(payload) {
         try {
           const r = await axios.get(generateOcsUrl(`/apps/crate/api/v1/media/${editId}`))
           const fresh = r.data.ocs?.data
-          // eslint-disable-next-line eqeqeq
+           
           if (fresh && selectedItem.value?.id == fresh.id) selectedItem.value = fresh
         } catch { /* ignore — view will be stale until next navigation */ }
       }

@@ -519,7 +519,7 @@ async function pickFromNextcloud() {
         const mime = resp.headers['content-type'] || 'application/octet-stream'
         selectedFile.value = new File([resp.data], fileName, { type: mime })
         parseError.value = ''
-      } catch (e) {
+      } catch {
         parseError.value = 'Failed to fetch file from Nextcloud.'
       } finally {
         pickingFromNc.value = false

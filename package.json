@@ -6,8 +6,8 @@
     "build": "webpack --node-env production",
     "dev": "webpack --node-env development",
     "watch": "webpack --node-env development --watch",
-    "lint": "eslint --ext .js,.vue src/",
-    "lint:fix": "eslint --ext .js,.vue src/ --fix"
+    "lint": "eslint \"src/**/*.{js,vue}\"",
+    "lint:fix": "eslint \"src/**/*.{js,vue}\" --fix"
   },
   "dependencies": {
     "@nextcloud/axios": "^2.5.0",
@@ -17,8 +17,10 @@
     "vue": "^3.5.13"
   },
   "devDependencies": {
-    "@nextcloud/webpack-vue-config": "^6.1.1",
-    "eslint": "^8.57.0",
-    "eslint-plugin-vue": "^9.32.0"
+    "@eslint/js": "^10.0.0",
+    "@nextcloud/webpack-vue-config": "^7.0.0",
+    "eslint": "^10.0.0",
+    "eslint-plugin-vue": "^10.0.0",
+    "globals": "^15.0.0"
   }
 }

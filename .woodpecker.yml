@@ -16,7 +16,7 @@ steps:
       - vendor/bin/phpunit --testsuite unit
 
   - name: build-js
-    image: node:20-alpine
+    image: node:24-alpine
     when:
       - event: [push, pull_request]
     commands:
