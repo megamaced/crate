@@ -4,6 +4,28 @@ A personal physical media cataloguing app for [Nextcloud](https://nextcloud.com)
 
 > **100 % AI-written.** Every line of source, every test, every CI workflow, this README, and almost every commit message in this repository was written by [Claude Code](https://www.anthropic.com/claude-code) under direction from a human reviewer. No code in this repository was hand-typed.
 
+![Home — album of the day for each category, plus a Recently added strip](docs/screenshots/home.png)
+
+## Screenshots
+
+### Browsing
+
+| Music | Films & Comics | Books |
+| --- | --- | --- |
+| ![Music collection with format filter chips: Vinyl, CD, Cassette](docs/screenshots/music.png) | ![Comics collection grouped alphabetically](docs/screenshots/comics.png) | ![Books collection sorted by author](docs/screenshots/books.png) |
+
+| Games | Playlists | Import |
+| --- | --- | --- |
+| ![Games collection with platform filter chips](docs/screenshots/games.png) | ![Playlists — mixed-category groups](docs/screenshots/playlists.png) | ![CSV / XLSX import dialog with required + optional columns](docs/screenshots/import.png) |
+
+### Detail views
+
+Rich, category-aware detail with auto-fetched metadata, tracklists, market values, and per-item actions (re-enrich, refresh market rate, share, edit, add to playlist).
+
+| Music | Games |
+| --- | --- |
+| ![Vinyl detail — Billy Idol, with tracklist, label, market value of £4.44](docs/screenshots/detail-music.png) | ![Game detail — Control, with full plot, developer, publisher, genres](docs/screenshots/detail-game.png) |
+
 ## Features
 
 - **Five categories** — Music, Films, Books, Games, Comics — each with category-appropriate fields, search providers, and detail views
