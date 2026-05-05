@@ -95,17 +95,10 @@
           <input
             id="comicvine-key"
             v-model="comicVine.input.value"
-            :type="comicVine.showValue.value ? 'text' : 'password'"
+            type="password"
             :placeholder="comicVine.hasValue.value ? '(saved — paste a new one to replace)' : 'Paste your API key here'"
             autocomplete="off"
           >
-          <NcButton
-            variant="tertiary"
-            :aria-label="comicVine.showValue.value ? 'Hide API key' : 'Show API key'"
-            @click="comicVine.toggleVisibility()"
-          >
-            {{ comicVine.showValue.value ? 'Hide' : 'Show' }}
-          </NcButton>
         </div>
       </div>
 
@@ -172,17 +165,10 @@
           <input
             id="tmdb-token"
             v-model="tmdb.input.value"
-            :type="tmdb.showValue.value ? 'text' : 'password'"
+            type="password"
             :placeholder="tmdb.hasValue.value ? '(saved — paste a new one to replace)' : 'Paste your API key here'"
             autocomplete="off"
           >
-          <NcButton
-            variant="tertiary"
-            :aria-label="tmdb.showValue.value ? 'Hide API key' : 'Show API key'"
-            @click="tmdb.toggleVisibility()"
-          >
-            {{ tmdb.showValue.value ? 'Hide' : 'Show' }}
-          </NcButton>
         </div>
       </div>
 
@@ -249,17 +235,10 @@
           <input
             id="rawg-key"
             v-model="rawg.input.value"
-            :type="rawg.showValue.value ? 'text' : 'password'"
+            type="password"
             :placeholder="rawg.hasValue.value ? '(saved — paste a new one to replace)' : 'Paste your API key here'"
             autocomplete="off"
           >
-          <NcButton
-            variant="tertiary"
-            :aria-label="rawg.showValue.value ? 'Hide API key' : 'Show API key'"
-            @click="rawg.toggleVisibility()"
-          >
-            {{ rawg.showValue.value ? 'Hide' : 'Show' }}
-          </NcButton>
         </div>
       </div>
 
@@ -326,17 +305,10 @@
           <input
             id="discogs-token"
             v-model="discogs.input.value"
-            :type="discogs.showValue.value ? 'text' : 'password'"
+            type="password"
             :placeholder="discogs.hasValue.value ? '(saved — paste a new one to replace)' : 'Paste your API key here'"
             autocomplete="off"
           >
-          <NcButton
-            variant="tertiary"
-            :aria-label="discogs.showValue.value ? 'Hide API key' : 'Show API key'"
-            @click="discogs.toggleVisibility()"
-          >
-            {{ discogs.showValue.value ? 'Hide' : 'Show' }}
-          </NcButton>
         </div>
       </div>
 
@@ -437,17 +409,10 @@
           <input
             id="pricecharting-token"
             v-model="priceCharting.input.value"
-            :type="priceCharting.showValue.value ? 'text' : 'password'"
+            type="password"
             :placeholder="priceCharting.hasValue.value ? '(saved — paste a new one to replace)' : 'Paste your API key here'"
             autocomplete="off"
           >
-          <NcButton
-            variant="tertiary"
-            :aria-label="priceCharting.showValue.value ? 'Hide API key' : 'Show API key'"
-            @click="priceCharting.toggleVisibility()"
-          >
-            {{ priceCharting.showValue.value ? 'Hide' : 'Show' }}
-          </NcButton>
         </div>
       </div>
 

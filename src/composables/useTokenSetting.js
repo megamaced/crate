@@ -15,7 +15,6 @@ import { showError } from '@nextcloud/dialogs'
 export function useTokenSetting({ endpoint, payloadKey = 'token', responseKey = 'hasToken', label }) {
 	const input = ref('')
 	const hasValue = ref(false)
-	const showValue = ref(false)
 	const saving = ref(false)
 	const message = ref('')
 
@@ -63,9 +62,5 @@ export function useTokenSetting({ endpoint, payloadKey = 'token', responseKey = 
 		}
 	}
 
-	function toggleVisibility() {
-		showValue.value = !showValue.value
-	}
-
-	return { input, hasValue, showValue, saving, message, load, save, clear, toggleVisibility }
+	return { input, hasValue, saving, message, load, save, clear }
 }
