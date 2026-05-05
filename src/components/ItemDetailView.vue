@@ -316,10 +316,11 @@ async function enrich() {
     )
     const updated = res.data.ocs?.data ?? null
     if (updated) {
+      // Emitting will swap props.item; if discogsId went null → set, the
+      // discogsId watcher kicks off the market-value fetch. We don't fetch
+      // here too because the watcher fires synchronously on the next tick
+      // and we'd race two parallel POSTs.
       emit('enriched', updated)
-      if (autoFetchMarketRates.value && updated.discogsId && !props.queueBusy) {
-        await fetchMarketValue()
-      }
     }
   } catch (e) {
     console.error('Enrich failed', e)
@@ -377,7 +378,9 @@ onMounted(() => {
 // Fires when enrichment completes and updates props.item — fetch market rate if configured.
 // Music: triggers when discogsId is first set. Games: triggers when discogsId (RAWG ID) is set.
 watch(() => props.item.discogsId, (newId, oldId) => {
-  if (newId && !oldId && shouldAutoFetchMarket()) fetchMarketValue()
+  if (newId && !oldId && !fetchingMarket.value && shouldAutoFetchMarket()) {
+    fetchMarketValue()
+  }
 })
 
 async function stripEnrich() {

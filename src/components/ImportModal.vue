@@ -504,7 +504,7 @@ function onDrop(e) {
 async function pickFromNextcloud() {
   const oc = window.OC
   if (!oc?.dialogs?.filepicker) {
-    alert('Nextcloud file picker is not available.')
+    parseError.value = 'Nextcloud file picker is not available.'
     return
   }
   oc.dialogs.filepicker(
@@ -512,8 +512,9 @@ async function pickFromNextcloud() {
     async (path) => {
       pickingFromNc.value = true
       try {
-        const uid = oc.currentUser ?? ''
-        const webdavUrl = `/remote.php/dav/files/${uid}${path}`
+        const uid = encodeURIComponent(oc.currentUser ?? '')
+        const safePath = path.split('/').map(encodeURIComponent).join('/')
+        const webdavUrl = `/remote.php/dav/files/${uid}${safePath}`
         const resp = await axios.get(webdavUrl, { responseType: 'arraybuffer' })
         const fileName = path.split('/').pop() || 'import'
         const mime = resp.headers['content-type'] || 'application/octet-stream'

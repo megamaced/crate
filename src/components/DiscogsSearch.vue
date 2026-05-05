@@ -42,9 +42,16 @@
       >
         <div
           class="discogs-result-thumb"
-          :style="result.thumb ? { backgroundImage: `url(${result.thumb})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}"
           :class="{ 'discogs-result-thumb--placeholder': !result.thumb }"
-        />
+        >
+          <img
+            v-if="result.thumb"
+            :src="result.thumb"
+            alt=""
+            loading="lazy"
+            referrerpolicy="no-referrer"
+          >
+        </div>
         <div class="discogs-result-info">
           <span class="discogs-result-title">{{ result.title }}</span>
           <span class="discogs-result-artist">{{ result.artist }}</span>
@@ -177,8 +184,15 @@ function select(result) {
   width: 44px;
   height: 44px;
   border-radius: 4px;
-  object-fit: cover;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.discogs-result-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .discogs-result-thumb--placeholder {

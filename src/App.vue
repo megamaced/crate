@@ -251,6 +251,7 @@ import { useHashRouter } from './composables/useHashRouter.js'
 
 const COLLECTION_VIEWS = ['music', 'films', 'books', 'comics', 'games']
 const VIEW_TO_CATEGORY = { music: 'music', films: 'film', books: 'book', comics: 'comic', games: 'game' }
+const CATEGORY_TO_VIEW = { music: 'music', film: 'films', book: 'books', comic: 'comics', game: 'games' }
 
 const enrich = useEnrichQueue()
 const market = useMarketValueQueue()
@@ -361,7 +362,7 @@ async function restoreFromHash() {
       const item = res.data.ocs?.data
       if (item) {
         selectedItem.value = item
-        previousView.value = 'collection'
+        previousView.value = CATEGORY_TO_VIEW[item.category] ?? 'home'
         view.value = 'detail'
         return
       }
@@ -402,7 +403,7 @@ async function handleHashChange() {
       const item = res.data.ocs?.data
       if (item) {
         selectedItem.value = item
-        previousView.value = 'music'
+        previousView.value = CATEGORY_TO_VIEW[item.category] ?? 'home'
         view.value = 'detail'
       }
     } catch { /* item no longer exists — stay on current view */ }
@@ -425,7 +426,7 @@ async function handleHashChange() {
 function handleBeforeUnload(e) {
   if (enrich.running.value || market.running.value) {
     e.preventDefault()
-    e.returnValue = 'A Discogs operation is still running. Leaving the page will stop it.'
+    e.returnValue = 'An enrichment or market-value fetch is still running. Leaving the page will stop it.'
   }
 }
 
@@ -473,23 +474,37 @@ function showDetail(item) {
   }
 }
 
+// Tracks the in-flight auto-enrich so a navigation away cancels it; this
+// prevents stacking N parallel enrich POSTs when the user clicks through
+// items quickly.
+let pendingEnrichController = null
 async function triggerEnrich(id) {
+  pendingEnrichController?.abort()
+  const controller = new AbortController()
+  pendingEnrichController = controller
   try {
-    const res = await axios.post(generateOcsUrl(`/apps/crate/api/v1/media/${id}/enrich`))
+    const res = await axios.post(
+      generateOcsUrl(`/apps/crate/api/v1/media/${id}/enrich`),
+      null,
+      { signal: controller.signal },
+    )
+    if (controller.signal.aborted) return
     const enriched = res.data.ocs?.data
     if (enriched) {
-       
-      if (selectedItem.value && selectedItem.value.id == enriched.id) {
+      if (selectedItem.value && Number(selectedItem.value.id) === Number(enriched.id)) {
         selectedItem.value = enriched
       }
       if (view.value === 'home') homeView.value?.load()
     }
   } catch {
-    // Discogs unavailable or no token — silently skip
+    // Aborted, no token, or upstream unavailable — silently skip
+  } finally {
+    if (pendingEnrichController === controller) pendingEnrichController = null
   }
 }
 
 async function goBack() {
+  pendingEnrichController?.abort()
   const dest = previousView.value
   view.value = dest
   selectedItem.value = null
@@ -618,11 +633,8 @@ async function saveItem(payload) {
     }
 
     // Update selectedItem if it's currently shown in the detail view
-    if (saved) {
-       
-      if (selectedItem.value && selectedItem.value.id == saved.id) {
-        selectedItem.value = saved
-      }
+    if (saved && selectedItem.value && Number(selectedItem.value.id) === Number(saved.id)) {
+      selectedItem.value = saved
     }
 
     closeModal()

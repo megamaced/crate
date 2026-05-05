@@ -26,9 +26,11 @@ class PlaylistController extends OCSController
     }
 
     #[NoAdminRequired]
-    public function index(): DataResponse
+    public function index(?int $containsItemId = null): DataResponse
     {
-        return new DataResponse($this->playlistService->findAll($this->userId()));
+        return new DataResponse(
+            $this->playlistService->findAll($this->userId(), $containsItemId),
+        );
     }
 
     #[NoAdminRequired]

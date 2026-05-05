@@ -128,6 +128,13 @@ watch(() => props.show, async (open) => {
   }
 })
 
+// Reload shares when the parent reuses an open modal but switches target.
+watch(() => props.target?.type + ':' + props.target?.id, async () => {
+  if (!props.show || !props.target) return
+  currentShares.value = []
+  await loadCurrentShares()
+})
+
 async function loadCurrentShares() {
   if (!props.target) return
   try {

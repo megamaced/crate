@@ -113,8 +113,14 @@ watch(() => props.show, async (open) => {
   }
   loading.value = true
   try {
-    const res = await axios.get(generateOcsUrl('/apps/crate/api/v1/playlists'))
+    const params = props.item?.id ? { containsItemId: props.item.id } : {}
+    const res = await axios.get(generateOcsUrl('/apps/crate/api/v1/playlists'), { params })
     playlists.value = res.data.ocs?.data ?? []
+    // Mark playlists that already contain this item so the UI shows "Added"
+    // and the Add button is disabled.
+    addedIds.value = new Set(
+      playlists.value.filter(p => p.containsItem).map(p => p.id),
+    )
   } catch (e) {
     console.error('Failed to load playlists', e)
     showError('Failed to load playlists')

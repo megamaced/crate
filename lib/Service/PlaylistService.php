@@ -26,8 +26,12 @@ class PlaylistService
 
     // ── Playlists ──────────────────────────────────────────────────────────────
 
-    /** @return array<int, mixed> List of playlists with itemCount, coverId, coverIds, and categories */
-    public function findAll(string $userId): array
+    /**
+     * @param int|null $containsItemId If set, each playlist gets a `containsItem`
+     *   boolean indicating whether it already contains the given media item.
+     * @return array<int, mixed> List of playlists with itemCount, coverId, coverIds, and categories
+     */
+    public function findAll(string $userId, ?int $containsItemId = null): array
     {
         $playlists = $this->playlistMapper->findAll($userId);
 
@@ -72,6 +76,9 @@ class PlaylistService
             }
             $data['coverIds']   = array_slice($coverIds, 0, 4);
             $data['categories'] = array_keys($cats);
+            if ($containsItemId !== null) {
+                $data['containsItem'] = isset($seen[$containsItemId]);
+            }
             $result[] = $data;
         }
         return $result;

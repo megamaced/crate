@@ -45,12 +45,17 @@ const marketCurrency         = ref(readString(KEY_MARKET_CURRENCY, 'GBP'))
 
 /** Whether the server settings have been loaded yet. */
 let serverLoaded = false
+// Suppress watcher-driven server writes while we're applying values from
+// the server. Without this every page load echoes the just-loaded values
+// back to the server.
+let suppressPersist = false
 
 async function loadFromServer() {
   if (serverLoaded) return
   try {
     const res = await axios.get(generateOcsUrl('/apps/crate/api/v1/settings/market'))
     const data = res.data.ocs?.data ?? {}
+    suppressPersist = true
     if (data.autoEnrichOnClick !== undefined) autoEnrichOnClick.value = !!data.autoEnrichOnClick
     if (data.autoEnrichOnImport !== undefined) autoEnrichOnImport.value = !!data.autoEnrichOnImport
     if (data.autoFetchMarketRates !== undefined) autoFetchMarketRates.value = !!data.autoFetchMarketRates
@@ -58,11 +63,15 @@ async function loadFromServer() {
     serverLoaded = true
   } catch {
     // Fall back to localStorage values — non-critical
+  } finally {
+    // Wait one tick so the watchers see the new values then re-enable.
+    queueMicrotask(() => { suppressPersist = false })
   }
 }
 
 let saveTimer = null
 function persistToServer() {
+  if (suppressPersist) return
   // Debounce: wait 500ms of inactivity before posting
   clearTimeout(saveTimer)
   saveTimer = setTimeout(async () => {

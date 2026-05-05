@@ -42,9 +42,16 @@
       >
         <div
           class="enrichment-result-thumb"
-          :style="result.thumb ? { backgroundImage: `url(${result.thumb})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}"
           :class="{ 'enrichment-result-thumb--placeholder': !result.thumb }"
-        />
+        >
+          <img
+            v-if="result.thumb"
+            :src="result.thumb"
+            alt=""
+            loading="lazy"
+            referrerpolicy="no-referrer"
+          >
+        </div>
         <div class="enrichment-result-info">
           <span class="enrichment-result-title">{{ result.title }}</span>
           <span class="enrichment-result-meta">
@@ -181,6 +188,14 @@ async function select(result) {
   height: 56px;
   border-radius: 4px;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.enrichment-result-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .enrichment-result-thumb--placeholder {

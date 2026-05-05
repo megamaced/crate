@@ -313,12 +313,16 @@ const saving = ref(false)
 const fileInput = ref(null)
 const artworkFile = ref(null)
 const artworkPreviewUrl = ref(null)
-const discogsThumbnailUrl = ref(null)
+// URL of the artwork preview supplied by an enrichment source
+// (Discogs/TMDB/Open Library/RAWG/ComicVine). Used for the modal's preview
+// thumbnail before the item is saved; once saved the backend caches it
+// and the local /apps/crate/artwork/{id} URL takes over.
+const enrichPreviewUrl = ref(null)
 const removeArtworkFlag = ref(false)  // user clicked "Remove" — wipe artwork entirely
-const replaceArtworkFlag = ref(false) // Discogs switch — delete stale cache then PUT new URL
+const replaceArtworkFlag = ref(false) // Enrichment switch — delete stale cache then PUT new URL
 
 const hasArtwork = computed(() => {
-  if (artworkPreviewUrl.value || discogsThumbnailUrl.value) return true
+  if (artworkPreviewUrl.value || enrichPreviewUrl.value) return true
   if (removeArtworkFlag.value) return false
   return !!(props.item?.artworkPath)
 })
@@ -327,12 +331,15 @@ const previewStyle = computed(() => {
   if (artworkPreviewUrl.value) {
     return { backgroundImage: `url(${artworkPreviewUrl.value})`, backgroundSize: 'cover', backgroundPosition: 'center' }
   }
-  if (discogsThumbnailUrl.value) {
-    return { backgroundImage: `url(${discogsThumbnailUrl.value})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+  if (enrichPreviewUrl.value) {
+    return { backgroundImage: `url(${enrichPreviewUrl.value})`, backgroundSize: 'cover', backgroundPosition: 'center' }
   }
   if (props.item?.id && props.item?.artworkPath && !removeArtworkFlag.value) {
-    const url = generateUrl('/apps/crate/artwork/' + props.item.id)
-    return { backgroundImage: `url(${url}?t=${Date.now()})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    // Cache-bust on item.updatedAt so the URL is stable across renders
+    // (Date.now() inside a computed defeats memoisation).
+    const v = encodeURIComponent(props.item.updatedAt ?? '')
+    const url = generateUrl('/apps/crate/artwork/' + props.item.id) + (v ? `?v=${v}` : '')
+    return { backgroundImage: `url(${url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
   }
   return {}
 })
@@ -355,15 +362,16 @@ function onFileSelected(e) {
 function pickFromNextcloud() {
   const oc = window.OC
   if (!oc?.dialogs?.filepicker) {
-    alert('File picker not available.')
+    showError('File picker not available.')
     return
   }
   oc.dialogs.filepicker(
     'Select artwork',
     async (path) => {
       try {
-        const uid = oc.currentUser ?? ''
-        const webdavUrl = `/remote.php/dav/files/${uid}${path}`
+        const uid = encodeURIComponent(oc.currentUser ?? '')
+        const safePath = path.split('/').map(encodeURIComponent).join('/')
+        const webdavUrl = `/remote.php/dav/files/${uid}${safePath}`
         const resp = await axios.get(webdavUrl, { responseType: 'arraybuffer' })
         const mime = resp.headers['content-type']?.split(';')[0]?.trim() || 'image/jpeg'
         const fileName = path.split('/').pop() || 'artwork'
@@ -386,7 +394,7 @@ function pickFromNextcloud() {
 function doRemoveArtwork() {
   artworkFile.value = null
   removeArtworkFlag.value = true
-  discogsThumbnailUrl.value = null
+  enrichPreviewUrl.value = null
   if (artworkPreviewUrl.value) {
     URL.revokeObjectURL(artworkPreviewUrl.value)
     artworkPreviewUrl.value = null
@@ -397,7 +405,7 @@ function resetArtworkState() {
   artworkFile.value = null
   removeArtworkFlag.value = false
   replaceArtworkFlag.value = false
-  discogsThumbnailUrl.value = null
+  enrichPreviewUrl.value = null
   if (artworkPreviewUrl.value) {
     URL.revokeObjectURL(artworkPreviewUrl.value)
     artworkPreviewUrl.value = null
@@ -449,7 +457,7 @@ watch(
 watch(() => form.value.category, (newCat, oldCat) => {
   if (newCat !== oldCat) {
     form.value.format = ''
-    discogsThumbnailUrl.value = null
+    enrichPreviewUrl.value = null
   }
 })
 
@@ -491,33 +499,34 @@ const barcodePlaceholder = computed(() => {
   return form.value.category === 'book' ? 'e.g. 978-0451524935' : 'e.g. 5099902987521'
 })
 
-// ── Discogs apply ──────────────────────────────────────────────────────────────
-function applyDiscogs(result) {
-  form.value.artist = result.artist || form.value.artist
-  form.value.title = result.title || form.value.title
-  form.value.format = result.format || form.value.format
-  form.value.year = result.year || form.value.year
-  form.value.discogsId = result.discogsId || null
-  form.value.artworkPath = result.thumb || null
-  discogsThumbnailUrl.value = result.thumb || null
-  // If the item already has artwork (local file or cached Discogs URL), flag for
-  // pre-save deletion so stale cache is cleared before the PUT sets the new artworkPath.
-  if (result.thumb && props.item?.artworkPath) {
-    artworkFile.value = null
-    replaceArtworkFlag.value = true
-  }
+// ── Enrichment apply (all sources) ─────────────────────────────────────────────
+// Each enrichment source emits a normalised result; this helper merges it
+// into the form. `idKey` is the source-specific id field. Per-category keys
+// (format, barcode) are only copied when present in the result.
+const ENRICH_ID_KEY = {
+  music: 'discogsId',
+  film:  'tmdbId',
+  book:  'workKey',
+  game:  'rawgId',
+  comic: 'comicVineId',
 }
 
-// ── TMDB apply (films) ─────────────────────────────────────────────────────────
-function applyTmdb(result) {
-  form.value.artist    = result.artist    || form.value.artist
-  form.value.title     = result.title     || form.value.title
-  form.value.year      = result.year      || form.value.year
-  form.value.label     = result.label     || form.value.label
-  form.value.discogsId = result.tmdbId    || null
-  if (result.artworkUrl || result.thumb) {
-    form.value.artworkPath = result.artworkUrl || result.thumb
-    discogsThumbnailUrl.value = result.thumb || result.artworkUrl
+function applyEnrichment(result) {
+  if (result.artist) form.value.artist = result.artist
+  if (result.title) form.value.title = result.title
+  if (result.year) form.value.year = result.year
+  if (result.format) form.value.format = result.format
+  if (result.label) form.value.label = result.label
+  if (result.barcode) form.value.barcode = result.barcode
+
+  const idKey = ENRICH_ID_KEY[form.value.category]
+  form.value.discogsId = (idKey && result[idKey]) || null
+
+  const previewUrl = result.thumb || result.artworkUrl
+  const fullUrl = result.artworkUrl || result.thumb
+  if (fullUrl) {
+    form.value.artworkPath = fullUrl
+    enrichPreviewUrl.value = previewUrl
     if (props.item?.artworkPath) {
       artworkFile.value = null
       replaceArtworkFlag.value = true
@@ -525,41 +534,12 @@ function applyTmdb(result) {
   }
 }
 
-// ── Open Library apply (books) ─────────────────────────────────────────────────
-function applyOpenLibrary(result) {
-  form.value.artist    = result.artist    || form.value.artist
-  form.value.title     = result.title     || form.value.title
-  form.value.year      = result.year      || form.value.year
-  form.value.label     = result.label     || form.value.label
-  form.value.barcode   = result.barcode   || form.value.barcode
-  form.value.discogsId = result.workKey   || null
-  if (result.artworkUrl || result.thumb) {
-    form.value.artworkPath = result.artworkUrl || result.thumb
-    discogsThumbnailUrl.value = result.artworkUrl || result.thumb
-    if (props.item?.artworkPath) {
-      artworkFile.value = null
-      replaceArtworkFlag.value = true
-    }
-  }
-}
-
-// ── RAWG apply (games) ─────────────────────────────────────────────────────────
-function applyRawg(result) {
-  form.value.artist    = result.artist    || form.value.artist
-  form.value.title     = result.title     || form.value.title
-  form.value.format    = result.format    || form.value.format
-  form.value.year      = result.year      || form.value.year
-  form.value.label     = result.label     || form.value.label
-  form.value.discogsId = result.rawgId    || null
-  if (result.artworkUrl || result.thumb) {
-    form.value.artworkPath = result.artworkUrl || result.thumb
-    discogsThumbnailUrl.value = result.artworkUrl || result.thumb
-    if (props.item?.artworkPath) {
-      artworkFile.value = null
-      replaceArtworkFlag.value = true
-    }
-  }
-}
+// Source-specific wrappers retained as named handlers so the templates can
+// stay declarative (@select="applyDiscogs" etc.).
+const applyDiscogs     = applyEnrichment
+const applyTmdb        = applyEnrichment
+const applyOpenLibrary = applyEnrichment
+const applyRawg        = applyEnrichment
 
 // ── ISBN lookup (books) ────────────────────────────────────────────────────────
 const isbnLooking = ref(false)
@@ -584,21 +564,7 @@ async function lookupIsbn() {
   }
 }
 
-// ── ComicVine apply (comics) ───────────────────────────────────────────────────
-function applyComicVine(result) {
-  form.value.title     = result.title     || form.value.title
-  form.value.year      = result.year      || form.value.year
-  form.value.label     = result.label     || form.value.label
-  form.value.discogsId = result.comicVineId || null
-  if (result.artworkUrl || result.thumb) {
-    form.value.artworkPath = result.artworkUrl || result.thumb
-    discogsThumbnailUrl.value = result.artworkUrl || result.thumb
-    if (props.item?.artworkPath) {
-      artworkFile.value = null
-      replaceArtworkFlag.value = true
-    }
-  }
-}
+const applyComicVine = applyEnrichment
 
 // ── Submit ─────────────────────────────────────────────────────────────────────
 async function submit() {

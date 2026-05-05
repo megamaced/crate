@@ -573,13 +573,18 @@ onMounted(() => {
   window.addEventListener('scroll', _scrollHandler, { passive: true })
   updateActiveGroup()
 })
+let _activeGroupTimer = null
 onBeforeUnmount(() => {
   if (_scrollHandler) {
     _scrollTargets.forEach(el => el.removeEventListener('scroll', _scrollHandler))
     window.removeEventListener('scroll', _scrollHandler)
   }
+  if (_activeGroupTimer) clearTimeout(_activeGroupTimer)
 })
-watch(groupedItems, () => setTimeout(updateActiveGroup, 50))
+watch(groupedItems, () => {
+  if (_activeGroupTimer) clearTimeout(_activeGroupTimer)
+  _activeGroupTimer = setTimeout(updateActiveGroup, 50)
+})
 
 function shortLabel(header) {
   if (header.length <= 3) return header
