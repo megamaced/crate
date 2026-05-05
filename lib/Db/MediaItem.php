@@ -51,6 +51,10 @@ use OCP\AppFramework\Db\Entity;
  * @method void setOriginalYear(?int $originalYear)
  * @method string|null getOriginalArtworkPath()
  * @method void setOriginalArtworkPath(?string $originalArtworkPath)
+ * @method string|null getOriginalLabel()
+ * @method void setOriginalLabel(?string $originalLabel)
+ * @method string|null getOriginalCountry()
+ * @method void setOriginalCountry(?string $originalCountry)
  * @method float|null getMarketValue()
  * @method void setMarketValue(?float $marketValue)
  * @method float|null getMarketValueLoose()
@@ -92,6 +96,8 @@ class MediaItem extends Entity implements \JsonSerializable
     protected ?string $originalArtist = null;
     protected ?int $originalYear = null;
     protected ?string $originalArtworkPath = null;
+    protected ?string $originalLabel = null;
+    protected ?string $originalCountry = null;
     protected ?float $marketValue = null;
     protected ?float $marketValueLoose = null;
     protected ?float $marketValueNew = null;

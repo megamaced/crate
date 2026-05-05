@@ -11,6 +11,7 @@ use OCA\Crate\Service\MarketValueService;
 use OCA\Crate\Service\MediaService;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
+use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\OCSController;
 use OCP\IConfig;
@@ -134,12 +135,12 @@ class MediaController extends OCSController
         ?string $artworkPath = null,
         ?string $label = null,
         ?string $country = null,
-        string $category = CrateCategories::MUSIC,
+        ?string $category = null,
     ): DataResponse {
         if (!CrateCategories::isStatus($status)) {
             return new DataResponse(['error' => 'Invalid status'], Http::STATUS_BAD_REQUEST);
         }
-        if (!CrateCategories::isCategory($category)) {
+        if ($category !== null && !CrateCategories::isCategory($category)) {
             return new DataResponse(['error' => 'Invalid category'], Http::STATUS_BAD_REQUEST);
         }
         $data = new MediaItemData(
@@ -206,6 +207,7 @@ class MediaController extends OCSController
      * POST /api/v1/media/{id}/enrich
      */
     #[NoAdminRequired]
+    #[UserRateLimit(limit: 60, period: 60)]
     public function enrich(int $id): DataResponse
     {
         $result = $this->enrichmentService->enrich($id, $this->userId());
@@ -237,6 +239,7 @@ class MediaController extends OCSController
     }
 
     #[NoAdminRequired]
+    #[UserRateLimit(limit: 60, period: 60)]
     public function fetchMarketValue(int $id, string $currency = 'GBP'): DataResponse
     {
         try {

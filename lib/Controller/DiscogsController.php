@@ -7,6 +7,7 @@ namespace OCA\Crate\Controller;
 use OCA\Crate\Service\DiscogsService;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
+use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\Http\Response;
 use OCP\AppFramework\OCSController;
@@ -27,6 +28,7 @@ class DiscogsController extends OCSController
     }
 
     #[NoAdminRequired]
+    #[UserRateLimit(limit: 60, period: 60)]
     public function search(string $q = '', string $barcode = ''): DataResponse
     {
         if ($barcode !== '') {
@@ -45,6 +47,7 @@ class DiscogsController extends OCSController
      * GET /api/v1/discogs/barcode/{barcode}
      */
     #[NoAdminRequired]
+    #[UserRateLimit(limit: 60, period: 60)]
     public function barcodeSearch(string $barcode): DataResponse
     {
         $results = $this->discogsService->searchByBarcode($this->userId(), $barcode);
@@ -59,6 +62,7 @@ class DiscogsController extends OCSController
      * also preview the data without yet persisting it.
      */
     #[NoAdminRequired]
+    #[UserRateLimit(limit: 60, period: 60)]
     public function getRelease(string $id): DataResponse
     {
         $data = $this->discogsService->getRelease($this->userId(), $id);
@@ -75,6 +79,7 @@ class DiscogsController extends OCSController
      * Fetch artist profile from Discogs /artists/{id}.
      */
     #[NoAdminRequired]
+    #[UserRateLimit(limit: 60, period: 60)]
     public function getArtist(string $id): DataResponse
     {
         $data = $this->discogsService->getArtist($this->userId(), $id);

@@ -7,6 +7,7 @@ namespace OCA\Crate\Controller;
 use OCA\Crate\Service\TmdbService;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
+use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\OCSController;
 use OCP\IRequest;
@@ -27,6 +28,7 @@ class TmdbController extends OCSController
 
     /** GET /api/v1/tmdb/search?q={query} */
     #[NoAdminRequired]
+    #[UserRateLimit(limit: 60, period: 60)]
     public function search(string $q = ''): DataResponse
     {
         if ($q === '') {
@@ -37,6 +39,7 @@ class TmdbController extends OCSController
 
     /** GET /api/v1/tmdb/movie/{id} */
     #[NoAdminRequired]
+    #[UserRateLimit(limit: 60, period: 60)]
     public function getMovie(string $id): DataResponse
     {
         $data = $this->tmdbService->getMovie($this->userId(), $id);

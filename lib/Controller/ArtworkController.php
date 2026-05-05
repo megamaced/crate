@@ -133,9 +133,20 @@ class ArtworkController extends Controller
         } catch (NotFoundException) {
             try {
                 $client = $this->clientService->newClient();
+                // Cap redirect chain and require https targets. The host
+                // allowlist above is enforced on the initial URL only — these
+                // limits keep a 302 from an allowlisted CDN from chaining to
+                // an arbitrary internal address.
                 $download = $client->get($artworkPath, [
                     'headers' => ['User-Agent' => 'CrateNextcloudApp/0.4'],
                     'timeout' => 10,
+                    'allow_redirects' => [
+                        'max'             => 3,
+                        'protocols'       => ['https'],
+                        'strict'          => true,
+                        'referer'         => false,
+                        'track_redirects' => false,
+                    ],
                 ]);
                 // Reject non-image responses to prevent cache-poisoning via
                 // compromised upstream or MITM returning HTML / scripts.
@@ -147,6 +158,10 @@ class ArtworkController extends Controller
                     return new Response(Http::STATUS_BAD_GATEWAY);
                 }
                 $imageData = $download->getBody();
+                // Cap remote artwork size to 10 MB.
+                if (is_string($imageData) && strlen($imageData) > 10 * 1024 * 1024) {
+                    return new Response(Http::STATUS_BAD_GATEWAY);
+                }
             } catch (\Exception) {
                 return new Response(Http::STATUS_BAD_GATEWAY);
             }
@@ -154,7 +169,13 @@ class ArtworkController extends Controller
             $file->putContent($imageData);
         }
 
-        $mime = str_ends_with($cacheFile, '.png') ? 'image/png' : 'image/jpeg';
+        $mime = 'image/jpeg';
+        foreach (self::EXT_TO_MIME as $ext => $m) {
+            if (str_ends_with($cacheFile, $ext)) {
+                $mime = $m;
+                break;
+            }
+        }
         if ($size === 'thumb') {
             return $this->thumbResponse((string) $file->getContent(), $mime);
         }
@@ -248,6 +269,12 @@ class ArtworkController extends Controller
         $uploadedFile = $this->request->getUploadedFile('file');
         if (!$uploadedFile || ($uploadedFile['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
             return new DataResponse(['error' => 'No file uploaded'], Http::STATUS_BAD_REQUEST);
+        }
+
+        // Cap artwork upload at 10 MB. Defence-in-depth alongside the
+        // per-user rate limit and PHP's upload_max_filesize.
+        if (($uploadedFile['size'] ?? 0) > 10 * 1024 * 1024) {
+            return new DataResponse(['error' => 'File too large (max 10 MB)'], 413);
         }
 
         // Detect and validate MIME type from file content
@@ -351,7 +378,19 @@ class ArtworkController extends Controller
 
     private function extension(string $url): string
     {
-        $path = parse_url($url, PHP_URL_PATH) ?? '';
-        return str_ends_with(strtolower($path), '.png') ? '.png' : '.jpg';
+        $path = strtolower(parse_url($url, PHP_URL_PATH) ?? '');
+        foreach (['.png', '.webp', '.gif', '.jpg', '.jpeg'] as $ext) {
+            if (str_ends_with($path, $ext)) {
+                return $ext === '.jpeg' ? '.jpg' : $ext;
+            }
+        }
+        return '.jpg';
     }
+
+    private const EXT_TO_MIME = [
+        '.png'  => 'image/png',
+        '.webp' => 'image/webp',
+        '.gif'  => 'image/gif',
+        '.jpg'  => 'image/jpeg',
+    ];
 }

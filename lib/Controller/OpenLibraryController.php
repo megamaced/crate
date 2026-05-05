@@ -7,6 +7,7 @@ namespace OCA\Crate\Controller;
 use OCA\Crate\Service\OpenLibraryService;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
+use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\OCSController;
 use OCP\IRequest;
@@ -27,6 +28,7 @@ class OpenLibraryController extends OCSController
 
     /** GET /api/v1/openlibrary/search?q={query} */
     #[NoAdminRequired]
+    #[UserRateLimit(limit: 60, period: 60)]
     public function search(string $q = ''): DataResponse
     {
         if ($q === '') {
@@ -37,6 +39,7 @@ class OpenLibraryController extends OCSController
 
     /** GET /api/v1/openlibrary/isbn/{isbn} */
     #[NoAdminRequired]
+    #[UserRateLimit(limit: 60, period: 60)]
     public function byIsbn(string $isbn): DataResponse
     {
         $clean = preg_replace('/[^0-9Xx]/', '', $isbn);
@@ -52,6 +55,7 @@ class OpenLibraryController extends OCSController
 
     /** GET /api/v1/openlibrary/work/{id} */
     #[NoAdminRequired]
+    #[UserRateLimit(limit: 60, period: 60)]
     public function getWork(string $id): DataResponse
     {
         $data = $this->openLibraryService->getWork($id);

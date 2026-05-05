@@ -7,6 +7,7 @@ namespace OCA\Crate\Controller;
 use OCA\Crate\Service\ComicVineService;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
+use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\OCSController;
 use OCP\IRequest;
@@ -27,6 +28,7 @@ class ComicVineController extends OCSController
 
     /** GET /api/v1/comicvine/search?q={query} */
     #[NoAdminRequired]
+    #[UserRateLimit(limit: 60, period: 60)]
     public function search(string $q = ''): DataResponse
     {
         if ($q === '') {
@@ -37,6 +39,7 @@ class ComicVineController extends OCSController
 
     /** GET /api/v1/comicvine/volume/{id} */
     #[NoAdminRequired]
+    #[UserRateLimit(limit: 60, period: 60)]
     public function getVolume(string $id): DataResponse
     {
         $data = $this->comicVineService->getVolume($this->userId(), $id);

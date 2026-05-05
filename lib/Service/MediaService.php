@@ -76,7 +76,7 @@ class MediaService
         $item->setArtworkPath($data->artworkPath);
         $item->setLabel($data->label);
         $item->setCountry($data->country);
-        $item->setCategory($data->category);
+        $item->setCategory($data->category ?? \OCA\Crate\CrateCategories::MUSIC);
         $now = (new \DateTime())->format('Y-m-d H:i:s');
         $item->setCreatedAt($now);
         $item->setUpdatedAt($now);
@@ -109,7 +109,10 @@ class MediaService
         if ($data->country !== null) {
             $item->setCountry($data->country !== '' ? $data->country : null);
         }
-        $item->setCategory($data->category);
+        // Preserve existing category on partial updates (caller omitted it)
+        if ($data->category !== null) {
+            $item->setCategory($data->category);
+        }
         $item->setUpdatedAt((new \DateTime())->format('Y-m-d H:i:s'));
         return $this->mapper->update($item);
     }
@@ -261,13 +264,7 @@ class MediaService
     public function applyTmdbData(int $id, string $userId, array $movie): MediaItem
     {
         $item = $this->mapper->findByUser($id, $userId);
-
-        if ($item->getOriginalTitle() === null) {
-            $item->setOriginalTitle($item->getTitle());
-            $item->setOriginalArtist($item->getArtist());
-            $item->setOriginalYear($item->getYear());
-            $item->setOriginalArtworkPath($item->getArtworkPath());
-        }
+        $this->snapshotOriginals($item);
 
         if (!empty($movie['title'])) {
             $item->setTitle($movie['title']);
@@ -314,13 +311,7 @@ class MediaService
     public function applyOpenLibraryData(int $id, string $userId, array $doc, array $work): MediaItem
     {
         $item = $this->mapper->findByUser($id, $userId);
-
-        if ($item->getOriginalTitle() === null) {
-            $item->setOriginalTitle($item->getTitle());
-            $item->setOriginalArtist($item->getArtist());
-            $item->setOriginalYear($item->getYear());
-            $item->setOriginalArtworkPath($item->getArtworkPath());
-        }
+        $this->snapshotOriginals($item);
 
         if (!empty($doc['title'])) {
             $item->setTitle($doc['title']);
@@ -372,13 +363,7 @@ class MediaService
     public function applyRawgData(int $id, string $userId, array $game): MediaItem
     {
         $item = $this->mapper->findByUser($id, $userId);
-
-        if ($item->getOriginalTitle() === null) {
-            $item->setOriginalTitle($item->getTitle());
-            $item->setOriginalArtist($item->getArtist());
-            $item->setOriginalYear($item->getYear());
-            $item->setOriginalArtworkPath($item->getArtworkPath());
-        }
+        $this->snapshotOriginals($item);
 
         if (!empty($game['title'])) {
             $item->setTitle($game['title']);
@@ -418,13 +403,7 @@ class MediaService
     public function applyComicVineData(int $id, string $userId, array $volume): MediaItem
     {
         $item = $this->mapper->findByUser($id, $userId);
-
-        if ($item->getOriginalTitle() === null) {
-            $item->setOriginalTitle($item->getTitle());
-            $item->setOriginalArtist($item->getArtist());
-            $item->setOriginalYear($item->getYear());
-            $item->setOriginalArtworkPath($item->getArtworkPath());
-        }
+        $this->snapshotOriginals($item);
 
         if (!empty($volume['title'])) {
             $item->setTitle($volume['title']);
@@ -453,9 +432,27 @@ class MediaService
     }
 
     /**
+     * Snapshot all user-entered fields that enrichment may overwrite, on the
+     * first enrichment only. stripEnrichment() restores from these.
+     */
+    private function snapshotOriginals(MediaItem $item): void
+    {
+        if ($item->getOriginalTitle() !== null) {
+            return;
+        }
+        $item->setOriginalTitle($item->getTitle());
+        $item->setOriginalArtist($item->getArtist());
+        $item->setOriginalYear($item->getYear());
+        $item->setOriginalArtworkPath($item->getArtworkPath());
+        $item->setOriginalLabel($item->getLabel());
+        $item->setOriginalCountry($item->getCountry());
+    }
+
+    /**
      * Strip all enrichment fields from an item, preserving the
-     * user-entered fields (title, artist, format, year, notes, status, artwork).
-     * The discogsId is also cleared so the item is treated as unenriched.
+     * user-entered fields (title, artist, format, year, notes, status, artwork,
+     * label, country). The discogsId is also cleared so the item is treated
+     * as unenriched.
      */
     public function stripEnrichment(int $id, string $userId): MediaItem
     {
@@ -467,17 +464,24 @@ class MediaService
             $item->setArtist($item->getOriginalArtist());
             $item->setYear($item->getOriginalYear());
             $item->setArtworkPath($item->getOriginalArtworkPath());
+            $item->setLabel($item->getOriginalLabel());
+            $item->setCountry($item->getOriginalCountry());
             $item->setOriginalTitle(null);
             $item->setOriginalArtist(null);
             $item->setOriginalYear(null);
             $item->setOriginalArtworkPath(null);
+            $item->setOriginalLabel(null);
+            $item->setOriginalCountry(null);
+        } else {
+            // No snapshot — item was never enriched (or was enriched before this
+            // migration). Clear label/country since they may be enrichment-sourced.
+            $item->setLabel(null);
+            $item->setCountry(null);
         }
 
         $item->setGenres(null);
         $item->setTracklist(null);
         $item->setPressingNotes(null);
-        $item->setLabel(null);
-        $item->setCountry(null);
         $item->setDiscogsArtistId(null);
         $item->setArtistBio(null);
         $item->setArtistMembers(null);
@@ -502,15 +506,7 @@ class MediaService
     public function applyReleaseData(int $id, string $userId, array $release, array $artist = []): MediaItem
     {
         $item = $this->mapper->findByUser($id, $userId);
-
-        // Snapshot the pre-enrichment values on first enrichment only, so that
-        // "Remove Discogs data" can restore exactly what the user originally entered.
-        if ($item->getOriginalTitle() === null) {
-            $item->setOriginalTitle($item->getTitle());
-            $item->setOriginalArtist($item->getArtist());
-            $item->setOriginalYear($item->getYear());
-            $item->setOriginalArtworkPath($item->getArtworkPath());
-        }
+        $this->snapshotOriginals($item);
 
         if (!empty($release['title'])) {
             $item->setTitle($release['title']);

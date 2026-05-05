@@ -40,10 +40,15 @@ class OpenLibraryService extends AbstractApiService
      */
     public function getWork(string $workId): array
     {
-        // Accept bare IDs like "OL12345W" as well as full "/works/OL12345W"
-        if (!str_starts_with($workId, '/')) {
-            $workId = '/works/' . $workId;
+        // Strip a leading "/works/" if present, then validate against the
+        // canonical Open Library work-key shape. This blocks URL-shape
+        // injection — the caller-supplied id is concatenated into the
+        // openlibrary.org URL, so we must not let arbitrary paths through.
+        $bare = preg_replace('#^/works/#', '', $workId);
+        if (!preg_match('/^OL[0-9]+W$/', (string)$bare)) {
+            return [];
         }
+        $workId = '/works/' . $bare;
 
         $body = $this->getJson('https://openlibrary.org' . $workId . '.json');
         if (empty($body)) {
