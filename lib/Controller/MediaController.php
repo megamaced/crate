@@ -86,7 +86,7 @@ class MediaController extends OCSController
     public function create(
         string $title,
         string $artist,
-        string $format,
+        string $mediaFormat,
         ?int $year = null,
         ?string $barcode = null,
         ?string $notes = null,
@@ -106,7 +106,7 @@ class MediaController extends OCSController
         $data = new MediaItemData(
             $title,
             $artist,
-            $format,
+            $mediaFormat,
             $year,
             $barcode,
             $notes,
@@ -125,7 +125,7 @@ class MediaController extends OCSController
         int $id,
         string $title,
         string $artist,
-        string $format,
+        string $mediaFormat,
         ?int $year = null,
         ?string $barcode = null,
         ?string $notes = null,
@@ -145,7 +145,7 @@ class MediaController extends OCSController
         $data = new MediaItemData(
             $title,
             $artist,
-            $format,
+            $mediaFormat,
             $year,
             $barcode,
             $notes,

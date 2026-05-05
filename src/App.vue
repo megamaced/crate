@@ -590,6 +590,11 @@ async function saveItem(payload) {
     delete payload._artworkFile
     delete payload._removeArtwork
     delete payload._replaceArtwork
+    // Nextcloud's OCS framework reserves `format` as the response-format selector
+    // (xml/json), so a body field named `format` causes "No responder registered"
+    // errors during response serialisation. Send it as `mediaFormat` instead.
+    payload.mediaFormat = payload.format
+    delete payload.format
     // category is always set by the modal's form — no injection needed
 
     // Discogs-switch: delete the stale cached file BEFORE the PUT so the
