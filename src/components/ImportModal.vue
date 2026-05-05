@@ -374,15 +374,16 @@ const result = ref(null)
 // ── field options for mapping UI (category-aware labels) ──────────────────────
 const mappableFields = computed(() => {
   const cfg = FIELD_CONFIG[selectedCategory.value] ?? FIELD_CONFIG.music
+  const formatLabel = (selectedCategory.value === 'game') ? 'Format / Platform' : 'Format'
   return [
     { value: 'artist',    label: cfg.artist },
     { value: 'title',     label: cfg.title },
-    { value: 'format',    label: cfg.showBarcode ? 'Format' : 'Format / Platform' },
+    { value: 'format',    label: formatLabel },
     { value: 'year',      label: 'Year' },
     { value: 'notes',     label: 'Notes' },
     { value: 'status',    label: 'Status (owned / wanted)' },
     { value: 'discogsId', label: 'Enrichment ID' },
-    ...(cfg.showBarcode ? [{ value: 'barcode', label: cfg.barcode }] : []),
+    { value: 'barcode',   label: cfg.barcode },
     { value: 'label',     label: cfg.label },
     { value: 'category',  label: 'Category' },
   ]
@@ -408,10 +409,7 @@ const hintRequired = computed(() => {
 
 const hintOptional = computed(() => {
   const cfg = FIELD_CONFIG[selectedCategory.value] ?? FIELD_CONFIG.music
-  const parts = ['Year', 'Notes', 'Status', 'EnrichmentId']
-  if (cfg.showBarcode) parts.push(cfg.barcode)
-  parts.push(cfg.label)
-  return parts.join(', ')
+  return ['Year', 'Notes', 'Status', 'EnrichmentId', cfg.barcode, cfg.label].join(', ')
 })
 
 // Reset mapping when category changes (field labels differ)

@@ -56,7 +56,7 @@
               v-model="selectedScope"
               type="radio"
               value="wanted"
-            > Wishlist
+            > Wanted
           </label>
           <label class="export-radio-label">
             <input

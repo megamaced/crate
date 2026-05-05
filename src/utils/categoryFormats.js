@@ -112,9 +112,9 @@ export const FORMAT_LIST = Object.fromEntries(
 )
 
 export const FIELD_CONFIG = {
-  music: { artist: 'Artist',    title: 'Album / Title',        label: 'Label',     barcode: 'Barcode', showBarcode: true  },
-  film:  { artist: 'Director',  title: 'Film Title',            label: 'Studio',    barcode: null,      showBarcode: false },
-  book:  { artist: 'Author',    title: 'Title',                 label: 'Publisher', barcode: 'ISBN',    showBarcode: true  },
-  game:  { artist: 'Developer', title: 'Game Title',            label: 'Publisher', barcode: null,      showBarcode: false },
-  comic: { artist: 'Writer',    title: 'Series / Volume Title', label: 'Publisher', barcode: null,      showBarcode: false },
+  music: { artist: 'Artist',    title: 'Album / Title',        label: 'Label',     barcode: 'Barcode' },
+  film:  { artist: 'Director',  title: 'Film Title',            label: 'Studio',    barcode: 'Barcode' },
+  book:  { artist: 'Author',    title: 'Title',                 label: 'Publisher', barcode: 'ISBN'    },
+  game:  { artist: 'Developer', title: 'Game Title',            label: 'Publisher', barcode: 'Barcode' },
+  comic: { artist: 'Writer',    title: 'Series / Volume Title', label: 'Publisher', barcode: 'Barcode' },
 }

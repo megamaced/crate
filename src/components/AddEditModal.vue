@@ -73,7 +73,7 @@
                 Owned
               </option>
               <option value="wanted">
-                Wishlist
+                Wanted
               </option>
             </select>
           </div>
@@ -162,11 +162,11 @@
           </div>
         </div>
 
-        <!-- Barcode / ISBN (music + books only) -->
-        <div
-          v-if="fieldConfig.showBarcode"
-          class="crate-field"
-        >
+        <!-- Barcode / ISBN — shown for every category so a user can manually
+             record one even when the upstream search service doesn't return it
+             (TMDB / RAWG / ComicVine don't expose barcodes, but the user may
+             still want to track UPC / SKU / etc.). -->
+        <div class="crate-field">
           <label for="field-barcode">{{ fieldConfig.barcode }}</label>
           <div
             v-if="form.category === 'book'"

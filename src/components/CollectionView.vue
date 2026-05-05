@@ -87,7 +87,7 @@
           <div
             class="cv-status-tabs"
             role="group"
-            aria-label="Collection or Wishlist"
+            aria-label="Collection or Wanted"
           >
             <button
               :class="['cv-status-tab', { active: statusFilter === 'owned' }]"
@@ -99,7 +99,7 @@
               :class="['cv-status-tab', { active: statusFilter === 'wanted' }]"
               @click="statusFilter = 'wanted'; filterFormat = ''"
             >
-              Wishlist
+              Wanted
             </button>
           </div>
 
@@ -165,7 +165,7 @@
       class="cv-empty"
     >
       <template v-if="filterFormat">
-        <p>No {{ filterFormat }} items in your {{ statusFilter === 'wanted' ? 'wishlist' : 'collection' }}.</p>
+        <p>No {{ filterFormat }} items in your {{ statusFilter === 'wanted' ? 'wanted list' : 'collection' }}.</p>
         <NcButton
           variant="tertiary"
           @click="filterFormat = ''"
@@ -174,7 +174,7 @@
         </NcButton>
       </template>
       <template v-else>
-        <p>{{ statusFilter === 'wanted' ? 'Your wishlist is empty.' : `No ${heading} items yet.` }}</p>
+        <p>{{ statusFilter === 'wanted' ? 'Your wanted list is empty.' : `No ${heading} items yet.` }}</p>
         <NcButton
           variant="primary"
           @click="$emit('add')"
@@ -234,7 +234,7 @@
                 <span
                   v-if="item.status === 'wanted'"
                   class="cv-badge cv-badge--wanted"
-                >Wishlist</span>
+                >Wanted</span>
                 <template v-if="item.label">&ensp;·&ensp;{{ item.label }}</template>
               </span>
             </div>

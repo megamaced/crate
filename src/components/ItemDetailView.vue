@@ -98,7 +98,7 @@
             <span
               class="badge"
               :class="item.status === 'wanted' ? 'badge-wanted' : 'badge-owned'"
-            >{{ item.status === 'wanted' ? 'Wishlist' : 'Owned' }}</span>
+            >{{ item.status === 'wanted' ? 'Wanted' : 'Owned' }}</span>
             <span
               v-if="item.country"
               class="badge badge-country"
@@ -285,7 +285,7 @@ const labelFieldLabel = computed(() => {
   return 'Label'
 })
 
-const showBarcode = computed(() => isMusic.value || props.item.category === 'book')
+const showBarcode = computed(() => true)
 const barcodeFieldLabel = computed(() => props.item.category === 'book' ? 'ISBN' : 'Barcode')
 
 const isEnriched = computed(() => {

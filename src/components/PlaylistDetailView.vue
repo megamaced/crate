@@ -101,7 +101,7 @@
               v-if="item.status"
               class="pd-badge"
               :class="item.status === 'wanted' ? 'pd-badge--wanted' : 'pd-badge--owned'"
-            >{{ item.status === 'wanted' ? 'Wishlist' : 'Owned' }}</span>
+            >{{ item.status === 'wanted' ? 'Wanted' : 'Owned' }}</span>
           </span>
         </div>
         <div
