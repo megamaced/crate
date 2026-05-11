@@ -5,7 +5,7 @@
     <name>Crate</name>
     <summary>Physical media catalogue</summary>
     <description><![CDATA[Catalogue your physical music collection — vinyl, CDs, cassettes, MiniDiscs and more. Add items manually or by barcode, pull metadata from Discogs, and keep track of what you own and what you want.]]></description>
-    <version>0.4.4</version>
+    <version>0.4.5</version>
     <licence>agpl</licence>
     <author mail="22581049+megamaced@users.noreply.github.com" homepage="https://github.com/megamaced/crate">megamaced</author>
     <namespace>Crate</namespace>
