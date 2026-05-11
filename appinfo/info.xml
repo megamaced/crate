@@ -15,6 +15,17 @@
     <dependencies>
         <nextcloud min-version="29" max-version="33"/>
     </dependencies>
+    <activity>
+        <settings>
+            <setting>OCA\Crate\Activity\Setting</setting>
+        </settings>
+        <filters>
+            <filter>OCA\Crate\Activity\Filter</filter>
+        </filters>
+        <providers>
+            <provider>OCA\Crate\Activity\Provider</provider>
+        </providers>
+    </activity>
     <navigations>
         <navigation>
             <id>crate</id>
