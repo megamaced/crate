@@ -527,7 +527,11 @@ function applyEnrichment(result) {
   if (fullUrl) {
     form.value.artworkPath = fullUrl
     enrichPreviewUrl.value = previewUrl
-    if (props.item?.artworkPath) {
+    if (props.item) {
+      // Always clear any pending file upload and flag for cache replacement
+      // when applying enrichment to an existing item. This ensures stale
+      // cached artwork is purged even if the item currently has no artworkPath
+      // (e.g. after strip enrichment).
       artworkFile.value = null
       replaceArtworkFlag.value = true
     }
