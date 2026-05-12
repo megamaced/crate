@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Crate\Service;
 
+use OCA\Crate\CrateCategories;
 use OCA\Crate\Db\MediaItem;
 use OCA\Crate\Db\MediaItemMapper;
 use OCA\Crate\Exception\DiscogsRateLimitException;
@@ -34,12 +35,19 @@ class MarketValueService
     /**
      * Fetch market value(s) for an item and persist them.
      * Dispatches to PriceCharting for game/comic, Discogs for music.
+     * Film/book have no market-value source — defensively returns null
+     * so a stray refresh-all call can't store unrelated Discogs prices
+     * against their (TMDB / Open Library) enrichment ids.
      * Returns null when no enrichment ID is available or fetch fails.
      */
     public function fetchAndStore(int $id, string $userId, string $currency): ?MediaItem
     {
         $item     = $this->mapper->findByUser($id, $userId);
         $category = $item->getCategory();
+
+        if (!CrateCategories::hasMarketValue($category)) {
+            return null;
+        }
 
         if (in_array($category, ['game', 'comic'], true)) {
             return $this->fetchAndStorePriceCharting($item, $userId);

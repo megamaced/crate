@@ -67,7 +67,7 @@ class Provider implements IProvider
                 thumbnailUrl: $thumb,
                 title: $item->getArtist() . ' — ' . $item->getTitle(),
                 subline: $subline,
-                resourceUrl: $appUrl,
+                resourceUrl: $appUrl . '#/detail/' . $item->getId(),
                 rounded: true,
             );
         }, $items);

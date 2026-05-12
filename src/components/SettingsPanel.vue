@@ -679,9 +679,11 @@ async function refreshAllMarketRates() {
   try {
     const res = await axios.get(generateOcsUrl('/apps/crate/api/v1/media'))
     const all = res.data.ocs?.data ?? []
-    // Music uses Discogs (needs discogsId); games/comics use PriceCharting (looked up by title)
+    // Music uses Discogs (needs discogsId); games/comics use PriceCharting (looked up by title).
+    // discogsId is shared across categories as a generic enrichment id — gate by category=music
+    // so TMDB / Open Library ids on films/books don't get treated as Discogs release ids.
     const ids = all
-      .filter(i => i.discogsId || i.category === 'game' || i.category === 'comic')
+      .filter(i => (i.category === 'music' && i.discogsId) || i.category === 'game' || i.category === 'comic')
       .map(i => i.id)
     if (ids.length > 0) {
       marketQueue.start(ids, marketCurrency.value)

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Crate\Db;
 
+use OCA\Crate\CrateCategories;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Db\QBMapper;
 use OCP\DB\QueryBuilder\IQueryBuilder;
@@ -176,7 +177,10 @@ class MediaItemMapper extends QBMapper
     }
 
     /**
-     * Return ids of items that have a non-empty discogs_id for the user.
+     * Return ids of items that have a non-empty discogs_id for the user,
+     * restricted to categories with a market-value source. Film/book rows
+     * are excluded so their enrichment ids (TMDB / Open Library) are not
+     * misread as Discogs release ids by the market-value refresh flow.
      * Used by the refresh-all market-value flow so we don't pull entire
      * collections into PHP just to filter.
      *
@@ -189,7 +193,11 @@ class MediaItemMapper extends QBMapper
             ->from($this->getTableName())
             ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
             ->andWhere($qb->expr()->isNotNull('discogs_id'))
-            ->andWhere($qb->expr()->neq('discogs_id', $qb->createNamedParameter('')));
+            ->andWhere($qb->expr()->neq('discogs_id', $qb->createNamedParameter('')))
+            ->andWhere($qb->expr()->in(
+                'category',
+                $qb->createNamedParameter(CrateCategories::MARKET_CATEGORIES, IQueryBuilder::PARAM_STR_ARRAY),
+            ));
         $cursor = $qb->executeQuery();
         $ids = [];
         while ($row = $cursor->fetch()) {
