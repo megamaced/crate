@@ -56,13 +56,26 @@ Open Library (book metadata) needs no token.
 
 ## Installation
 
-This app is not yet on the Nextcloud App Store. To install from a release archive:
+This app is not yet on the Nextcloud App Store. To install (or upgrade) from a release archive, run the following from your `custom_apps` directory:
 
 ```bash
-cd /var/www/html/custom_apps     # or wherever your custom_apps lives
-tar xzf crate-<version>.tar.gz
+# 1. Back up the existing install (in case rollback needed; skip on first install)
+mv crate crate.bak.$(date +%s)
+
+# 2. Download & extract the release
+CRATE_VERSION=0.4.6
+curl -sSL -o crate-${CRATE_VERSION}.tar.gz \
+  https://github.com/megamaced/crate/releases/download/v${CRATE_VERSION}/crate-${CRATE_VERSION}.tar.gz
+tar -xzf crate-${CRATE_VERSION}.tar.gz
+rm crate-${CRATE_VERSION}.tar.gz
+
+# 3. Fix ownership (Nextcloud usually runs as www-data; check with `ls -l` first)
 chown -R www-data:www-data crate
-sudo -u www-data php /var/www/html/occ app:enable crate
+
+# 4. From the Nextcloud root, run upgrade so any migrations apply
+su -c "php /var/www/html/occ app:disable crate" -s /bin/bash www-data
+su -c "php /var/www/html/occ app:enable crate" -s /bin/bash www-data
+su -c "php /var/www/html/occ upgrade" -s /bin/bash www-data
 ```
 
 Or, for development, clone this repo into `custom_apps/crate` and run `npm ci && npm run build` to compile the JS bundle.
