@@ -69,6 +69,10 @@ use OCP\AppFramework\Db\Entity;
  * @method void setPurchasePrice(?float $purchasePrice)
  * @method string|null getPurchasePriceCurrency()
  * @method void setPurchasePriceCurrency(?string $purchasePriceCurrency)
+ * @method string|null getPhoto1Path()
+ * @method void setPhoto1Path(?string $photo1Path)
+ * @method string|null getPhoto2Path()
+ * @method void setPhoto2Path(?string $photo2Path)
  * @method string getCategory()
  * @method void setCategory(string $category)
  * @method string|null getCreatedAt()
@@ -109,6 +113,8 @@ class MediaItem extends Entity implements \JsonSerializable
     protected ?string $marketValueFetchedAt = null;
     protected ?float $purchasePrice = null;
     protected ?string $purchasePriceCurrency = null;
+    protected ?string $photo1Path = null;
+    protected ?string $photo2Path = null;
     protected string $category = 'music';
     protected ?string $createdAt = null;
     protected ?string $updatedAt = null;
@@ -156,6 +162,8 @@ class MediaItem extends Entity implements \JsonSerializable
             'marketValueFetchedAt' => $this->marketValueFetchedAt,
             'purchasePrice'         => $this->purchasePrice,
             'purchasePriceCurrency' => $this->purchasePriceCurrency,
+            'hasPhoto1'             => $this->photo1Path !== null,
+            'hasPhoto2'             => $this->photo2Path !== null,
             'category'        => $this->category,
             'createdAt'       => $this->createdAt,
             'updatedAt'       => $this->updatedAt,

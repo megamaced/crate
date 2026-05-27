@@ -196,6 +196,32 @@
 
     <!-- Scrollable content -->
     <div class="detail-body">
+      <!-- User photos (disc shots, receipts, sleevenotes…) -->
+      <section
+        v-if="item.hasPhoto1 || item.hasPhoto2"
+        class="detail-section detail-photos"
+      >
+        <h3>Photos</h3>
+        <div class="detail-photo-strip">
+          <button
+            v-if="item.hasPhoto1"
+            type="button"
+            class="detail-photo-thumb"
+            :style="photoStyle(1)"
+            aria-label="Photo 1"
+            @click="openLightbox(1)"
+          />
+          <button
+            v-if="item.hasPhoto2"
+            type="button"
+            class="detail-photo-thumb"
+            :style="photoStyle(2)"
+            aria-label="Photo 2"
+            @click="openLightbox(2)"
+          />
+        </div>
+      </section>
+
       <!-- Tracklist (music only) -->
       <section
         v-if="isMusic && tracklist.length > 0"
@@ -254,8 +280,33 @@
         </div>
       </section>
     </div><!-- /detail-body -->
+
+    <div
+      v-if="lightboxSlot !== null"
+      class="detail-photo-lightbox"
+      role="dialog"
+      aria-modal="true"
+      @click="closeLightbox"
+      @keydown.esc="closeLightbox"
+    >
+      <img
+        class="detail-photo-lightbox-img"
+        :src="photoUrl(lightboxSlot)"
+        :alt="`Photo ${lightboxSlot}`"
+        @click.stop
+      >
+      <button
+        type="button"
+        class="detail-photo-lightbox-close"
+        aria-label="Close"
+        @click="closeLightbox"
+      >
+        ×
+      </button>
+    </div>
   </div>
 </template>
+
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
@@ -266,6 +317,7 @@ import { generateOcsUrl } from '@nextcloud/router'
 import { useSettings } from '../composables/useSettings.js'
 import { formatMarketValue } from '../utils/formatMarketValue.js'
 import { useArtworkStyle } from '../composables/useArtworkStyle.js'
+import { photoGet } from '../api.js'
 
 const props = defineProps({
   item: { type: Object, required: true },
@@ -379,6 +431,36 @@ function formatPrice(value, currency) {
   } catch {
     return `${c} ${value.toFixed(2)}`
   }
+}
+
+// ── Photos ────────────────────────────────────────────────────────────────────
+const lightboxSlot = ref(null)
+
+function photoUrl(slot, size = 'full') {
+  // Cache-bust on item.updatedAt so a re-upload renders the new bytes
+  // without waiting for the HTTP cache TTL to expire.
+  const base = photoGet(props.item.id, slot)
+  const params = new URLSearchParams()
+  if (size && size !== 'full') params.set('size', size)
+  if (props.item.updatedAt) params.set('_', props.item.updatedAt)
+  const qs = params.toString()
+  return qs ? `${base}?${qs}` : base
+}
+
+function photoStyle(slot) {
+  return {
+    backgroundImage: `url(${photoUrl(slot, 'thumb')})`,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+  }
+}
+
+function openLightbox(slot) {
+  lightboxSlot.value = slot
+}
+
+function closeLightbox() {
+  lightboxSlot.value = null
 }
 
 /**
@@ -515,6 +597,60 @@ async function stripEnrich() {
   font-size: 0.82em;
   font-style: italic;
   color: var(--color-text-maxcontrast);
+}
+
+/* User photos strip */
+.detail-photo-strip {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.detail-photo-thumb {
+  width: 120px;
+  height: 120px;
+  border-radius: var(--border-radius);
+  border: 2px solid var(--color-border-dark);
+  background: var(--color-background-dark) center / cover no-repeat;
+  cursor: zoom-in;
+  padding: 0;
+}
+
+.detail-photo-thumb:hover {
+  border-color: var(--color-primary-element);
+}
+
+/* Lightbox overlay */
+.detail-photo-lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  cursor: zoom-out;
+}
+
+.detail-photo-lightbox-img {
+  max-width: 92vw;
+  max-height: 92vh;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  cursor: default;
+}
+
+.detail-photo-lightbox-close {
+  position: absolute;
+  top: 16px;
+  right: 24px;
+  font-size: 2em;
+  line-height: 1;
+  background: transparent;
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 4px 10px;
 }
 
 .detail-view {

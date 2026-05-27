@@ -599,12 +599,22 @@ async function saveItem(payload) {
     const artworkFile = payload._artworkFile ?? null
     const removeArtwork = payload._removeArtwork ?? false
     const replaceArtwork = payload._replaceArtwork ?? false
+    // Photo slots: each is independent of the artwork pipeline and goes
+    // through its own /photo/{itemId}/{slot} endpoint.
+    const photo1File = payload._photo1File ?? null
+    const photo2File = payload._photo2File ?? null
+    const photo1Remove = payload._photo1Remove ?? false
+    const photo2Remove = payload._photo2Remove ?? false
     // Save for fallback ID lookup (new item OCS quirk)
     const payloadTitle = payload.title
     const payloadArtist = payload.artist
     delete payload._artworkFile
     delete payload._removeArtwork
     delete payload._replaceArtwork
+    delete payload._photo1File
+    delete payload._photo2File
+    delete payload._photo1Remove
+    delete payload._photo2Remove
     // Nextcloud's OCS framework reserves `format` as the response-format selector
     // (xml/json), so a body field named `format` causes "No responder registered"
     // errors during response serialisation. Send it as `mediaFormat` instead.
@@ -700,6 +710,25 @@ async function saveItem(payload) {
       }
     }
 
+    // Photo slots — independent of artwork. Each pending file uploads,
+    // each Remove flag clears the server-side slot. Done after the main
+    // save so the targetId is resolved.
+    if (targetId) {
+      await uploadOrDeletePhoto(targetId, 1, photo1File, photo1Remove)
+      await uploadOrDeletePhoto(targetId, 2, photo2File, photo2Remove)
+      if (photo1File || photo2File || photo1Remove || photo2Remove) {
+        // Re-fetch so hasPhoto1 / hasPhoto2 reflect the new state.
+        try {
+          const r = await axios.get(generateOcsUrl(`/apps/crate/api/v1/media/${targetId}`))
+          const fresh = r.data.ocs?.data
+          if (fresh) {
+            if (selectedItem.value?.id == fresh.id) selectedItem.value = fresh
+            saved = fresh
+          }
+        } catch { /* non-fatal */ }
+      }
+    }
+
     // Auto-enrich newly added items that have a Discogs ID
     if (!wasEditing && saved?.id && saved?.discogsId) {
       triggerEnrich(saved.id)
@@ -723,6 +752,31 @@ async function saveItem(payload) {
   } catch (e) {
     console.error('Failed to save item', e)
     showError('Failed to save item')
+  }
+}
+
+/**
+ * Apply one photo slot's state to the server. Upload if `file` is set,
+ * otherwise delete if `remove` is true, otherwise no-op. Failures are
+ * surfaced as toasts but don't unwind the rest of the save.
+ */
+async function uploadOrDeletePhoto(itemId, slot, file, remove) {
+  if (file) {
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      await axios.post(generateUrl(`/apps/crate/photo/${itemId}/${slot}`), fd)
+    } catch (e) {
+      console.error(`Photo slot ${slot} upload failed`, e)
+      showError(`Photo ${slot} upload failed`)
+    }
+  } else if (remove) {
+    try {
+      await axios.delete(generateUrl(`/apps/crate/photo/${itemId}/${slot}`))
+    } catch (e) {
+      console.error(`Photo slot ${slot} delete failed`, e)
+      showError(`Failed to remove photo ${slot}`)
+    }
   }
 }
 

@@ -292,6 +292,38 @@
           </div>
         </div>
 
+        <!--
+          Extra photo slots: disc shots, receipts, sleevenotes, etc. Distinct
+          from the artwork above — the artwork is the canonical cover art and
+          may be supplied by an enrichment source, while these are always
+          user-uploaded.
+        -->
+        <div class="crate-field">
+          <label>Additional photos</label>
+          <div class="crate-photos-row">
+            <PhotoSlot
+              :slot-num="1"
+              :file="photo1File"
+              :remove="photo1Remove"
+              :existing="!!item?.hasPhoto1"
+              :item-id="item?.id"
+              :updated-at="item?.updatedAt"
+              @pick="handlePhotoPicked(1, $event)"
+              @remove="handlePhotoRemoved(1)"
+            />
+            <PhotoSlot
+              :slot-num="2"
+              :file="photo2File"
+              :remove="photo2Remove"
+              :existing="!!item?.hasPhoto2"
+              :item-id="item?.id"
+              :updated-at="item?.updatedAt"
+              @pick="handlePhotoPicked(2, $event)"
+              @remove="handlePhotoRemoved(2)"
+            />
+          </div>
+        </div>
+
         <div class="crate-modal-actions">
           <NcButton
             type="button"
@@ -324,6 +356,7 @@ import DiscogsSearch from './DiscogsSearch.vue'
 import TMDBSearch from './TMDBSearch.vue'
 import OpenLibrarySearch from './OpenLibrarySearch.vue'
 import RAWGSearch from './RAWGSearch.vue'
+import PhotoSlot from './PhotoSlot.vue'
 import { FORMAT_GROUPS, FIELD_CONFIG } from '../utils/categoryFormats.js'
 import { settingsCurrencies } from '../api.js'
 import { useSettings } from '../composables/useSettings.js'
@@ -447,6 +480,43 @@ function resetArtworkState() {
   }
 }
 
+// ── Extra photo slots ──────────────────────────────────────────────────────────
+// Each slot tracks a pending File the user picked (uploaded after save) and a
+// "remove" flag set when the user clicked Remove on an existing photo. The
+// PhotoSlot component renders both the file preview and the existing remote
+// thumb when present.
+const photo1File   = ref(null)
+const photo2File   = ref(null)
+const photo1Remove = ref(false)
+const photo2Remove = ref(false)
+
+function resetPhotoState() {
+  photo1File.value = null
+  photo2File.value = null
+  photo1Remove.value = false
+  photo2Remove.value = false
+}
+
+function handlePhotoPicked(slot, file) {
+  if (slot === 1) {
+    photo1File.value = file
+    photo1Remove.value = false
+  } else if (slot === 2) {
+    photo2File.value = file
+    photo2Remove.value = false
+  }
+}
+
+function handlePhotoRemoved(slot) {
+  if (slot === 1) {
+    photo1File.value = null
+    photo1Remove.value = true
+  } else if (slot === 2) {
+    photo2File.value = null
+    photo2Remove.value = true
+  }
+}
+
 // ── Form ───────────────────────────────────────────────────────────────────────
 const { marketCurrency } = useSettings()
 
@@ -488,6 +558,7 @@ watch(
   (open) => {
     if (open) {
       resetArtworkState()
+      resetPhotoState()
       form.value = props.item
         ? {
             title:      props.item.title,
@@ -649,6 +720,10 @@ async function submit() {
       _artworkFile:          artworkFile.value,
       _removeArtwork:        removeArtworkFlag.value,
       _replaceArtwork:       replaceArtworkFlag.value,
+      _photo1File:           photo1File.value,
+      _photo2File:           photo2File.value,
+      _photo1Remove:         photo1Remove.value,
+      _photo2Remove:         photo2Remove.value,
     }
     emit('save', payload)
   } finally {
@@ -694,6 +769,15 @@ async function submit() {
 
 .crate-field--currency {
   flex: 0 0 110px;
+}
+
+/* Two-column photo strip. Stacks below the artwork row, lays out the slots
+   left-to-right. Matches the artwork-row padding so the modal stays balanced. */
+.crate-photos-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: flex-start;
 }
 
 .crate-barcode-row {

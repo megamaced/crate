@@ -8,6 +8,9 @@ return [
 		['name' => 'artwork#get',    'url' => '/artwork/{itemId}',   'verb' => 'GET'],
 		['name' => 'artwork#upload', 'url' => '/artwork/{itemId}',   'verb' => 'POST'],
 		['name' => 'artwork#delete', 'url' => '/artwork/{itemId}',   'verb' => 'DELETE'],
+		['name' => 'photo#get',      'url' => '/photo/{itemId}/{slot}', 'verb' => 'GET',    'requirements' => ['slot' => '[1-2]']],
+		['name' => 'photo#upload',   'url' => '/photo/{itemId}/{slot}', 'verb' => 'POST',   'requirements' => ['slot' => '[1-2]']],
+		['name' => 'photo#delete',   'url' => '/photo/{itemId}/{slot}', 'verb' => 'DELETE', 'requirements' => ['slot' => '[1-2]']],
 		['name' => 'export#export',  'url' => '/export',             'verb' => 'GET'],
 	],
 	'ocs' => [

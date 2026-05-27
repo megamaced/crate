@@ -83,3 +83,8 @@ export const unshare              = (id) => ocs(`/share/${id}`)
 export const artworkGet    = (id) => nc(`/artwork/${id}`)
 export const artworkUpload = (id) => nc(`/artwork/${id}`)
 export const artworkDelete = (id) => nc(`/artwork/${id}`)
+
+/* ── User-supplied photo slots (1 or 2). Non-OCS, user frontend. ──────── */
+export const photoGet      = (id, slot) => nc(`/photo/${id}/${slot}`)
+export const photoUpload   = (id, slot) => nc(`/photo/${id}/${slot}`)
+export const photoDelete   = (id, slot) => nc(`/photo/${id}/${slot}`)

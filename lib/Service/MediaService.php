@@ -178,6 +178,7 @@ class MediaService
 
         // Files are deleted after commit — a failed unlink shouldn't undo the DB delete.
         $this->deleteArtworkFiles($id);
+        $this->deletePhotoFiles($id);
 
         $this->activityService->itemDeleted($item, $userId);
 
@@ -197,6 +198,27 @@ class MediaService
                 try {
                     $folder->getFile('artwork_' . $itemId . $ext)->delete();
                 } catch (NotFoundException) {
+                }
+            }
+        } catch (NotFoundException) {
+        }
+    }
+
+    /**
+     * Remove every user-uploaded photo file for an item across both slots,
+     * mirroring deleteArtworkFiles. Called after the row delete commits so a
+     * failed unlink does not roll the DB delete back.
+     */
+    private function deletePhotoFiles(int $itemId): void
+    {
+        try {
+            $folder = $this->appDataFactory->get('crate')->getFolder('photos');
+            foreach ([1, 2] as $slot) {
+                foreach (['.jpg', '.png', '.webp', '.gif'] as $ext) {
+                    try {
+                        $folder->getFile('photo_' . $itemId . '_' . $slot . $ext)->delete();
+                    } catch (NotFoundException) {
+                    }
                 }
             }
         } catch (NotFoundException) {
@@ -276,6 +298,7 @@ class MediaService
 
         foreach ($itemsToDelete as $item) {
             $this->deleteArtworkFiles($item->getId());
+            $this->deletePhotoFiles($item->getId());
         }
 
         $this->markWiped($userId);
