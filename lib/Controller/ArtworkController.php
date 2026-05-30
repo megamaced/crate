@@ -23,6 +23,8 @@ use Psr\Log\LoggerInterface;
 
 class ArtworkController extends Controller
 {
+    use GdImageTrait;
+
     /** Hosts permitted for remote-artwork fetch. Matches the enrichment sources. */
     private const REMOTE_IMAGE_HOSTS = [
         // Discogs
@@ -98,7 +100,7 @@ class ArtworkController extends Controller
                         default => 'image/jpeg',
                     };
                     if ($size === 'thumb') {
-                        return $this->thumbResponse((string) $file->getContent(), $mime);
+                        return $this->thumbResponse((string) $file->getContent(), $mime, 86400);
                     }
                     $response = new FileDisplayResponse($file, Http::STATUS_OK, ['Content-Type' => $mime]);
                     $response->cacheFor(3600);
@@ -165,6 +167,9 @@ class ArtworkController extends Controller
             } catch (\Exception) {
                 return new Response(Http::STATUS_BAD_GATEWAY);
             }
+            // Remote source could be a user upload (e.g. Discogs community
+            // pressing images) — strip EXIF on write for defence-in-depth.
+            $imageData = $this->stripImageMetadata((string) $imageData, $contentType);
             $file = $folder->newFile($cacheFile);
             $file->putContent($imageData);
         }
@@ -177,7 +182,7 @@ class ArtworkController extends Controller
             }
         }
         if ($size === 'thumb') {
-            return $this->thumbResponse((string) $file->getContent(), $mime);
+            return $this->thumbResponse((string) $file->getContent(), $mime, 86400);
         }
         $response = new FileDisplayResponse($file, Http::STATUS_OK, ['Content-Type' => $mime]);
         $response->cacheFor(86400);
@@ -189,62 +194,6 @@ class ArtworkController extends Controller
      * Falls back to the original data if GD is unavailable or the image
      * cannot be decoded. Errors are logged rather than swallowed by `@`.
      */
-    private function thumbResponse(string $data, string $mime): Response
-    {
-        $thumbSize = 200;
-        if (function_exists('imagecreatefromstring') && function_exists('imagescale')) {
-            $src = false;
-            try {
-                // imagecreatefromstring emits a warning (not an exception) for
-                // malformed input; convert warnings into exceptions for this
-                // call so we get a clean boolean failure path.
-                set_error_handler(static function (int $severity, string $message): bool {
-                    throw new \RuntimeException($message, $severity);
-                });
-                try {
-                    $src = imagecreatefromstring($data);
-                } finally {
-                    restore_error_handler();
-                }
-            } catch (\Throwable $e) {
-                $this->logger->warning('Artwork thumbnail decode failed: {msg}', [
-                    'msg' => $e->getMessage(),
-                    'app' => 'crate',
-                ]);
-                $src = false;
-            }
-
-            if ($src !== false) {
-                $w     = imagesx($src);
-                $h     = imagesy($src);
-                $scale = min($thumbSize / $w, $thumbSize / $h, 1.0);
-                $nw    = max(1, (int) round($w * $scale));
-                $nh    = max(1, (int) round($h * $scale));
-                $dst   = imagescale($src, $nw, $nh, IMG_BILINEAR_FIXED);
-                imagedestroy($src);
-                if ($dst !== false) {
-                    ob_start();
-                    imagejpeg($dst, null, 85);
-                    $out = ob_get_clean();
-                    imagedestroy($dst);
-                    if ($out !== false && $out !== '') {
-                        $headers  = ['Content-Type' => 'image/jpeg'];
-                        $response = new \OCP\AppFramework\Http\DataDisplayResponse(
-                            $out,
-                            Http::STATUS_OK,
-                            $headers,
-                        );
-                        $response->cacheFor(86400);
-                        return $response;
-                    }
-                }
-            }
-        }
-        // GD unavailable or failed — return full image
-        $response = new \OCP\AppFramework\Http\DataDisplayResponse($data, Http::STATUS_OK, ['Content-Type' => $mime]);
-        $response->cacheFor(86400);
-        return $response;
-    }
 
     /**
      * Upload a user-provided image as artwork for a media item.
@@ -315,8 +264,12 @@ class ArtworkController extends Controller
                 }
             }
 
-            $file = $folder->newFile('artwork_' . $itemId . $ext);
-            $file->putContent((string) file_get_contents($uploadedFile['tmp_name']));
+            $bytes = (string) file_get_contents($uploadedFile['tmp_name']);
+            // Strip EXIF/IPTC/XMP before persisting — phone-gallery uploads
+            // commonly carry GPS, timestamps, camera serials. See GdImageTrait.
+            $bytes = $this->stripImageMetadata($bytes, $mime);
+            $file  = $folder->newFile('artwork_' . $itemId . $ext);
+            $file->putContent($bytes);
 
             $item->setArtworkPath('local');
             $item->setUpdatedAt(date('Y-m-d H:i:s'));

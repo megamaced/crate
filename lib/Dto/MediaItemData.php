@@ -25,10 +25,11 @@ class MediaItemData
         public readonly ?string $country = null,
         public readonly ?string $category = null,
         /**
-         * What the user paid for the item, in their chosen currency. Null
-         * leaves the stored value unchanged on update; pass a negative
-         * sentinel via the controller to clear the field (see
-         * MediaController::clearablePrice).
+         * What the user paid for the item, in the user's chosen currency.
+         * MediaService::update always overwrites with this value, so null
+         * clears the stored price (and the controller pairs null/null when
+         * the user empties the input). Currency is validated against the
+         * allowlist in MediaController::normalisePurchasePrice.
          */
         public readonly ?float $purchasePrice = null,
         public readonly ?string $purchasePriceCurrency = null,

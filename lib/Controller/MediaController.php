@@ -110,7 +110,7 @@ class MediaController extends OCSController
         if (!CrateCategories::isCategory($category)) {
             return new DataResponse(['error' => 'Invalid category'], Http::STATUS_BAD_REQUEST);
         }
-        $priceResult = $this->normalisePurchasePrice($purchasePrice, $purchasePriceCurrency);
+        $priceResult = self::normalisePurchasePrice($purchasePrice, $purchasePriceCurrency);
         if (isset($priceResult['error'])) {
             return new DataResponse(['error' => $priceResult['error']], Http::STATUS_BAD_REQUEST);
         }
@@ -157,7 +157,7 @@ class MediaController extends OCSController
         if ($category !== null && !CrateCategories::isCategory($category)) {
             return new DataResponse(['error' => 'Invalid category'], Http::STATUS_BAD_REQUEST);
         }
-        $priceResult = $this->normalisePurchasePrice($purchasePrice, $purchasePriceCurrency);
+        $priceResult = self::normalisePurchasePrice($purchasePrice, $purchasePriceCurrency);
         if (isset($priceResult['error'])) {
             return new DataResponse(['error' => $priceResult['error']], Http::STATUS_BAD_REQUEST);
         }
@@ -190,7 +190,7 @@ class MediaController extends OCSController
      *
      * @return array{price?: ?float, currency?: ?string, error?: string}
      */
-    private function normalisePurchasePrice(?float $price, ?string $currency): array
+    public static function normalisePurchasePrice(?float $price, ?string $currency): array
     {
         if ($price === null) {
             // Treat a stray currency without a price as "clear both".

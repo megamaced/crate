@@ -10,7 +10,6 @@ use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
-use OCP\AppFramework\Http\DataDisplayResponse;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\Http\FileDisplayResponse;
 use OCP\AppFramework\Http\Response;
@@ -33,6 +32,8 @@ use Psr\Log\LoggerInterface;
  */
 class PhotoController extends Controller
 {
+    use GdImageTrait;
+
     /** Slot values accepted on every endpoint. */
     private const SLOTS = [1, 2];
 
@@ -104,7 +105,7 @@ class PhotoController extends Controller
                 $file = $folder->getFile($this->fileName($itemId, $slot, $ext));
                 $mime = self::EXT_TO_MIME[$ext];
                 if ($size === 'thumb') {
-                    return $this->thumbResponse((string) $file->getContent(), $mime);
+                    return $this->thumbResponse((string) $file->getContent(), $mime, 3600);
                 }
                 $response = new FileDisplayResponse($file, Http::STATUS_OK, ['Content-Type' => $mime]);
                 $response->cacheFor(3600);
@@ -186,8 +187,13 @@ class PhotoController extends Controller
                 }
             }
 
-            $file = $folder->newFile($this->fileName($itemId, $slot, $ext));
-            $file->putContent((string) file_get_contents($uploadedFile['tmp_name']));
+            $bytes = (string) file_get_contents($uploadedFile['tmp_name']);
+            // Strip EXIF/IPTC/XMP before persisting. Photos are the "receipts
+            // and personal photos" slot — phone-gallery uploads commonly
+            // carry GPS, timestamps, camera serials. See GdImageTrait.
+            $bytes = $this->stripImageMetadata($bytes, (string) $mime);
+            $file  = $folder->newFile($this->fileName($itemId, $slot, $ext));
+            $file->putContent($bytes);
 
             if ($slot === 1) {
                 $item->setPhoto1Path('local');
@@ -210,6 +216,7 @@ class PhotoController extends Controller
      * DELETE /apps/crate/photo/{itemId}/{slot}
      */
     #[NoAdminRequired]
+    #[UserRateLimit(limit: 30, period: 60)]
     public function delete(int $itemId, int $slot): Response
     {
         $user = $this->userSession->getUser();
@@ -260,62 +267,5 @@ class PhotoController extends Controller
     private function fileName(int $itemId, int $slot, string $ext): string
     {
         return 'photo_' . $itemId . '_' . $slot . $ext;
-    }
-
-    /**
-     * Resize image bytes to a 200×200-bounded thumbnail using GD. Falls back
-     * to the original data when GD is unavailable or the image fails to
-     * decode. Mirrors ArtworkController::thumbResponse.
-     */
-    private function thumbResponse(string $data, string $mime): Response
-    {
-        $thumbSize = 200;
-        if (function_exists('imagecreatefromstring') && function_exists('imagescale')) {
-            $src = false;
-            try {
-                set_error_handler(static function (int $severity, string $message): bool {
-                    throw new \RuntimeException($message, $severity);
-                });
-                try {
-                    $src = imagecreatefromstring($data);
-                } finally {
-                    restore_error_handler();
-                }
-            } catch (\Throwable $e) {
-                $this->logger->warning('Photo thumbnail decode failed: {msg}', [
-                    'msg' => $e->getMessage(),
-                    'app' => 'crate',
-                ]);
-                $src = false;
-            }
-
-            if ($src !== false) {
-                $w     = imagesx($src);
-                $h     = imagesy($src);
-                $scale = min($thumbSize / $w, $thumbSize / $h, 1.0);
-                $nw    = max(1, (int) round($w * $scale));
-                $nh    = max(1, (int) round($h * $scale));
-                $dst   = imagescale($src, $nw, $nh, IMG_BILINEAR_FIXED);
-                imagedestroy($src);
-                if ($dst !== false) {
-                    ob_start();
-                    imagejpeg($dst, null, 85);
-                    $out = ob_get_clean();
-                    imagedestroy($dst);
-                    if ($out !== false && $out !== '') {
-                        $response = new DataDisplayResponse(
-                            $out,
-                            Http::STATUS_OK,
-                            ['Content-Type' => 'image/jpeg'],
-                        );
-                        $response->cacheFor(3600);
-                        return $response;
-                    }
-                }
-            }
-        }
-        $response = new DataDisplayResponse($data, Http::STATUS_OK, ['Content-Type' => $mime]);
-        $response->cacheFor(3600);
-        return $response;
     }
 }

@@ -314,6 +314,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { NcButton } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
+import { showError } from '@nextcloud/dialogs'
 import { useSettings } from '../composables/useSettings.js'
 import { formatMarketValue } from '../utils/formatMarketValue.js'
 import { useArtworkStyle } from '../composables/useArtworkStyle.js'
@@ -402,6 +403,7 @@ async function enrich() {
     }
   } catch (e) {
     console.error('Enrich failed', e)
+    showError('Couldn’t fetch enrichment data')
   } finally {
     enriching.value = false
   }
@@ -418,6 +420,7 @@ async function fetchMarketValue() {
     if (updated) emit('enriched', updated)
   } catch (e) {
     console.error('Fetch market value failed', e)
+    showError('Couldn’t refresh market value')
   } finally {
     fetchingMarket.value = false
   }
@@ -532,6 +535,7 @@ async function stripEnrich() {
     }
   } catch (e) {
     console.error('Strip enrich failed', e)
+    showError('Couldn’t remove enrichment data')
   } finally {
     stripping.value = false
   }

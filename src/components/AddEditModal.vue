@@ -219,10 +219,10 @@
             <select
               id="field-purchase-currency"
               v-model="form.purchasePriceCurrency"
-              :disabled="!form.purchasePrice"
+              :disabled="form.purchasePrice === null || form.purchasePrice === ''"
             >
               <option
-                v-for="code in currencyOptions"
+                v-for="code in visibleCurrencyOptions"
                 :key="code"
                 :value="code"
               >
@@ -358,7 +358,6 @@ import OpenLibrarySearch from './OpenLibrarySearch.vue'
 import RAWGSearch from './RAWGSearch.vue'
 import PhotoSlot from './PhotoSlot.vue'
 import { FORMAT_GROUPS, FIELD_CONFIG } from '../utils/categoryFormats.js'
-import { settingsCurrencies } from '../api.js'
 import { useSettings } from '../composables/useSettings.js'
 
 const props = defineProps({
@@ -518,7 +517,7 @@ function handlePhotoRemoved(slot) {
 }
 
 // ── Form ───────────────────────────────────────────────────────────────────────
-const { marketCurrency } = useSettings()
+const { marketCurrency, currencyOptions } = useSettings()
 
 const blankForm = () => ({
   title:      '',
@@ -538,20 +537,17 @@ const blankForm = () => ({
 
 const form = ref(blankForm())
 
-// Currency options — supplied by the backend allowlist. Falls back to a
-// minimal default if the request fails (e.g. offline), so the form remains
-// usable rather than blocking save.
-const currencyOptions = ref([
-  'GBP', 'USD', 'EUR', 'CAD', 'AUD', 'JPY', 'CHF', 'MXN', 'BRL', 'NZD', 'SEK', 'ZAR',
-])
-axios.get(settingsCurrencies())
-  .then((res) => {
-    const list = res.data.ocs?.data
-    if (Array.isArray(list) && list.length > 0) {
-      currencyOptions.value = list
-    }
-  })
-  .catch(() => { /* fall back to the static default */ })
+// Currency options come from useSettings — fetched once per page load from
+// the backend allowlist (MarketValueService::SUPPORTED_CURRENCIES). While
+// that request is in flight, the dropdown still needs an option matching
+// the form's current value (typically the user's marketCurrency, defaulted
+// from localStorage), so we splice that in if it's not already present.
+const visibleCurrencyOptions = computed(() => {
+  const list = currencyOptions.value ?? []
+  const selected = form.value?.purchasePriceCurrency
+  if (selected && !list.includes(selected)) return [selected, ...list]
+  return list
+})
 
 watch(
   () => props.show,

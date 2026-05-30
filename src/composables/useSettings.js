@@ -42,9 +42,15 @@ const autoEnrichOnClick      = ref(readBool(KEY_ENRICH_ON_CLICK, true))
 const autoEnrichOnImport     = ref(readBool(KEY_ENRICH_ON_IMPORT, true))
 const autoFetchMarketRates   = ref(readBool(KEY_AUTO_MARKET, false))
 const marketCurrency         = ref(readString(KEY_MARKET_CURRENCY, 'GBP'))
+// Currency allowlist served by the backend (`MarketValueService::SUPPORTED_CURRENCIES`).
+// Kept here rather than duplicated per-component so the list can't drift, and
+// fetched once per page load (cached for the rest of the session).
+const currencyOptions        = ref([])
 
 /** Whether the server settings have been loaded yet. */
 let serverLoaded = false
+/** Whether the currency allowlist has been fetched yet. */
+let currenciesLoaded = false
 // Suppress watcher-driven server writes while we're applying values from
 // the server. Without this every page load echoes the just-loaded values
 // back to the server.
@@ -94,7 +100,28 @@ watch(autoEnrichOnImport, v => { safeSet(KEY_ENRICH_ON_IMPORT, String(v)); persi
 watch(autoFetchMarketRates, v => { safeSet(KEY_AUTO_MARKET, String(v)); persistToServer() })
 watch(marketCurrency, v => { safeSet(KEY_MARKET_CURRENCY, v); persistToServer() })
 
+async function loadCurrencies() {
+  if (currenciesLoaded) return
+  try {
+    const res = await axios.get(generateOcsUrl('/apps/crate/api/v1/settings/currencies'))
+    const list = res.data.ocs?.data
+    if (Array.isArray(list) && list.length > 0) {
+      currencyOptions.value = list
+      currenciesLoaded = true
+    }
+  } catch {
+    // Caller falls back to whatever the marketCurrency is — non-critical
+  }
+}
+
 export function useSettings() {
   loadFromServer()
-  return { autoEnrichOnClick, autoEnrichOnImport, autoFetchMarketRates, marketCurrency }
+  loadCurrencies()
+  return {
+    autoEnrichOnClick,
+    autoEnrichOnImport,
+    autoFetchMarketRates,
+    marketCurrency,
+    currencyOptions,
+  }
 }

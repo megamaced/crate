@@ -128,6 +128,57 @@ class ImportService
     }
 
     /**
+     * Parse a spreadsheet cell holding a purchase price. Strips currency
+     * symbols and thousand separators, enforces the same 0..1_000_000 range
+     * as MediaController::normalisePurchasePrice.
+     *
+     * Returns ['price' => ?float] on success (null = blank cell, treated as
+     * "no purchase price recorded"), or ['error' => string] for an
+     * unparseable or out-of-range value.
+     *
+     * Public + static so the unit test suite can exercise it without
+     * standing up the full import pipeline.
+     *
+     * @return array{price?: ?float, error?: string}
+     */
+    public static function parsePurchasePriceCell(?string $raw): array
+    {
+        if ($raw === null || $raw === '') {
+            return ['price' => null];
+        }
+        $stripped = preg_replace('/[^0-9.\-]/', '', $raw);
+        if ($stripped === '' || !is_numeric($stripped)) {
+            return ['error' => "unparseable purchase price \"{$raw}\""];
+        }
+        $val = (float) $stripped;
+        if ($val < 0 || $val > 1_000_000) {
+            return ['error' => 'purchase price out of range'];
+        }
+        return ['price' => $val];
+    }
+
+    /**
+     * Validate a purchase-currency cell against the shared
+     * MarketValueService::SUPPORTED_CURRENCIES allowlist. Mirror of the
+     * controller path, kept here so the import pipeline doesn't reach
+     * into MediaController for one helper. Returns ['currency' => string]
+     * on success or ['error' => string] on a missing/unsupported code.
+     *
+     * @return array{currency?: string, error?: string}
+     */
+    public static function parsePurchaseCurrencyCell(?string $raw): array
+    {
+        $code = strtoupper(trim((string) ($raw ?? '')));
+        if ($code === '') {
+            return ['error' => 'purchase price requires a currency'];
+        }
+        if (!in_array($code, MarketValueService::SUPPORTED_CURRENCIES, true)) {
+            return ['error' => "unsupported purchase currency \"{$code}\""];
+        }
+        return ['currency' => $code];
+    }
+
+    /**
      * Parse a CSV or XLSX file and return an array of raw row arrays.
      * First row is treated as headers; returns ['headers' => [], 'rows' => []].
      *
@@ -440,43 +491,30 @@ class ImportService
             }
 
             // Purchase price + currency. The price column may carry currency
-            // symbols / thousand separators from spreadsheets; strip them.
-            // A row that names a currency without a price is treated as
-            // "no purchase price recorded" rather than an error — the user
-            // probably forgot to fill in the amount.
-            $purchasePriceRaw = $row['purchasePrice'] ?? null;
-            $purchasePrice = null;
-            if ($purchasePriceRaw !== null && $purchasePriceRaw !== '') {
-                $stripped = preg_replace('/[^0-9.\-]/', '', (string)$purchasePriceRaw);
-                if ($stripped !== '' && is_numeric($stripped)) {
-                    $val = (float) $stripped;
-                    if ($val >= 0 && $val <= 1_000_000) {
-                        $purchasePrice = $val;
-                    } else {
-                        $skipped++;
-                        $errors[] = "Row {$rowNum}: purchase price out of range — skipped";
-                        continue;
-                    }
-                } else {
-                    $skipped++;
-                    $errors[] = "Row {$rowNum}: unparseable purchase price \"{$purchasePriceRaw}\" — skipped";
-                    continue;
-                }
+            // symbols / thousand separators from spreadsheets — the helpers
+            // below strip them. A row that names a currency without a price
+            // is treated as "no purchase price recorded" rather than an
+            // error; the user probably forgot to fill in the amount.
+            $priceCell = self::parsePurchasePriceCell(
+                isset($row['purchasePrice']) ? (string) $row['purchasePrice'] : null,
+            );
+            if (isset($priceCell['error'])) {
+                $skipped++;
+                $errors[] = "Row {$rowNum}: {$priceCell['error']} — skipped";
+                continue;
             }
+            $purchasePrice    = $priceCell['price'] ?? null;
             $purchaseCurrency = null;
             if ($purchasePrice !== null) {
-                $rawCur = strtoupper(trim((string)($row['purchasePriceCurrency'] ?? '')));
-                if ($rawCur === '') {
+                $curCell = self::parsePurchaseCurrencyCell(
+                    $row['purchasePriceCurrency'] ?? null,
+                );
+                if (isset($curCell['error'])) {
                     $skipped++;
-                    $errors[] = "Row {$rowNum}: purchase price requires a currency — skipped";
+                    $errors[] = "Row {$rowNum}: {$curCell['error']} — skipped";
                     continue;
                 }
-                if (!in_array($rawCur, MarketValueService::SUPPORTED_CURRENCIES, true)) {
-                    $skipped++;
-                    $errors[] = "Row {$rowNum}: unsupported purchase currency \"{$rawCur}\" — skipped";
-                    continue;
-                }
-                $purchaseCurrency = $rawCur;
+                $purchaseCurrency = $curCell['currency'] ?? null;
             }
 
             $item = new \OCA\Crate\Db\MediaItem();
