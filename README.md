@@ -1,3 +1,11 @@
+Forked v0.5.3 from megamaced/crate:
+ - Added Nextcloud 34 support
+ - Made catalogue globally available, instead of private
+ - Made API keys fallback to 
+ - Added JS bundle
+
+The fallback api's are coded to my local username (geekhat), on #37 of lib/Controller/SettingsController.php - I'll look into a fix for this in a future update, but for now just replace 'geekhat' with the username who originally entered the API's.
+-----
 # Crate
 
 A personal physical media cataloguing app for [Nextcloud](https://nextcloud.com). Track your music, films, books, games and comics — what you own, what you want, and what they're worth — on a server you control.
