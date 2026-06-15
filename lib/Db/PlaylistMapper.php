@@ -20,26 +20,28 @@ class PlaylistMapper extends QBMapper
     }
 
     /** @return Playlist[] */
-    public function findAll(string $userId): array
+    public function findAll(): array
     {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->orderBy('name', 'ASC');
+	  ->from($this->getTableName());
         return $this->findEntities($qb);
     }
 
     /** @throws DoesNotExistException */
+
+
+
     public function findByUser(int $id, string $userId): Playlist
     {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
-        return $this->findEntity($qb);
+	$qb = $this->db->getQueryBuilder();
+	$qb->select('*')
+	->from($this->getTableName())
+	->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)));
+	return $this->findEntity($qb);
     }
+
+
 
     /** Find by id without user ownership check — for shared access. */
     public function findById(int $id): Playlist

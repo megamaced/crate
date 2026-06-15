@@ -57,9 +57,9 @@ class MediaService
     }
 
     /** @return MediaItem[] */
-    public function findAll(string $userId, ?string $category = null): array
+    public function findAll(?string $category = null): array
     {
-        return $this->mapper->findAll($userId, $category);
+        return $this->mapper->findAll($category);
     }
 
     /**

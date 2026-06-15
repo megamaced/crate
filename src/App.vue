@@ -14,7 +14,7 @@
           href="#/books"
           @click="switchView('books')"
         />
-        <NcAppNavigationItem
+	<NcAppNavigationItem
           name="Comics"
           :active="view === 'comics'"
           href="#/comics"

@@ -13,7 +13,7 @@
     <bugs>https://github.com/megamaced/crate/issues</bugs>
     <repository type="git">https://github.com/megamaced/crate</repository>
     <dependencies>
-        <nextcloud min-version="29" max-version="33"/>
+        <nextcloud min-version="29" max-version="34"/>
     </dependencies>
     <activity>
         <settings>

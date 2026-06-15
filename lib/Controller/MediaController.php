@@ -78,7 +78,7 @@ class MediaController extends OCSController
             ]);
         }
 
-        return new DataResponse($this->mediaService->findAll($this->userId(), $category));
+        return new DataResponse($this->mediaService->findAll($category));
     }
 
     #[NoAdminRequired]

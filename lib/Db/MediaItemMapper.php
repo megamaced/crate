@@ -26,13 +26,11 @@ class MediaItemMapper extends QBMapper
     /**
      * @return MediaItem[]
      */
-    public function findAll(string $userId, ?string $category = null): array
+    public function findAll(string $category = null): array
     {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->orderBy('created_at', 'DESC');
+	  ->from($this->getTableName());
 
         if ($category !== null) {
             $qb->andWhere($qb->expr()->eq('category', $qb->createNamedParameter($category)));
@@ -120,14 +118,13 @@ class MediaItemMapper extends QBMapper
     /**
      * @throws DoesNotExistException
      */
-    public function findByUser(int $id, string $userId): MediaItem
+	public function findByUser(int $id, string $userId): MediaItem
     {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
-        return $this->findEntity($qb);
+	$qb = $this->db->getQueryBuilder();
+	$qb->select('*')
+	->from($this->getTableName())
+	->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)));
+	return $this->findEntity($qb);
     }
 
     public function deleteAllByUser(string $userId): void

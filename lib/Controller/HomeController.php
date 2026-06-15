@@ -33,7 +33,7 @@ class HomeController extends OCSController
     public function home(): DataResponse
     {
         $owned = array_values(array_filter(
-            $this->mapper->findAll($this->userId()),
+            $this->mapper->findAll(),
             fn($i) => $i->getStatus() === 'owned',
         ));
 
