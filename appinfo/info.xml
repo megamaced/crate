@@ -9,7 +9,7 @@
 Add items manually or by barcode scan. Pull rich metadata automatically from Discogs (music), TMDB (films), Open Library (books), RAWG (games) and ComicVine (comics). Track market values from Discogs and PriceCharting alongside what you originally paid. Attach the cover art plus two extra user photos per item (receipts, sleevenotes, disc shots).
 
 Owned vs. wanted, playlists, sharing with other Nextcloud users, full CSV and XLSX import / export. There's a native Android companion at https://github.com/megamaced/crate-android.]]></description>
-    <version>1.0.1</version>
+    <version>1.0.2</version>
     <licence>AGPL-3.0-or-later</licence>
     <author mail="22581049+megamaced@users.noreply.github.com" homepage="https://github.com/megamaced/crate">megamaced</author>
     <namespace>Crate</namespace>
