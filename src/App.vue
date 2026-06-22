@@ -555,11 +555,15 @@ function openSharePlaylist(playlist) {
 }
 
 function openShareLibrary() {
+  // Close the settings dialog first — NcAppSettingsDialog stacks above NcModal,
+  // so opening the share modal while settings is open hides it behind.
+  settingsOpen.value = false
   shareTarget.value = { type: 'library' }
   showShareModal.value = true
 }
 
 function openShareCategory(category) {
+  settingsOpen.value = false
   shareTarget.value = { type: 'category', category }
   showShareModal.value = true
 }
