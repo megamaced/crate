@@ -7,10 +7,19 @@
   >
     <div class="share-modal">
       <h2 id="share-modal-title">
-        Share
+        {{ headingForTarget }}
       </h2>
-      <p class="share-subtitle">
+      <p
+        v-if="displayName"
+        class="share-subtitle"
+      >
         <strong>{{ displayName }}</strong>
+      </p>
+      <p
+        v-if="subscopeHint"
+        class="share-hint"
+      >
+        {{ subscopeHint }}
       </p>
 
       <!-- User search -->
@@ -93,11 +102,20 @@ import { showError } from '@nextcloud/dialogs'
 
 const props = defineProps({
   show: { type: Boolean, required: true },
-  /** { type: 'album'|'playlist', id: number, name: string } */
+  /**
+   * { type: 'album'|'playlist', id: number, name: string }
+   *   — per-item shares
+   * { type: 'library' }
+   *   — whole-library share
+   * { type: 'category', category: 'music'|'film'|'book'|'game'|'comic', name: string }
+   *   — per-category share
+   */
   target: { type: Object, default: null },
 })
 
 defineEmits(['close'])
+
+const CATEGORY_LABELS = { music: 'Music', film: 'Films', book: 'Books', game: 'Games', comic: 'Comics' }
 
 const query = ref('')
 const searching = ref(false)
@@ -108,7 +126,28 @@ const statusError = ref(false)
 let searchTimeout = null
 let searchController = null
 
-const displayName = computed(() => props.target?.name ?? '')
+const displayName = computed(() => {
+  if (!props.target) return ''
+  if (props.target.type === 'library') return ''
+  if (props.target.type === 'category') return CATEGORY_LABELS[props.target.category] ?? props.target.category
+  return props.target.name ?? ''
+})
+
+const headingForTarget = computed(() => {
+  switch (props.target?.type) {
+    case 'library':  return 'Share whole library'
+    case 'category': return 'Share category'
+    default:         return 'Share'
+  }
+})
+
+const subscopeHint = computed(() => {
+  switch (props.target?.type) {
+    case 'library':  return 'Sharees can view every item in your collection. Read-only.'
+    case 'category': return 'Sharees can view items in this category. Read-only.'
+    default:         return ''
+  }
+})
 
 watch(() => props.show, async (open) => {
   if (!open) {
@@ -129,18 +168,34 @@ watch(() => props.show, async (open) => {
 })
 
 // Reload shares when the parent reuses an open modal but switches target.
-watch(() => props.target?.type + ':' + props.target?.id, async () => {
-  if (!props.show || !props.target) return
-  currentShares.value = []
-  await loadCurrentShares()
-})
+watch(
+  () => [props.target?.type, props.target?.id, props.target?.category].join(':'),
+  async () => {
+    if (!props.show || !props.target) return
+    currentShares.value = []
+    await loadCurrentShares()
+  },
+)
+
+function urlForList() {
+  if (!props.target) return null
+  switch (props.target.type) {
+    case 'album':    return generateOcsUrl(`/apps/crate/api/v1/share/album/${props.target.id}`)
+    case 'playlist': return generateOcsUrl(`/apps/crate/api/v1/share/playlist/${props.target.id}`)
+    case 'library':  return generateOcsUrl('/apps/crate/api/v1/share/library')
+    case 'category': return generateOcsUrl(`/apps/crate/api/v1/share/category/${props.target.category}`)
+    default:         return null
+  }
+}
+
+function urlForCreate() {
+  return urlForList()
+}
 
 async function loadCurrentShares() {
-  if (!props.target) return
+  const url = urlForList()
+  if (!url) return
   try {
-    const url = props.target.type === 'album'
-      ? generateOcsUrl(`/apps/crate/api/v1/share/album/${props.target.id}`)
-      : generateOcsUrl(`/apps/crate/api/v1/share/playlist/${props.target.id}`)
     const res = await axios.get(url)
     currentShares.value = res.data.ocs?.data ?? []
   } catch (e) {
@@ -176,12 +231,10 @@ async function doSearch() {
 }
 
 async function shareWith(user) {
-  if (!props.target) return
+  const url = urlForCreate()
+  if (!url) return
   statusMessage.value = ''
   try {
-    const url = props.target.type === 'album'
-      ? generateOcsUrl(`/apps/crate/api/v1/share/album/${props.target.id}`)
-      : generateOcsUrl(`/apps/crate/api/v1/share/playlist/${props.target.id}`)
     await axios.post(url, { userId: user.uid })
     query.value = ''
     searchResults.value = []
@@ -220,8 +273,14 @@ async function unshare(share) {
 }
 
 .share-subtitle {
-  margin: 0 0 20px;
+  margin: 0 0 8px;
   font-size: 0.875em;
+  color: var(--color-text-maxcontrast);
+}
+
+.share-hint {
+  margin: 0 0 16px;
+  font-size: 0.82em;
   color: var(--color-text-maxcontrast);
 }
 

@@ -14,7 +14,7 @@
     </p>
 
     <div
-      v-else-if="albums.length === 0 && playlists.length === 0"
+      v-else-if="isEmpty"
       class="sv-empty"
     >
       <p>Nothing has been shared with you yet.</p>
@@ -79,12 +79,93 @@
           </div>
         </div>
       </section>
+
+      <!-- Shared whole libraries — one section per share -->
+      <section
+        v-for="lib in libraries"
+        :key="'lib:' + lib.shareId"
+        class="sv-section"
+      >
+        <h3 class="sv-section-title">
+          {{ lib.sharedByUser }}’s library
+          <span class="sv-section-sub">{{ lib.items.length }} item{{ lib.items.length === 1 ? '' : 's' }}</span>
+        </h3>
+        <div class="sv-list">
+          <div
+            v-for="item in lib.items"
+            :key="lib.shareId + ':' + item.id"
+            class="sv-row"
+            @click="$emit('detail', tagShared(item, lib))"
+          >
+            <MediaThumb
+              :item="item"
+              class="sv-thumb"
+            />
+            <div class="sv-info">
+              <span class="sv-title">{{ item.title }}</span>
+              <span class="sv-artist">{{ item.artist }}</span>
+              <span class="sv-meta">
+                <span class="sv-badge">{{ item.format }}</span>
+                <template v-if="item.year">&thinsp;{{ item.year }}</template>
+                <span
+                  class="sv-shared-by"
+                >&ensp;·&ensp;{{ categoryLabel(item.category) }}</span>
+              </span>
+            </div>
+          </div>
+          <p
+            v-if="lib.items.length === 0"
+            class="sv-empty-mini"
+          >
+            No items yet.
+          </p>
+        </div>
+      </section>
+
+      <!-- Shared categories — one section per share -->
+      <section
+        v-for="cat in categories"
+        :key="'cat:' + cat.shareId"
+        class="sv-section"
+      >
+        <h3 class="sv-section-title">
+          {{ cat.sharedByUser }}’s {{ categoryLabel(cat.category) }}
+          <span class="sv-section-sub">{{ cat.items.length }} item{{ cat.items.length === 1 ? '' : 's' }}</span>
+        </h3>
+        <div class="sv-list">
+          <div
+            v-for="item in cat.items"
+            :key="cat.shareId + ':' + item.id"
+            class="sv-row"
+            @click="$emit('detail', tagShared(item, cat))"
+          >
+            <MediaThumb
+              :item="item"
+              class="sv-thumb"
+            />
+            <div class="sv-info">
+              <span class="sv-title">{{ item.title }}</span>
+              <span class="sv-artist">{{ item.artist }}</span>
+              <span class="sv-meta">
+                <span class="sv-badge">{{ item.format }}</span>
+                <template v-if="item.year">&thinsp;{{ item.year }}</template>
+              </span>
+            </div>
+          </div>
+          <p
+            v-if="cat.items.length === 0"
+            class="sv-empty-mini"
+          >
+            No items yet.
+          </p>
+        </div>
+      </section>
     </template>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import axios from '@nextcloud/axios'
 import { generateUrl, generateOcsUrl } from '@nextcloud/router'
 import { showError } from '@nextcloud/dialogs'
@@ -94,9 +175,32 @@ import MediaThumb from './MediaThumb.vue'
 
 defineEmits(['detail', 'playlist'])
 
+const CATEGORY_LABELS = { music: 'Music', film: 'Films', book: 'Books', game: 'Games', comic: 'Comics' }
+
 const albums = ref([])
 const playlists = ref([])
+const libraries = ref([])   // [{shareId, sharedByUser, items: [...]}]
+const categories = ref([])  // [{shareId, sharedByUser, category, items: [...]}]
 const loading = ref(false)
+
+const isEmpty = computed(() =>
+  albums.value.length === 0
+  && playlists.value.length === 0
+  && libraries.value.length === 0
+  && categories.value.length === 0,
+)
+
+function categoryLabel(key) {
+  return CATEGORY_LABELS[key] ?? key
+}
+
+// Items inside library / category shares come back without a shareId on
+// each row (the wrapping share has it). Tagging the click target with the
+// owner uid + shareId lets the detail view render the "Shared by" badge
+// and (later) decide whether to disable owner-only actions.
+function tagShared(item, wrapper) {
+  return { ...item, sharedByUser: wrapper.sharedByUser, shareId: wrapper.shareId }
+}
 
 function playlistCoverStyle(pl) {
   if (pl.coverId) {
@@ -115,8 +219,10 @@ async function load() {
   try {
     const res = await axios.get(generateOcsUrl('/apps/crate/api/v1/share/with-me'))
     const data = res.data.ocs?.data ?? {}
-    albums.value = data.albums ?? []
-    playlists.value = data.playlists ?? []
+    albums.value     = data.albums     ?? []
+    playlists.value  = data.playlists  ?? []
+    libraries.value  = data.libraries  ?? []
+    categories.value = data.categories ?? []
   } catch (e) {
     console.error('Failed to load shared items', e)
     showError('Failed to load shared items')
@@ -153,6 +259,12 @@ defineExpose({ load })
   margin-top: 40px;
 }
 
+.sv-empty-mini {
+  color: var(--color-text-maxcontrast);
+  font-size: 0.875em;
+  margin: 4px 8px;
+}
+
 .sv-section {
   margin-bottom: 40px;
 }
@@ -164,6 +276,16 @@ defineExpose({ load })
   letter-spacing: 0.06em;
   color: var(--color-text-maxcontrast);
   margin: 0 0 14px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.sv-section-sub {
+  font-size: 0.85em;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 /* Album list */

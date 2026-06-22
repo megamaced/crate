@@ -67,6 +67,8 @@
       @comicvine-key-changed="v => hasComicVineKey = v"
       @pricecharting-token-changed="v => hasPriceChartingToken = v"
       @collection-wiped="handleCollectionWiped"
+      @share-library="openShareLibrary"
+      @share-category="openShareCategory"
     />
 
     <NcAppContent ref="appContentRef">
@@ -560,6 +562,16 @@ function openShareAlbum(item) {
 
 function openSharePlaylist(playlist) {
   shareTarget.value = { type: 'playlist', id: playlist.id, name: playlist.name }
+  showShareModal.value = true
+}
+
+function openShareLibrary() {
+  shareTarget.value = { type: 'library' }
+  showShareModal.value = true
+}
+
+function openShareCategory(category) {
+  shareTarget.value = { type: 'category', category }
   showShareModal.value = true
 }
 

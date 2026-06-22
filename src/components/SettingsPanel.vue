@@ -463,6 +463,34 @@
       </div>
     </NcAppSettingsSection>
 
+    <!-- ── Sharing ── -->
+    <NcAppSettingsSection
+      id="crate-settings-sharing"
+      name="Sharing"
+    >
+      <p class="settings-hint">
+        Share your whole collection or a single category read-only with another Nextcloud user. Individual albums and playlists are still shared from the item or playlist itself.
+      </p>
+      <div class="settings-actions settings-share-row">
+        <NcButton
+          variant="secondary"
+          @click="$emit('share-library')"
+        >
+          Share whole library…
+        </NcButton>
+      </div>
+      <div class="settings-share-categories">
+        <NcButton
+          v-for="cat in shareCategoryOptions"
+          :key="cat.value"
+          variant="tertiary"
+          @click="$emit('share-category', cat.value)"
+        >
+          Share {{ cat.label }}…
+        </NcButton>
+      </div>
+    </NcAppSettingsSection>
+
     <!-- ── Danger Zone ── -->
     <NcAppSettingsSection
       id="crate-settings-danger"
@@ -538,7 +566,15 @@ import { useTokenSetting } from '../composables/useTokenSetting.js'
 defineProps({
   open: { type: Boolean, required: true },
 })
-const emit = defineEmits(['update:open', 'token-changed', 'tmdb-token-changed', 'rawg-key-changed', 'comicvine-key-changed', 'pricecharting-token-changed', 'collection-wiped'])
+const emit = defineEmits(['update:open', 'token-changed', 'tmdb-token-changed', 'rawg-key-changed', 'comicvine-key-changed', 'pricecharting-token-changed', 'collection-wiped', 'share-library', 'share-category'])
+
+const shareCategoryOptions = [
+  { value: 'music', label: 'Music' },
+  { value: 'film',  label: 'Films' },
+  { value: 'book',  label: 'Books' },
+  { value: 'game',  label: 'Games' },
+  { value: 'comic', label: 'Comics' },
+]
 
 const enrich = useEnrichQueue()
 const marketQueue = useMarketValueQueue()
@@ -811,6 +847,17 @@ onMounted(load)
 }
 
 .settings-enrich-all {
+  margin-top: 12px;
+}
+
+.settings-share-row {
+  margin-top: 12px;
+}
+
+.settings-share-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-top: 12px;
 }
 
