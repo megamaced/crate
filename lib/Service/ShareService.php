@@ -234,7 +234,7 @@ class ShareService
         string $sharedWithUserId,
         string $type,
         int $shareableId,
-        string $shareableCategory = '',
+        string $shareableCategory = CrateShare::CATEGORY_NONE,
     ): CrateShare {
         $share = new CrateShare();
         $share->setOwnerUserId($ownerUserId);

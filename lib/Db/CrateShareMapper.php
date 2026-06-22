@@ -22,8 +22,9 @@ class CrateShareMapper extends QBMapper
     /**
      * Shares created by $ownerUserId of the given (type, shareableId, category) tuple.
      *
-     * `shareableCategory` is the empty string for album / playlist / library
-     * shares — only category shares populate it.
+     * `shareableCategory` is {@see CrateShare::CATEGORY_NONE} for album /
+     * playlist / library shares — only category shares populate it with a
+     * real category key.
      *
      * @return CrateShare[]
      */
@@ -31,7 +32,7 @@ class CrateShareMapper extends QBMapper
         string $ownerUserId,
         string $type,
         int $shareableId,
-        string $shareableCategory = '',
+        string $shareableCategory = CrateShare::CATEGORY_NONE,
     ): array {
         $qb = $this->db->getQueryBuilder();
         $shareableIdParam = $qb->createNamedParameter($shareableId, IQueryBuilder::PARAM_INT);
@@ -74,7 +75,7 @@ class CrateShareMapper extends QBMapper
         string $viewerUserId,
         string $type,
         int $shareableId,
-        string $shareableCategory = '',
+        string $shareableCategory = CrateShare::CATEGORY_NONE,
     ): bool {
         $qb = $this->db->getQueryBuilder();
         $shareableIdParam = $qb->createNamedParameter($shareableId, IQueryBuilder::PARAM_INT);
@@ -98,7 +99,7 @@ class CrateShareMapper extends QBMapper
         string $sharedWithUserId,
         string $type,
         int $shareableId,
-        string $shareableCategory = '',
+        string $shareableCategory = CrateShare::CATEGORY_NONE,
     ): bool {
         $qb = $this->db->getQueryBuilder();
         $shareableIdParam = $qb->createNamedParameter($shareableId, IQueryBuilder::PARAM_INT);

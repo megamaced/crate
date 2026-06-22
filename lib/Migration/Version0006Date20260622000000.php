@@ -14,13 +14,15 @@ use OCP\Migration\SimpleMigrationStep;
  * Phase 18: whole-library and per-category sharing.
  *
  * Adds shareable_category to crate_shares so 'category' shares can record
- * which of the five categories was shared. Empty string for the existing
- * 'album' and 'playlist' shares and for whole-library shares — non-empty
- * only for category shares. The composite unique key is rebuilt to include
- * the new column so (owner, recipient, 'category', 'music') and
+ * which of the five categories was shared. The sentinel '-' is used for
+ * the existing 'album' and 'playlist' shares and for whole-library shares
+ * — non-empty only for category shares (CrateShare::CATEGORY_NONE). The
+ * composite unique key is rebuilt to include the new column so
+ * (owner, recipient, 'category', 'music') and
  * (owner, recipient, 'category', 'film') are distinct rows.
  *
- * No data migration is required: existing rows get the column default ''.
+ * Default is the literal '-' (Nextcloud's migration validator rejects
+ * NOT NULL columns whose default is the empty string or null).
  */
 class Version0006Date20260622000000 extends SimpleMigrationStep
 {
@@ -39,7 +41,7 @@ class Version0006Date20260622000000 extends SimpleMigrationStep
             $shares->addColumn('shareable_category', Types::STRING, [
                 'notnull' => true,
                 'length'  => 16,
-                'default' => '',
+                'default' => '-',
             ]);
         }
 
