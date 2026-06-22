@@ -70,8 +70,9 @@ class ArtworkController extends Controller
         }
         $userId = $user->getUID();
 
+        // Read-path: owner OR sharee (via per-album / library / category share)
         try {
-            $item = $this->mapper->findByUser($itemId, $userId);
+            $item = $this->mapper->findVisibleForUser($itemId, $userId);
         } catch (\OCP\AppFramework\Db\DoesNotExistException) {
             return new Response(Http::STATUS_NOT_FOUND);
         }

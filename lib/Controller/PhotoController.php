@@ -83,8 +83,9 @@ class PhotoController extends Controller
             return new Response(Http::STATUS_BAD_REQUEST);
         }
 
+        // Read-path: owner OR sharee (via per-album / library / category share)
         try {
-            $item = $this->mapper->findByUser($itemId, $user->getUID());
+            $item = $this->mapper->findVisibleForUser($itemId, $user->getUID());
         } catch (\OCP\AppFramework\Db\DoesNotExistException) {
             return new Response(Http::STATUS_NOT_FOUND);
         }

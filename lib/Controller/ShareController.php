@@ -65,7 +65,7 @@ class ShareController extends OCSController
     {
         try {
             return new DataResponse($this->shareService->shareAlbum($this->userId(), $id, $userId));
-        } catch (\OCP\AppFramework\Db\DoesNotExistException) {
+        } catch (DoesNotExistException) {
             return new DataResponse(['error' => 'Album not found'], Http::STATUS_NOT_FOUND);
         } catch (\InvalidArgumentException $e) {
             return new DataResponse(['error' => $e->getMessage()], Http::STATUS_CONFLICT);
@@ -90,7 +90,7 @@ class ShareController extends OCSController
     {
         try {
             return new DataResponse($this->shareService->sharePlaylist($this->userId(), $id, $userId));
-        } catch (\OCP\AppFramework\Db\DoesNotExistException) {
+        } catch (DoesNotExistException) {
             return new DataResponse(['error' => 'Playlist not found'], Http::STATUS_NOT_FOUND);
         } catch (\InvalidArgumentException $e) {
             return new DataResponse(['error' => $e->getMessage()], Http::STATUS_CONFLICT);
@@ -106,6 +106,49 @@ class ShareController extends OCSController
             return new DataResponse(['error' => 'Playlist not found'], Http::STATUS_NOT_FOUND);
         }
         return new DataResponse($this->shareService->getSharesForPlaylist($this->userId(), $id));
+    }
+
+    // ── Share whole library ────────────────────────────────────────────────────
+
+    #[NoAdminRequired]
+    public function shareLibrary(string $userId): DataResponse
+    {
+        try {
+            return new DataResponse($this->shareService->shareLibrary($this->userId(), $userId));
+        } catch (\InvalidArgumentException $e) {
+            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_CONFLICT);
+        }
+    }
+
+    #[NoAdminRequired]
+    public function sharesForLibrary(): DataResponse
+    {
+        return new DataResponse($this->shareService->getSharesForLibrary($this->userId()));
+    }
+
+    // ── Share single category ──────────────────────────────────────────────────
+
+    #[NoAdminRequired]
+    public function shareCategory(string $category, string $userId): DataResponse
+    {
+        try {
+            return new DataResponse($this->shareService->shareCategory($this->userId(), $category, $userId));
+        } catch (\InvalidArgumentException $e) {
+            $status = $e->getMessage() === 'Unknown category.'
+                ? Http::STATUS_BAD_REQUEST
+                : Http::STATUS_CONFLICT;
+            return new DataResponse(['error' => $e->getMessage()], $status);
+        }
+    }
+
+    #[NoAdminRequired]
+    public function sharesForCategory(string $category): DataResponse
+    {
+        try {
+            return new DataResponse($this->shareService->getSharesForCategory($this->userId(), $category));
+        } catch (\InvalidArgumentException $e) {
+            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+        }
     }
 
     // ── Shared with me ─────────────────────────────────────────────────────────
@@ -124,7 +167,7 @@ class ShareController extends OCSController
         try {
             $this->shareService->unshare($id, $this->userId());
             return new DataResponse([]);
-        } catch (\OCP\AppFramework\Db\DoesNotExistException) {
+        } catch (DoesNotExistException) {
             return new DataResponse(['error' => 'Share not found'], Http::STATUS_NOT_FOUND);
         }
     }

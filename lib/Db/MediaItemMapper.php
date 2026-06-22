@@ -130,6 +130,67 @@ class MediaItemMapper extends QBMapper
         return $this->findEntity($qb);
     }
 
+    /**
+     * Find a media item that $viewerUserId can read — they own it, or there is
+     * a share row that grants them access (per-album, whole-library from the
+     * item's owner, or a matching per-category share from the item's owner).
+     *
+     * Read-only callers (artwork GET, photo GET, item detail GET) should use
+     * this. Write callers (upload, delete, enrich, fetchMarketValue) must
+     * continue to use findByUser() — sharees are read-only in this release.
+     *
+     * @throws DoesNotExistException
+     */
+    public function findVisibleForUser(int $id, string $viewerUserId): MediaItem
+    {
+        // Cheap owner-case fast path — the common case is the user reading
+        // their own items, and findByUser is a single indexed lookup.
+        try {
+            return $this->findByUser($id, $viewerUserId);
+        } catch (DoesNotExistException) {
+            // Fall through to share resolution.
+        }
+
+        // Sharee case. Single LEFT JOIN against crate_shares constrained to
+        // shares of this exact item (album-level), or the item's owner+category
+        // (library / category-level). DISTINCT defends against multiple
+        // overlapping shares — e.g. owner shared both the whole library AND
+        // this specific album — returning the same item twice.
+        $qb = $this->db->getQueryBuilder();
+        $idParam     = $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT);
+        $viewerParam = $qb->createNamedParameter($viewerUserId);
+
+        $qb->select('mi.*')
+            ->from($this->getTableName(), 'mi')
+            ->leftJoin(
+                'mi',
+                'crate_shares',
+                'cs',
+                $qb->expr()->andX(
+                    $qb->expr()->eq('cs.shared_with_user_id', $viewerParam),
+                    $qb->expr()->orX(
+                        $qb->expr()->andX(
+                            $qb->expr()->eq('cs.shareable_type', $qb->createNamedParameter(CrateShare::TYPE_ALBUM)),
+                            $qb->expr()->eq('cs.shareable_id', $idParam),
+                        ),
+                        $qb->expr()->andX(
+                            $qb->expr()->eq('cs.shareable_type', $qb->createNamedParameter(CrateShare::TYPE_LIBRARY)),
+                            $qb->expr()->eq('cs.owner_user_id', 'mi.user_id'),
+                        ),
+                        $qb->expr()->andX(
+                            $qb->expr()->eq('cs.shareable_type', $qb->createNamedParameter(CrateShare::TYPE_CATEGORY)),
+                            $qb->expr()->eq('cs.owner_user_id', 'mi.user_id'),
+                            $qb->expr()->eq('cs.shareable_category', 'mi.category'),
+                        ),
+                    ),
+                ),
+            )
+            ->where($qb->expr()->eq('mi.id', $idParam))
+            ->andWhere($qb->expr()->isNotNull('cs.id'))
+            ->setMaxResults(1);
+        return $this->findEntity($qb);
+    }
+
     public function deleteAllByUser(string $userId): void
     {
         $qb = $this->db->getQueryBuilder();

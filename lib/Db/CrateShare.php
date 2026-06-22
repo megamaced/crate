@@ -15,15 +15,25 @@ use OCP\AppFramework\Db\Entity;
  * @method void setShareableType(string $shareableType)
  * @method int getShareableId()
  * @method void setShareableId(int $shareableId)
+ * @method string getShareableCategory()
+ * @method void setShareableCategory(string $shareableCategory)
  * @method string|null getCreatedAt()
  * @method void setCreatedAt(string $createdAt)
  */
 class CrateShare extends Entity implements \JsonSerializable
 {
+    public const TYPE_ALBUM    = 'album';
+    public const TYPE_PLAYLIST = 'playlist';
+    public const TYPE_LIBRARY  = 'library';
+    public const TYPE_CATEGORY = 'category';
+
+    public const ALL_TYPES = [self::TYPE_ALBUM, self::TYPE_PLAYLIST, self::TYPE_LIBRARY, self::TYPE_CATEGORY];
+
     protected string $ownerUserId = '';
     protected string $sharedWithUserId = '';
     protected string $shareableType = '';
     protected int $shareableId = 0;
+    protected string $shareableCategory = '';
     protected ?string $createdAt = null;
 
     public function __construct()
@@ -34,12 +44,13 @@ class CrateShare extends Entity implements \JsonSerializable
     public function jsonSerialize(): array
     {
         return [
-            'id'               => $this->id,
-            'ownerUserId'      => $this->ownerUserId,
-            'sharedWithUserId' => $this->sharedWithUserId,
-            'shareableType'    => $this->shareableType,
-            'shareableId'      => $this->shareableId,
-            'createdAt'        => $this->createdAt,
+            'id'                => $this->id,
+            'ownerUserId'       => $this->ownerUserId,
+            'sharedWithUserId'  => $this->sharedWithUserId,
+            'shareableType'     => $this->shareableType,
+            'shareableId'       => $this->shareableId,
+            'shareableCategory' => $this->shareableCategory,
+            'createdAt'         => $this->createdAt,
         ];
     }
 }

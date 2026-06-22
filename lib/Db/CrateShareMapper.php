@@ -19,20 +19,32 @@ class CrateShareMapper extends QBMapper
         parent::__construct($db, 'crate_shares', CrateShare::class);
     }
 
-    /** @return CrateShare[] Items this user has shared with others */
-    public function findByOwnerAndShareable(string $ownerUserId, string $type, int $shareableId): array
-    {
+    /**
+     * Shares created by $ownerUserId of the given (type, shareableId, category) tuple.
+     *
+     * `shareableCategory` is the empty string for album / playlist / library
+     * shares — only category shares populate it.
+     *
+     * @return CrateShare[]
+     */
+    public function findByOwnerAndShareable(
+        string $ownerUserId,
+        string $type,
+        int $shareableId,
+        string $shareableCategory = '',
+    ): array {
         $qb = $this->db->getQueryBuilder();
         $shareableIdParam = $qb->createNamedParameter($shareableId, IQueryBuilder::PARAM_INT);
         $qb->select('*')
             ->from($this->getTableName())
             ->where($qb->expr()->eq('owner_user_id', $qb->createNamedParameter($ownerUserId)))
             ->andWhere($qb->expr()->eq('shareable_type', $qb->createNamedParameter($type)))
-            ->andWhere($qb->expr()->eq('shareable_id', $shareableIdParam));
+            ->andWhere($qb->expr()->eq('shareable_id', $shareableIdParam))
+            ->andWhere($qb->expr()->eq('shareable_category', $qb->createNamedParameter($shareableCategory)));
         return $this->findEntities($qb);
     }
 
-    /** @return CrateShare[] Items shared WITH this user */
+    /** @return CrateShare[] Shares of any type received by $userId, newest first. */
     public function findSharedWithUser(string $userId): array
     {
         $qb = $this->db->getQueryBuilder();
@@ -54,9 +66,16 @@ class CrateShareMapper extends QBMapper
         return $this->findEntity($qb);
     }
 
-    /** True if $viewerUserId has been granted access to $type/$shareableId. */
-    public function isSharedWith(string $viewerUserId, string $type, int $shareableId): bool
-    {
+    /**
+     * True if $viewerUserId has been granted a share of the given shape by anyone.
+     * Used for ACL checks on specific item / playlist resources.
+     */
+    public function isSharedWith(
+        string $viewerUserId,
+        string $type,
+        int $shareableId,
+        string $shareableCategory = '',
+    ): bool {
         $qb = $this->db->getQueryBuilder();
         $shareableIdParam = $qb->createNamedParameter($shareableId, IQueryBuilder::PARAM_INT);
         $qb->select('id')
@@ -64,6 +83,7 @@ class CrateShareMapper extends QBMapper
             ->where($qb->expr()->eq('shared_with_user_id', $qb->createNamedParameter($viewerUserId)))
             ->andWhere($qb->expr()->eq('shareable_type', $qb->createNamedParameter($type)))
             ->andWhere($qb->expr()->eq('shareable_id', $shareableIdParam))
+            ->andWhere($qb->expr()->eq('shareable_category', $qb->createNamedParameter($shareableCategory)))
             ->setMaxResults(1);
         try {
             $this->findEntity($qb);
@@ -73,8 +93,13 @@ class CrateShareMapper extends QBMapper
         }
     }
 
-    public function alreadyShared(string $ownerUserId, string $sharedWithUserId, string $type, int $shareableId): bool
-    {
+    public function alreadyShared(
+        string $ownerUserId,
+        string $sharedWithUserId,
+        string $type,
+        int $shareableId,
+        string $shareableCategory = '',
+    ): bool {
         $qb = $this->db->getQueryBuilder();
         $shareableIdParam = $qb->createNamedParameter($shareableId, IQueryBuilder::PARAM_INT);
         $qb->select('id')
@@ -82,7 +107,8 @@ class CrateShareMapper extends QBMapper
             ->where($qb->expr()->eq('owner_user_id', $qb->createNamedParameter($ownerUserId)))
             ->andWhere($qb->expr()->eq('shared_with_user_id', $qb->createNamedParameter($sharedWithUserId)))
             ->andWhere($qb->expr()->eq('shareable_type', $qb->createNamedParameter($type)))
-            ->andWhere($qb->expr()->eq('shareable_id', $shareableIdParam));
+            ->andWhere($qb->expr()->eq('shareable_id', $shareableIdParam))
+            ->andWhere($qb->expr()->eq('shareable_category', $qb->createNamedParameter($shareableCategory)));
         try {
             $this->findEntity($qb);
             return true;

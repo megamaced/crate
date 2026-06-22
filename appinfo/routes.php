@@ -81,13 +81,17 @@ return [
 		['name' => 'playlist#removeItem', 'url' => '/api/v1/playlists/{id}/items/{mediaItemId}', 'verb' => 'DELETE'],
 
 		// ── Sharing ────────────────────────────────────────────────────────────
-		['name' => 'share#searchUsers',     'url' => '/api/v1/users/search',             'verb' => 'GET'],
-		['name' => 'share#shareAlbum',      'url' => '/api/v1/share/album/{id}',         'verb' => 'POST'],
-		['name' => 'share#sharesForAlbum',  'url' => '/api/v1/share/album/{id}',         'verb' => 'GET'],
-		['name' => 'share#sharePlaylist',   'url' => '/api/v1/share/playlist/{id}',      'verb' => 'POST'],
-		['name' => 'share#sharesForPlaylist', 'url' => '/api/v1/share/playlist/{id}',    'verb' => 'GET'],
-		['name' => 'share#sharedWithMe',    'url' => '/api/v1/share/with-me',            'verb' => 'GET'],
-		['name' => 'share#unshare',         'url' => '/api/v1/share/{id}',               'verb' => 'DELETE'],
+		['name' => 'share#searchUsers',         'url' => '/api/v1/users/search',                      'verb' => 'GET'],
+		['name' => 'share#shareAlbum',          'url' => '/api/v1/share/album/{id}',                  'verb' => 'POST'],
+		['name' => 'share#sharesForAlbum',      'url' => '/api/v1/share/album/{id}',                  'verb' => 'GET'],
+		['name' => 'share#sharePlaylist',       'url' => '/api/v1/share/playlist/{id}',               'verb' => 'POST'],
+		['name' => 'share#sharesForPlaylist',   'url' => '/api/v1/share/playlist/{id}',               'verb' => 'GET'],
+		['name' => 'share#shareLibrary',        'url' => '/api/v1/share/library',                     'verb' => 'POST'],
+		['name' => 'share#sharesForLibrary',    'url' => '/api/v1/share/library',                     'verb' => 'GET'],
+		['name' => 'share#shareCategory',       'url' => '/api/v1/share/category/{category}',         'verb' => 'POST'],
+		['name' => 'share#sharesForCategory',   'url' => '/api/v1/share/category/{category}',         'verb' => 'GET'],
+		['name' => 'share#sharedWithMe',        'url' => '/api/v1/share/with-me',                     'verb' => 'GET'],
+		['name' => 'share#unshare',             'url' => '/api/v1/share/{id}',                        'verb' => 'DELETE',  'requirements' => ['id' => '\d+']],
 
 		// ── Android / mobile API ───────────────────────────────────────────────
 		['name' => 'settings#me',                  'url' => '/api/v1/me',                       'verb' => 'GET'],
