@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace OCA\Crate\Controller;
 
+use OCA\Crate\CrateCategories;
 use OCA\Crate\Db\MediaItemMapper;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\OCSController;
+use OCP\IConfig;
 use OCP\IRequest;
 use OCP\IUserSession;
 
@@ -20,6 +22,7 @@ class HomeController extends OCSController
         IRequest $request,
         private readonly MediaItemMapper $mapper,
         private readonly IUserSession $userSession,
+        private readonly IConfig $config,
     ) {
         parent::__construct($appName, $request);
     }
@@ -27,14 +30,17 @@ class HomeController extends OCSController
     /**
      * GET /api/v1/home
      * Returns per-category home feed: item-of-the-day, recent items, most-valuable.
-     * Used by the Android app; the web frontend computes this client-side.
+     * Hidden categories are filtered out across all three sections so the
+     * Home view honours the user's hidden_categories setting.
      */
     #[NoAdminRequired]
     public function home(): DataResponse
     {
+        $hidden = $this->loadHiddenCategories();
+
         $owned = array_values(array_filter(
             $this->mapper->findAll($this->userId()),
-            fn($i) => $i->getStatus() === 'owned',
+            fn($i) => $i->getStatus() === 'owned' && !in_array($i->getCategory(), $hidden, true),
         ));
 
         // Group by category
@@ -65,5 +71,25 @@ class HomeController extends OCSController
             'recentlyAdded' => array_slice($owned, 0, 12),
             'mostValuable'  => array_slice($valuable, 0, 6),
         ]);
+    }
+
+    /**
+     * @return string[]
+     */
+    private function loadHiddenCategories(): array
+    {
+        $raw = $this->config->getUserValue($this->userId(), 'crate', 'hidden_categories', '[]');
+        try {
+            $decoded = json_decode($raw, true, 16, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return [];
+        }
+        if (!is_array($decoded)) {
+            return [];
+        }
+        return array_values(array_filter(
+            $decoded,
+            static fn($c) => is_string($c) && in_array($c, CrateCategories::ALL, true),
+        ));
     }
 }

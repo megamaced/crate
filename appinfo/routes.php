@@ -43,6 +43,7 @@ return [
 		['name' => 'settings#getMarketSettings', 'url' => '/api/v1/settings/market',       'verb' => 'GET'],
 		['name' => 'settings#setMarketSettings', 'url' => '/api/v1/settings/market',       'verb' => 'POST'],
 		['name' => 'settings#getSupportedCurrencies', 'url' => '/api/v1/settings/currencies', 'verb' => 'GET'],
+		['name' => 'settings#setHiddenCategories', 'url' => '/api/v1/settings/hidden-categories', 'verb' => 'PUT'],
 
 		// ── Discogs API proxy ──────────────────────────────────────────────────
 		['name' => 'discogs#search',       'url' => '/api/v1/discogs/search',            'verb' => 'GET'],

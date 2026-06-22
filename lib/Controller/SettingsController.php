@@ -214,7 +214,65 @@ class SettingsController extends OCSController
             'autoFetchMarketRates' => $autoFetch,
             'autoEnrichOnClick'    => $autoEnrichClick,
             'autoEnrichOnImport'   => $autoEnrichImport,
+            'hiddenCategories'     => $this->getHiddenCategories($uid),
             'crateVersion'         => $this->config->getAppValue('crate', 'installed_version', '0.0.0'),
         ]);
+    }
+
+    /**
+     * PUT /api/v1/settings/hidden-categories
+     * Update the per-user list of categories to hide from navigation, the
+     * home feed, and search. Must be a subset of the five known categories,
+     * and must leave at least one visible.
+     *
+     * @param string[] $categories
+     */
+    #[NoAdminRequired]
+    public function setHiddenCategories(array $categories = []): DataResponse
+    {
+        $clean = array_values(array_unique(array_filter(
+            $categories,
+            static fn($c) => is_string($c) && in_array($c, \OCA\Crate\CrateCategories::ALL, true),
+        )));
+
+        // Always keep at least one visible — count(ALL) - count(hidden) >= 1.
+        if (count($clean) >= count(\OCA\Crate\CrateCategories::ALL)) {
+            return new DataResponse(
+                ['error' => 'At least one category must remain visible.'],
+                Http::STATUS_BAD_REQUEST,
+            );
+        }
+
+        $this->config->setUserValue(
+            $this->userId(),
+            'crate',
+            'hidden_categories',
+            json_encode($clean, JSON_THROW_ON_ERROR),
+        );
+
+        return new DataResponse(['hiddenCategories' => $clean]);
+    }
+
+    /**
+     * Resolve the user's hidden_categories setting back to a clean list of
+     * known category keys. Tolerates stale entries from older clients.
+     *
+     * @return string[]
+     */
+    private function getHiddenCategories(string $uid): array
+    {
+        $raw = $this->config->getUserValue($uid, 'crate', 'hidden_categories', '[]');
+        try {
+            $decoded = json_decode($raw, true, 16, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return [];
+        }
+        if (!is_array($decoded)) {
+            return [];
+        }
+        return array_values(array_unique(array_filter(
+            $decoded,
+            static fn($c) => is_string($c) && in_array($c, \OCA\Crate\CrateCategories::ALL, true),
+        )));
     }
 }
