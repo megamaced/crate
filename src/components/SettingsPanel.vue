@@ -589,24 +589,26 @@ defineProps({
 })
 const emit = defineEmits(['update:open', 'token-changed', 'tmdb-token-changed', 'rawg-key-changed', 'comicvine-key-changed', 'pricecharting-token-changed', 'collection-wiped', 'share-library', 'share-category'])
 
+// Alphabetical by label so the Sharing list matches Android.
 const shareCategoryOptions = [
-  { value: 'music', label: 'Music' },
-  { value: 'film',  label: 'Films' },
   { value: 'book',  label: 'Books' },
-  { value: 'game',  label: 'Games' },
   { value: 'comic', label: 'Comics' },
+  { value: 'film',  label: 'Films' },
+  { value: 'game',  label: 'Games' },
+  { value: 'music', label: 'Music' },
 ]
 
 const enrich = useEnrichQueue()
 const marketQueue = useMarketValueQueue()
 const { autoEnrichOnClick, autoFetchMarketRates, marketCurrency, hiddenCategories } = useSettings()
 
+// Alphabetical by label so the Categories list matches Android.
 const categoryToggles = [
-  { value: 'music', label: 'Music' },
-  { value: 'film',  label: 'Films' },
   { value: 'book',  label: 'Books' },
-  { value: 'game',  label: 'Games' },
   { value: 'comic', label: 'Comics' },
+  { value: 'film',  label: 'Films' },
+  { value: 'game',  label: 'Games' },
+  { value: 'music', label: 'Music' },
 ]
 
 function setCategoryVisible(category, visible) {
