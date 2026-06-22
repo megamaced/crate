@@ -154,6 +154,7 @@ import { generateOcsUrl, generateUrl } from '@nextcloud/router'
 import { showError } from '@nextcloud/dialogs'
 import MediaCard from './MediaCard.vue'
 import { CATEGORY_LABELS, FORMAT_LIST } from '../utils/categoryFormats.js'
+import { useSettings } from '../composables/useSettings.js'
 
 defineEmits(['add', 'detail'])
 
@@ -175,8 +176,15 @@ const HERO_PLACEHOLDER = {
 
 const CATEGORY_DISPLAY_ORDER = ['music', 'film', 'book', 'game', 'comic']
 
+const { hiddenCategories } = useSettings()
+
 const loading = ref(false)
-const items = ref([])
+const allItems = ref([])
+// Items with hidden categories filtered out — reactive on hiddenCategories
+// so unhiding shows them again without a re-fetch.
+const items = computed(() =>
+  allItems.value.filter(i => !hiddenCategories.value.includes(i.category ?? 'music')),
+)
 const homeEl = ref(null)
 const rowCount = ref(6)
 
@@ -196,7 +204,7 @@ async function load() {
   try {
     const response = await axios.get(generateOcsUrl('/apps/crate/api/v1/media'))
     const all = response.data.ocs?.data ?? []
-    items.value = all.filter(i => i.status === 'owned')
+    allItems.value = all.filter(i => i.status === 'owned')
   } catch (e) {
     console.error('Failed to load items', e)
     showError('Failed to load recent items')

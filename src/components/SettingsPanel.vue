@@ -463,6 +463,27 @@
       </div>
     </NcAppSettingsSection>
 
+    <!-- ── Hide categories ── -->
+    <NcAppSettingsSection
+      id="crate-settings-categories"
+      name="Categories"
+    >
+      <p class="settings-hint">
+        Hide categories you don't use. Hidden categories disappear from the sidebar and the Home view, and won't show up in search. At least one category must remain visible.
+      </p>
+      <div class="settings-enrichment-options">
+        <NcCheckboxRadioSwitch
+          v-for="cat in categoryToggles"
+          :key="cat.value"
+          :model-value="!hiddenCategories.includes(cat.value)"
+          :disabled="!hiddenCategories.includes(cat.value) && hiddenCategories.length >= categoryToggles.length - 1"
+          @update:model-value="setCategoryVisible(cat.value, $event)"
+        >
+          {{ cat.label }}
+        </NcCheckboxRadioSwitch>
+      </div>
+    </NcAppSettingsSection>
+
     <!-- ── Sharing ── -->
     <NcAppSettingsSection
       id="crate-settings-sharing"
@@ -578,7 +599,28 @@ const shareCategoryOptions = [
 
 const enrich = useEnrichQueue()
 const marketQueue = useMarketValueQueue()
-const { autoEnrichOnClick, autoFetchMarketRates, marketCurrency } = useSettings()
+const { autoEnrichOnClick, autoFetchMarketRates, marketCurrency, hiddenCategories } = useSettings()
+
+const categoryToggles = [
+  { value: 'music', label: 'Music' },
+  { value: 'film',  label: 'Films' },
+  { value: 'book',  label: 'Books' },
+  { value: 'game',  label: 'Games' },
+  { value: 'comic', label: 'Comics' },
+]
+
+function setCategoryVisible(category, visible) {
+  const current = new Set(hiddenCategories.value)
+  if (visible) {
+    current.delete(category)
+  } else {
+    // Refuse to hide the last visible category — the disabled prop on the
+    // switch usually catches this, but guard defensively too.
+    if (current.size >= categoryToggles.length - 1) return
+    current.add(category)
+  }
+  hiddenCategories.value = [...current]
+}
 
 const currencies = ref([])
 

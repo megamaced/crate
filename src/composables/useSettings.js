@@ -11,6 +11,20 @@ const KEY_ENRICH_ON_CLICK  = 'crate_auto_enrich_click'
 const KEY_ENRICH_ON_IMPORT = 'crate_auto_enrich_import'
 const KEY_AUTO_MARKET      = 'crate_auto_fetch_market_rates'
 const KEY_MARKET_CURRENCY  = 'crate_market_currency'
+const KEY_HIDDEN_CATS      = 'crate_hidden_categories'
+
+const ALL_CATEGORIES = ['music', 'film', 'book', 'game', 'comic']
+
+function readStringList(key) {
+  try {
+    const raw = localStorage.getItem(key)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.filter(v => ALL_CATEGORIES.includes(v)) : []
+  } catch {
+    return []
+  }
+}
 
 function readBool(key, defaultValue) {
   try {
@@ -42,6 +56,7 @@ const autoEnrichOnClick      = ref(readBool(KEY_ENRICH_ON_CLICK, true))
 const autoEnrichOnImport     = ref(readBool(KEY_ENRICH_ON_IMPORT, true))
 const autoFetchMarketRates   = ref(readBool(KEY_AUTO_MARKET, false))
 const marketCurrency         = ref(readString(KEY_MARKET_CURRENCY, 'GBP'))
+const hiddenCategories       = ref(readStringList(KEY_HIDDEN_CATS))
 // Currency allowlist served by the backend (`MarketValueService::SUPPORTED_CURRENCIES`).
 // Kept here rather than duplicated per-component so the list can't drift, and
 // fetched once per page load (cached for the rest of the session).
@@ -51,6 +66,8 @@ const currencyOptions        = ref([])
 let serverLoaded = false
 /** Whether the currency allowlist has been fetched yet. */
 let currenciesLoaded = false
+/** Whether the hidden_categories list has been loaded from /api/v1/me yet. */
+let hiddenLoaded = false
 // Suppress watcher-driven server writes while we're applying values from
 // the server. Without this every page load echoes the just-loaded values
 // back to the server.
@@ -99,6 +116,46 @@ watch(autoEnrichOnClick, v => { safeSet(KEY_ENRICH_ON_CLICK, String(v)); persist
 watch(autoEnrichOnImport, v => { safeSet(KEY_ENRICH_ON_IMPORT, String(v)); persistToServer() })
 watch(autoFetchMarketRates, v => { safeSet(KEY_AUTO_MARKET, String(v)); persistToServer() })
 watch(marketCurrency, v => { safeSet(KEY_MARKET_CURRENCY, v); persistToServer() })
+watch(hiddenCategories, v => {
+  safeSet(KEY_HIDDEN_CATS, JSON.stringify(v))
+  persistHiddenCategories()
+}, { deep: true })
+
+let hiddenSaveTimer = null
+function persistHiddenCategories() {
+  if (suppressPersist) return
+  // Block any state that would hide every category — the server will reject
+  // this too, but stopping it client-side avoids a wasted round-trip and
+  // keeps the UI in sync with the rule.
+  if (hiddenCategories.value.length >= ALL_CATEGORIES.length) return
+  clearTimeout(hiddenSaveTimer)
+  hiddenSaveTimer = setTimeout(async () => {
+    try {
+      await axios.put(
+        generateOcsUrl('/apps/crate/api/v1/settings/hidden-categories'),
+        { categories: hiddenCategories.value },
+      )
+    } catch {
+      // Best-effort — localStorage still has the value
+    }
+  }, 500)
+}
+
+async function loadHiddenCategoriesFromMe() {
+  if (hiddenLoaded) return
+  try {
+    const res = await axios.get(generateOcsUrl('/apps/crate/api/v1/me'))
+    const data = res.data.ocs?.data ?? {}
+    if (Array.isArray(data.hiddenCategories)) {
+      suppressPersist = true
+      hiddenCategories.value = data.hiddenCategories.filter(v => ALL_CATEGORIES.includes(v))
+      hiddenLoaded = true
+      queueMicrotask(() => { suppressPersist = false })
+    }
+  } catch {
+    // Stay on local value
+  }
+}
 
 async function loadCurrencies() {
   if (currenciesLoaded) return
@@ -117,11 +174,13 @@ async function loadCurrencies() {
 export function useSettings() {
   loadFromServer()
   loadCurrencies()
+  loadHiddenCategoriesFromMe()
   return {
     autoEnrichOnClick,
     autoEnrichOnImport,
     autoFetchMarketRates,
     marketCurrency,
     currencyOptions,
+    hiddenCategories,
   }
 }

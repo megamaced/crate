@@ -9,34 +9,12 @@
           @click="switchView('home')"
         />
         <NcAppNavigationItem
-          name="Books"
-          :active="view === 'books'"
-          href="#/books"
-          @click="switchView('books')"
-        />
-        <NcAppNavigationItem
-          name="Comics"
-          :active="view === 'comics'"
-          href="#/comics"
-          @click="switchView('comics')"
-        />
-        <NcAppNavigationItem
-          name="Films"
-          :active="view === 'films'"
-          href="#/films"
-          @click="switchView('films')"
-        />
-        <NcAppNavigationItem
-          name="Games"
-          :active="view === 'games'"
-          href="#/games"
-          @click="switchView('games')"
-        />
-        <NcAppNavigationItem
-          name="Music"
-          :active="view === 'music'"
-          href="#/music"
-          @click="switchView('music')"
+          v-for="item in visibleNavItems"
+          :key="item.view"
+          :name="item.name"
+          :active="view === item.view"
+          :href="'#/' + item.view"
+          @click="switchView(item.view)"
         />
         <NcAppNavigationItem
           name="Playlists"
@@ -257,7 +235,18 @@ const CATEGORY_TO_VIEW = { music: 'music', film: 'films', book: 'books', comic: 
 
 const enrich = useEnrichQueue()
 const market = useMarketValueQueue()
-const { autoEnrichOnClick } = useSettings()
+const { autoEnrichOnClick, hiddenCategories } = useSettings()
+
+// View key → category key map used a few places below; mirror order to the
+// nav items so the computed visibility set tracks 1:1.
+const NAV_ITEMS = [
+  { name: 'Books',  view: 'books',  category: 'book' },
+  { name: 'Comics', view: 'comics', category: 'comic' },
+  { name: 'Films',  view: 'films',  category: 'film' },
+  { name: 'Games',  view: 'games',  category: 'game' },
+  { name: 'Music',  view: 'music',  category: 'music' },
+]
+const visibleNavItems = computed(() => NAV_ITEMS.filter(n => !hiddenCategories.value.includes(n.category)))
 const {
   view, previousView, setHash, hashForView,
   parseHash, consumePendingHash, saveScroll, restoreScroll,
