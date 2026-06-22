@@ -92,6 +92,16 @@ class MediaService
         return $this->mapper->findByUser($id, $userId);
     }
 
+    /**
+     * Read an item visible to the viewer — they own it, or it's covered by an
+     * album / library / category share to them. Used by read-only callers; do
+     * not use for writes.
+     */
+    public function findVisible(int $id, string $viewerUserId): MediaItem
+    {
+        return $this->mapper->findVisibleForUser($id, $viewerUserId);
+    }
+
     public function create(
         string $userId,
         MediaItemData $data,

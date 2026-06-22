@@ -84,7 +84,9 @@ class MediaController extends OCSController
     #[NoAdminRequired]
     public function show(int $id): DataResponse
     {
-        return new DataResponse($this->mediaService->find($id, $this->userId()));
+        // Read-path: owner OR sharee (via per-album / library / category share).
+        // Writes still go through find() so sharees can't mutate items.
+        return new DataResponse($this->mediaService->findVisible($id, $this->userId()));
     }
 
     #[NoAdminRequired]

@@ -230,10 +230,27 @@ class SettingsController extends OCSController
     #[NoAdminRequired]
     public function setHiddenCategories(array $categories = []): DataResponse
     {
-        $clean = array_values(array_unique(array_filter(
-            $categories,
-            static fn($c) => is_string($c) && in_array($c, \OCA\Crate\CrateCategories::ALL, true),
-        )));
+        // Reject unknown / non-string entries explicitly rather than silently
+        // dropping them — otherwise a client with a stale category list gets
+        // a 200 OK while its intent was discarded.
+        $rejected = [];
+        $clean    = [];
+        foreach ($categories as $entry) {
+            if (!is_string($entry) || !in_array($entry, \OCA\Crate\CrateCategories::ALL, true)) {
+                $rejected[] = $entry;
+                continue;
+            }
+            if (!in_array($entry, $clean, true)) {
+                $clean[] = $entry;
+            }
+        }
+
+        if (!empty($rejected)) {
+            return new DataResponse(
+                ['error' => 'Unknown categories in request.', 'rejected' => array_values($rejected)],
+                Http::STATUS_BAD_REQUEST,
+            );
+        }
 
         // Always keep at least one visible — count(ALL) - count(hidden) >= 1.
         if (count($clean) >= count(\OCA\Crate\CrateCategories::ALL)) {

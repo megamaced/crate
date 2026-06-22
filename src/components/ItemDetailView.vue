@@ -12,65 +12,74 @@
           ← Back
         </NcButton>
         <div class="detail-topbar-actions">
-          <NcButton
-            v-if="!enriching && !stripping"
-            variant="secondary"
-            :disabled="!hasToken || queueBusy"
-            @click="enrich"
-          >
-            {{ isEnriched ? 'Re-enrich' : `Enrich from ${enrichSourceLabel}` }}
-          </NcButton>
-          <NcButton
-            v-if="isEnriched && !enriching && !stripping"
-            variant="secondary"
-            @click="stripEnrich"
-          >
-            Remove data
-          </NcButton>
-          <NcButton
-            v-if="hasMarketValue && !fetchingMarket"
-            variant="secondary"
-            :disabled="!hasMarketToken || queueBusy"
-            @click="fetchMarketValue"
-          >
-            {{ item.marketValue ? 'Refresh market rate' : 'Fetch market rate' }}
-          </NcButton>
+          <!-- Shared items are read-only for the recipient. The server enforces
+               this (write endpoints 404 because the sharee doesn't own the
+               item) — these buttons are hidden so the user doesn't trip them. -->
           <span
-            v-if="enriching"
-            class="detail-enriching"
-          >Fetching from {{ enrichSourceLabel }}…</span>
-          <span
-            v-if="stripping"
-            class="detail-enriching"
-          >Removing…</span>
-          <span
-            v-if="fetchingMarket"
-            class="detail-enriching"
-          >Fetching price…</span>
-          <NcButton
-            variant="secondary"
-            @click="$emit('addToPlaylist', item)"
-          >
-            Add to playlist
-          </NcButton>
-          <NcButton
-            variant="secondary"
-            @click="$emit('share', item)"
-          >
-            Share
-          </NcButton>
-          <NcButton
-            variant="secondary"
-            @click="$emit('edit', item)"
-          >
-            Edit
-          </NcButton>
-          <NcButton
-            variant="error"
-            @click="$emit('delete', item)"
-          >
-            Delete
-          </NcButton>
+            v-if="isShared"
+            class="detail-shared-badge"
+          >Shared by {{ item.sharedByUser }} · read-only</span>
+          <template v-if="!isShared">
+            <NcButton
+              v-if="!enriching && !stripping"
+              variant="secondary"
+              :disabled="!hasToken || queueBusy"
+              @click="enrich"
+            >
+              {{ isEnriched ? 'Re-enrich' : `Enrich from ${enrichSourceLabel}` }}
+            </NcButton>
+            <NcButton
+              v-if="isEnriched && !enriching && !stripping"
+              variant="secondary"
+              @click="stripEnrich"
+            >
+              Remove data
+            </NcButton>
+            <NcButton
+              v-if="hasMarketValue && !fetchingMarket"
+              variant="secondary"
+              :disabled="!hasMarketToken || queueBusy"
+              @click="fetchMarketValue"
+            >
+              {{ item.marketValue ? 'Refresh market rate' : 'Fetch market rate' }}
+            </NcButton>
+            <span
+              v-if="enriching"
+              class="detail-enriching"
+            >Fetching from {{ enrichSourceLabel }}…</span>
+            <span
+              v-if="stripping"
+              class="detail-enriching"
+            >Removing…</span>
+            <span
+              v-if="fetchingMarket"
+              class="detail-enriching"
+            >Fetching price…</span>
+            <NcButton
+              variant="secondary"
+              @click="$emit('addToPlaylist', item)"
+            >
+              Add to playlist
+            </NcButton>
+            <NcButton
+              variant="secondary"
+              @click="$emit('share', item)"
+            >
+              Share
+            </NcButton>
+            <NcButton
+              variant="secondary"
+              @click="$emit('edit', item)"
+            >
+              Edit
+            </NcButton>
+            <NcButton
+              variant="error"
+              @click="$emit('delete', item)"
+            >
+              Delete
+            </NcButton>
+          </template>
         </div>
       </div>
 
@@ -338,6 +347,10 @@ const fetchingMarket = ref(false)
 const isMusic = computed(() => !props.item.category || props.item.category === 'music')
 const hasMarketValue = computed(() => !['film', 'book'].includes(props.item.category))
 const isPriceChartingCategory = computed(() => ['game', 'comic'].includes(props.item.category))
+// `sharedByUser` is set on items that came from the Shared-with-me view —
+// shares are read-only in this release, so the action toolbar is suppressed
+// and a "shared by …" badge is shown in its place.
+const isShared = computed(() => !!props.item.sharedByUser)
 
 const enrichSourceLabel = computed(() => {
   const map = { music: 'Discogs', film: 'TMDB', book: 'Open Library', game: 'RAWG', comic: 'ComicVine' }
@@ -704,6 +717,15 @@ async function stripEnrich() {
 .detail-enriching {
   font-size: 0.875em;
   color: var(--color-text-maxcontrast);
+}
+
+.detail-shared-badge {
+  font-size: 0.85em;
+  font-style: italic;
+  color: var(--color-text-maxcontrast);
+  padding: 6px 12px;
+  background: var(--color-background-dark);
+  border-radius: var(--border-radius);
 }
 
 /* Hero */
