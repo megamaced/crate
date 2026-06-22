@@ -493,9 +493,17 @@ function getGroupKey(item, field) {
     const itemDate = new Date(d.getFullYear(), d.getMonth(), d.getDate())
     const diffDays = Math.round((todayStart - itemDate) / 86400000)
     if (diffDays === 0) return 'Today'
-    if (diffDays <= 7) return 'This Week'
-    if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) return 'This Month'
-    if (d.getFullYear() === now.getFullYear()) return 'This Year'
+    if (diffDays === 1) return 'Yesterday'
+    if (diffDays < 7) return 'Earlier this week'
+    if (diffDays < 14) return 'Last week'
+    const sameYear = d.getFullYear() === now.getFullYear()
+    if (sameYear && d.getMonth() === now.getMonth()) return 'Earlier this month'
+    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    if (d.getFullYear() === lastMonth.getFullYear() && d.getMonth() === lastMonth.getMonth()) {
+      return 'Last month'
+    }
+    if (sameYear) return 'Earlier this year'
+    if (d.getFullYear() === now.getFullYear() - 1) return 'Last year'
     return String(d.getFullYear())
   }
 
