@@ -53,7 +53,13 @@ class ShareService
         // Verify playlist belongs to owner (will throw DoesNotExistException if not)
         $this->playlistService->find($playlistId, $ownerUserId);
 
-        if ($this->shareMapper->alreadyShared($ownerUserId, $sharedWithUserId, CrateShare::TYPE_PLAYLIST, $playlistId)) {
+        $alreadyShared = $this->shareMapper->alreadyShared(
+            $ownerUserId,
+            $sharedWithUserId,
+            CrateShare::TYPE_PLAYLIST,
+            $playlistId,
+        );
+        if ($alreadyShared) {
             throw new \InvalidArgumentException('Already shared with this user.');
         }
 
@@ -90,7 +96,14 @@ class ShareService
         $this->validateCategory($category);
         $this->validateTargetUser($sharedWithUserId, $ownerUserId);
 
-        if ($this->shareMapper->alreadyShared($ownerUserId, $sharedWithUserId, CrateShare::TYPE_CATEGORY, 0, $category)) {
+        $alreadyShared = $this->shareMapper->alreadyShared(
+            $ownerUserId,
+            $sharedWithUserId,
+            CrateShare::TYPE_CATEGORY,
+            0,
+            $category,
+        );
+        if ($alreadyShared) {
             throw new \InvalidArgumentException('Category already shared with this user.');
         }
 
