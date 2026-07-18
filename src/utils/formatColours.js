@@ -1,7 +1,7 @@
 /**
  * Canonical format → gradient colour pair mapping.
  * Used across MediaCard, ItemDetailView, CollectionView,
- * PlaylistDetailView, and SharedView.
+ * PlaylistDetailView, and the Shared-with-me views.
  */
 export const FORMAT_COLOURS = {
   Vinyl: ['#6b21a8', '#a855f7'],

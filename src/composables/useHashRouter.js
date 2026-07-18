@@ -27,6 +27,8 @@ export function useHashRouter() {
     if (v === 'games') return '#/games'
     if (v === 'playlists') return '#/playlists'
     if (v === 'shared') return '#/shared'
+    if (v === 'shared-cat' && id) return `#/shared-cat/${id}`
+    if (v === 'shared-playlists') return '#/shared-playlists'
     if (v === 'shared-by-me') return '#/shared-by-me'
     return '#/'
   }
@@ -43,6 +45,8 @@ export function useHashRouter() {
     if (parts[0] === 'games') return { view: 'games', itemId: null, playlistId: null }
     // Legacy hash routes redirect to music
     if (parts[0] === 'collection' || parts[0] === 'wishlist') return { view: 'music', itemId: null, playlistId: null }
+    if (parts[0] === 'shared-cat' && parts[1]) return { view: 'shared-cat', itemId: null, playlistId: null, category: decodeURIComponent(parts[1]) }
+    if (parts[0] === 'shared-playlists') return { view: 'shared-playlists', itemId: null, playlistId: null }
     if (parts[0] === 'shared') return { view: 'shared', itemId: null, playlistId: null }
     if (parts[0] === 'shared-by-me') return { view: 'shared-by-me', itemId: null, playlistId: null }
     return { view: 'home', itemId: null, playlistId: null }

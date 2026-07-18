@@ -25,9 +25,28 @@
         <NcAppNavigationItem
           name="Shared with me"
           :active="view === 'shared'"
+          :allow-collapse="true"
+          :open="sharedNavOpen"
           href="#/shared"
+          @update:open="sharedNavOpen = $event"
           @click="switchView('shared')"
-        />
+        >
+          <NcAppNavigationItem
+            v-for="cat in sharedCategories"
+            :key="'shared-' + cat.category"
+            :name="cat.label"
+            :active="view === 'shared-cat' && activeSharedCategory === cat.category"
+            :href="'#/shared-cat/' + cat.category"
+            @click="openSharedCategory(cat.category)"
+          />
+          <NcAppNavigationItem
+            v-if="sharedPlaylists.length > 0"
+            name="Playlists"
+            :active="view === 'shared-playlists'"
+            href="#/shared-playlists"
+            @click="switchView('shared-playlists')"
+          />
+        </NcAppNavigationItem>
         <NcAppNavigationItem
           name="Shared by me"
           :active="view === 'shared-by-me'"
@@ -87,13 +106,29 @@
         @open="showPlaylistDetail"
       />
 
-      <!-- Shared with me view -->
-      <SharedView
+      <!-- Shared with me — landing -->
+      <SharedHomeView
         v-else-if="view === 'shared'"
-        ref="sharedView"
+        ref="sharedHome"
         @detail="showDetail"
         @playlist="showPlaylistDetail"
+        @open-category="openSharedCategory"
+      />
+
+      <!-- Shared with me — per-category subpage -->
+      <SharedCategoryView
+        v-else-if="view === 'shared-cat'"
+        ref="sharedCategory"
+        :category="activeSharedCategory"
+        @detail="showDetail"
         @add-shared="openAddShared"
+      />
+
+      <!-- Shared with me — playlists subpage -->
+      <SharedPlaylistsView
+        v-else-if="view === 'shared-playlists'"
+        ref="sharedPlaylistsView"
+        @playlist="showPlaylistDetail"
       />
 
       <!-- Shared by me view -->
@@ -234,12 +269,15 @@ import PlaylistDetailView from './components/PlaylistDetailView.vue'
 import PlaylistsView from './components/PlaylistsView.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
 import ShareModal from './components/ShareModal.vue'
-import SharedView from './components/SharedView.vue'
+import SharedHomeView from './components/SharedHomeView.vue'
+import SharedCategoryView from './components/SharedCategoryView.vue'
+import SharedPlaylistsView from './components/SharedPlaylistsView.vue'
 import SharedByMeView from './components/SharedByMeView.vue'
 import { useEnrichQueue } from './composables/useEnrichQueue.js'
 import { useMarketValueQueue } from './composables/useMarketValueQueue.js'
 import { useSettings } from './composables/useSettings.js'
 import { useHashRouter } from './composables/useHashRouter.js'
+import { useSharedContent } from './composables/useSharedContent.js'
 
 const COLLECTION_VIEWS = ['music', 'films', 'books', 'comics', 'games']
 const VIEW_TO_CATEGORY = { music: 'music', films: 'film', books: 'book', comics: 'comic', games: 'game' }
@@ -263,6 +301,13 @@ const {
   view, previousView, setHash, hashForView,
   parseHash, consumePendingHash, saveScroll, restoreScroll,
 } = useHashRouter()
+
+// Shared-content store — the nav reads sharedCategories/sharedPlaylists to
+// decide which children to render, so it's loaded whenever a shared view is
+// entered and refreshed after a shared-add save.
+const {
+  sharedCategories, sharedPlaylists, load: loadSharedContent,
+} = useSharedContent()
 
 // Category to seed the AddEditModal with — uses the editing item's category for edits,
 // or the current/previous nav view's category for new items.
@@ -303,6 +348,11 @@ const detailMarketAvailable = computed(() => {
 const activeCollectionCategory = ref('music')
 const collectionViewVisible = computed(() => COLLECTION_VIEWS.includes(view.value))
 
+// Active category for the "Shared with me" per-category subpage, and the
+// collapsed/expanded state of the "Shared with me" nav parent.
+const activeSharedCategory = ref(null)
+const sharedNavOpen = ref(false)
+
 // ── state ─────────────────────────────────────────────────────────────────────
 const appContentRef = ref(null)
 const selectedItem = ref(null)
@@ -328,7 +378,9 @@ const hasPriceChartingToken = ref(false)
 // playlist + sharing state
 const selectedPlaylist = ref(null)
 const playlistsView = ref(null)
-const sharedView = ref(null)
+const sharedHome = ref(null)
+const sharedCategory = ref(null)
+const sharedPlaylistsView = ref(null)
 const sharedByMeView = ref(null)
 const addToPlaylistItem = ref(null)
 const showAddToPlaylist = ref(false)
@@ -352,6 +404,10 @@ onMounted(async () => {
     hasPriceChartingToken.value = pcRes.data.ocs?.data?.hasToken      ?? false
   } catch { /* ignore */ }
 
+  // Load the shared-content store up front so the "Shared with me" nav group
+  // can render its category/playlist children without first visiting the view.
+  loadSharedContent()
+
   // Restore view from URL hash (supports page refresh and direct links)
   await restoreFromHash()
 
@@ -365,7 +421,7 @@ onUnmounted(() => {
 })
 
 async function restoreFromHash() {
-  const { view: v, itemId, playlistId } = parseHash()
+  const { view: v, itemId, playlistId, category } = parseHash()
   if (v === 'detail' && itemId) {
     try {
       const res = await axios.get(generateOcsUrl(`/apps/crate/api/v1/media/${itemId}`))
@@ -392,8 +448,18 @@ async function restoreFromHash() {
     activeCollectionCategory.value = VIEW_TO_CATEGORY[v]
     view.value = v
     return
-  } else if (v === 'playlists' || v === 'shared' || v === 'shared-by-me') {
+  } else if (v === 'shared-cat' && category) {
+    activeSharedCategory.value = category
+    view.value = 'shared-cat'
+    sharedNavOpen.value = true
+    loadSharedContent()
+    return
+  } else if (v === 'playlists' || v === 'shared' || v === 'shared-playlists' || v === 'shared-by-me') {
     view.value = v
+    if (v === 'shared' || v === 'shared-playlists') {
+      sharedNavOpen.value = true
+      loadSharedContent()
+    }
     return
   }
   // home or unrecognised — update hash to canonical form
@@ -403,7 +469,7 @@ async function restoreFromHash() {
 async function handleHashChange() {
   if (consumePendingHash()) return
   // Only reached for genuine browser back/forward navigation
-  const { view: v, itemId, playlistId } = parseHash()
+  const { view: v, itemId, playlistId, category } = parseHash()
   if (v === 'detail' && itemId) {
     // If we're already showing this exact item, nothing to do
     if (view.value === 'detail' && selectedItem.value?.id === itemId) return
@@ -423,9 +489,16 @@ async function handleHashChange() {
     if (selectedPlaylist.value?.id === playlistId) {
       view.value = 'playlist-detail'
     }
-  } else if (v !== view.value) {
+  } else if (v !== view.value || (v === 'shared-cat' && category !== activeSharedCategory.value)) {
     if (COLLECTION_VIEWS.includes(v)) {
       activeCollectionCategory.value = VIEW_TO_CATEGORY[v]
+    }
+    if (v === 'shared-cat') {
+      activeSharedCategory.value = category
+    }
+    if (v === 'shared' || v === 'shared-cat' || v === 'shared-playlists') {
+      sharedNavOpen.value = true
+      loadSharedContent()
     }
     view.value = v
     selectedItem.value = null
@@ -468,17 +541,36 @@ function switchView(newView) {
   view.value = newView
   selectedItem.value = null
   selectedPlaylist.value = null
-  setHash(hashForView(newView))
+  setHash(newView === 'shared-cat'
+    ? hashForView('shared-cat', activeSharedCategory.value)
+    : hashForView(newView))
   if (COLLECTION_VIEWS.includes(newView)) {
     activeCollectionCategory.value = VIEW_TO_CATEGORY[newView]
+  }
+  // Keep the "Shared with me" nav group expanded while anywhere inside it, and
+  // make sure the store backing the nav children/landing is loaded.
+  if (newView === 'shared' || newView === 'shared-cat' || newView === 'shared-playlists') {
+    sharedNavOpen.value = true
+    loadSharedContent()
   }
   if (newView === 'playlists') {
     nextTick(() => playlistsView.value?.load())
   } else if (newView === 'shared') {
-    nextTick(() => sharedView.value?.load())
+    nextTick(() => sharedHome.value?.load())
+  } else if (newView === 'shared-cat') {
+    nextTick(() => sharedCategory.value?.load())
+  } else if (newView === 'shared-playlists') {
+    nextTick(() => sharedPlaylistsView.value?.load())
   } else if (newView === 'shared-by-me') {
     nextTick(() => sharedByMeView.value?.load())
   }
+}
+
+// Navigate to a shared category's subpage (from the nav child or a landing
+// section header).
+function openSharedCategory(category) {
+  activeSharedCategory.value = category
+  switchView('shared-cat')
 }
 
 function showDetail(item) {
@@ -602,7 +694,7 @@ function openAdd() {
   modalOpen.value = true
 }
 
-// Triggered from SharedView's "Add item" button on a read/write shared
+// Triggered from the shared category subpage's "Add item" button on a read/write shared
 // library/category. Seeds the owner (so the item lands in their collection)
 // and, for a category share, the category.
 function openAddShared({ owner, category }) {
@@ -796,8 +888,10 @@ async function saveItem(payload) {
       }
     } else if (view.value === 'home') {
       homeView.value?.load()
-    } else if (view.value === 'shared') {
-      sharedView.value?.load()
+    } else if (view.value === 'shared' || view.value === 'shared-cat' || view.value === 'shared-playlists') {
+      // Refetch the shared-content store; the landing / subpages read from its
+      // computeds and update reactively.
+      loadSharedContent()
     } else if (COLLECTION_VIEWS.includes(view.value)) {
       collectionViewRef.value?.reload()
     }
