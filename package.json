@@ -1,6 +1,6 @@
 {
   "name": "crate",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Physical media catalogue for Nextcloud",
   "scripts": {
     "build": "webpack --node-env production",

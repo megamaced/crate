@@ -88,7 +88,7 @@
         v-for="item in playlist.items"
         :key="item.id"
         class="pd-row"
-        @click="$emit('detail', item)"
+        @click="openItem(item)"
       >
         <MediaThumb
           :item="item"
@@ -219,6 +219,19 @@ const emit = defineEmits(['back', 'detail', 'delete', 'share', 'updated'])
 // they may rename and add/remove tracks. Delete and re-share stay owner-only.
 const isShared = computed(() => !!props.playlist.sharedByUser)
 const canWrite = computed(() => !props.playlist.sharedByUser || props.playlist.canWrite === true)
+
+// Items reached through a shared playlist are read-only at the item level: a
+// playlist share (even read/write) never grants edit rights on the underlying
+// media items. Tag them with the owner + canWrite:false so ItemDetailView
+// hides the owner-only Edit/Delete/Remove-data actions. Items in the user's
+// own playlists pass through untouched.
+function openItem(item) {
+  if (props.playlist.sharedByUser) {
+    emit('detail', { ...item, sharedByUser: props.playlist.sharedByUser, canWrite: false })
+  } else {
+    emit('detail', item)
+  }
+}
 
 const confirmDelete = ref(false)
 const editOpen = ref(false)
