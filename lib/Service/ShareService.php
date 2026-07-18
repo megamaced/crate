@@ -265,6 +265,53 @@ class ShareService
         );
     }
 
+    /**
+     * Everything the current user has shared with others — one row per share,
+     * newest first, annotated with the recipient's display name and a human
+     * label for what was shared. Powers the "Shared by me" overview.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public function getSharedByMe(string $userId): array
+    {
+        $out = [];
+        foreach ($this->shareMapper->findByOwner($userId) as $share) {
+            $row = $share->jsonSerialize();
+            $recipient = $this->userManager->get($share->getSharedWithUserId());
+            $row['sharedWithDisplayName'] = $recipient !== null
+                ? $recipient->getDisplayName()
+                : $share->getSharedWithUserId();
+            $row['label'] = $this->describeShareable($share, $userId);
+            $out[] = $row;
+        }
+        return $out;
+    }
+
+    /** Human label for what a share points at (title / playlist name / scope). */
+    private function describeShareable(CrateShare $share, string $ownerUserId): string
+    {
+        switch ($share->getShareableType()) {
+            case CrateShare::TYPE_ALBUM:
+                try {
+                    return $this->mediaItemMapper->findByUser($share->getShareableId(), $ownerUserId)->getTitle();
+                } catch (DoesNotExistException) {
+                    return 'Item';
+                }
+            case CrateShare::TYPE_PLAYLIST:
+                try {
+                    return $this->playlistService->find($share->getShareableId(), $ownerUserId)['name'] ?? 'Playlist';
+                } catch (DoesNotExistException) {
+                    return 'Playlist';
+                }
+            case CrateShare::TYPE_LIBRARY:
+                return 'Whole library';
+            case CrateShare::TYPE_CATEGORY:
+                return ucfirst($share->getShareableCategory());
+            default:
+                return '';
+        }
+    }
+
     // ── Deletion ───────────────────────────────────────────────────────────────
 
     /** Remove a share. Only the owner can call this. */

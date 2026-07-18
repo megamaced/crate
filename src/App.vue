@@ -28,6 +28,12 @@
           href="#/shared"
           @click="switchView('shared')"
         />
+        <NcAppNavigationItem
+          name="Shared by me"
+          :active="view === 'shared-by-me'"
+          href="#/shared-by-me"
+          @click="switchView('shared-by-me')"
+        />
       </template>
       <template #footer>
         <NcAppNavigationSettings
@@ -45,8 +51,6 @@
       @comicvine-key-changed="v => hasComicVineKey = v"
       @pricecharting-token-changed="v => hasPriceChartingToken = v"
       @collection-wiped="handleCollectionWiped"
-      @share-library="openShareLibrary"
-      @share-category="openShareCategory"
     />
 
     <NcAppContent ref="appContentRef">
@@ -90,6 +94,12 @@
         @detail="showDetail"
         @playlist="showPlaylistDetail"
         @add-shared="openAddShared"
+      />
+
+      <!-- Shared by me view -->
+      <SharedByMeView
+        v-else-if="view === 'shared-by-me'"
+        ref="sharedByMeView"
       />
 
       <!-- Home / landing view -->
@@ -225,6 +235,7 @@ import PlaylistsView from './components/PlaylistsView.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
 import ShareModal from './components/ShareModal.vue'
 import SharedView from './components/SharedView.vue'
+import SharedByMeView from './components/SharedByMeView.vue'
 import { useEnrichQueue } from './composables/useEnrichQueue.js'
 import { useMarketValueQueue } from './composables/useMarketValueQueue.js'
 import { useSettings } from './composables/useSettings.js'
@@ -318,6 +329,7 @@ const hasPriceChartingToken = ref(false)
 const selectedPlaylist = ref(null)
 const playlistsView = ref(null)
 const sharedView = ref(null)
+const sharedByMeView = ref(null)
 const addToPlaylistItem = ref(null)
 const showAddToPlaylist = ref(false)
 const shareTarget = ref(null)
@@ -380,7 +392,7 @@ async function restoreFromHash() {
     activeCollectionCategory.value = VIEW_TO_CATEGORY[v]
     view.value = v
     return
-  } else if (v === 'playlists' || v === 'shared') {
+  } else if (v === 'playlists' || v === 'shared' || v === 'shared-by-me') {
     view.value = v
     return
   }
@@ -434,6 +446,23 @@ function handleCollectionWiped() {
   if (homeView.value?.load) homeView.value.load()
 }
 
+// Mutation responses (enrich POST, PUT save) don't echo the shared-status
+// flags the server only sets on GET /media/{id}. Carry them over from the
+// previous selectedItem when the ids match so a read/write sharee editing a
+// shared item doesn't lose `sharedByUser`/`canWrite` — which would wrongly
+// reveal the owner-only Delete/Share actions in ItemDetailView.
+function preserveSharedFlags(next, prev) {
+  if (!next || !prev) return next
+  if (Number(next.id) !== Number(prev.id)) return next
+  if (next.sharedByUser === undefined && prev.sharedByUser !== undefined) {
+    next.sharedByUser = prev.sharedByUser
+  }
+  if (next.canWrite === undefined && prev.canWrite !== undefined) {
+    next.canWrite = prev.canWrite
+  }
+  return next
+}
+
 // ── navigation ────────────────────────────────────────────────────────────────
 function switchView(newView) {
   view.value = newView
@@ -447,6 +476,8 @@ function switchView(newView) {
     nextTick(() => playlistsView.value?.load())
   } else if (newView === 'shared') {
     nextTick(() => sharedView.value?.load())
+  } else if (newView === 'shared-by-me') {
+    nextTick(() => sharedByMeView.value?.load())
   }
 }
 
@@ -492,7 +523,7 @@ async function triggerEnrich(id) {
     const enriched = res.data.ocs?.data
     if (enriched) {
       if (selectedItem.value && Number(selectedItem.value.id) === Number(enriched.id)) {
-        selectedItem.value = enriched
+        selectedItem.value = preserveSharedFlags(enriched, selectedItem.value)
       }
       if (view.value === 'home') homeView.value?.load()
     }
@@ -560,20 +591,6 @@ function openShareAlbum(item) {
 
 function openSharePlaylist(playlist) {
   shareTarget.value = { type: 'playlist', id: playlist.id, name: playlist.name }
-  showShareModal.value = true
-}
-
-function openShareLibrary() {
-  // Close the settings dialog first — NcAppSettingsDialog stacks above NcModal,
-  // so opening the share modal while settings is open hides it behind.
-  settingsOpen.value = false
-  shareTarget.value = { type: 'library' }
-  showShareModal.value = true
-}
-
-function openShareCategory(category) {
-  settingsOpen.value = false
-  shareTarget.value = { type: 'category', category }
   showShareModal.value = true
 }
 
@@ -677,7 +694,7 @@ async function saveItem(payload) {
 
     // Update selectedItem if it's currently shown in the detail view
     if (saved && selectedItem.value && Number(selectedItem.value.id) === Number(saved.id)) {
-      selectedItem.value = saved
+      selectedItem.value = preserveSharedFlags(saved, selectedItem.value)
     }
 
     closeModal()

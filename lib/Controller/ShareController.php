@@ -170,6 +170,14 @@ class ShareController extends OCSController
         return new DataResponse($this->shareService->getSharedWithMe($this->userId()));
     }
 
+    // ── Shared by me ───────────────────────────────────────────────────────────
+
+    #[NoAdminRequired]
+    public function sharedByMe(): DataResponse
+    {
+        return new DataResponse($this->shareService->getSharedByMe($this->userId()));
+    }
+
     // ── Remove share ───────────────────────────────────────────────────────────
 
     #[NoAdminRequired]

@@ -56,6 +56,17 @@ class CrateShareMapper extends QBMapper
         return $this->findEntities($qb);
     }
 
+    /** @return CrateShare[] Every share created by $ownerUserId, newest first. */
+    public function findByOwner(string $ownerUserId): array
+    {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('*')
+            ->from($this->getTableName())
+            ->where($qb->expr()->eq('owner_user_id', $qb->createNamedParameter($ownerUserId)))
+            ->orderBy('created_at', 'DESC');
+        return $this->findEntities($qb);
+    }
+
     /** @throws DoesNotExistException */
     public function findByIdAndOwner(int $id, string $ownerUserId): CrateShare
     {

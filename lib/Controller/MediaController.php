@@ -88,11 +88,16 @@ class MediaController extends OCSController
         // Read-path: owner OR sharee (via per-album / library / category / playlist share).
         $userId = $this->userId();
         $item   = $this->mediaService->findVisible($id, $userId);
-        // Report the viewer's effective write access so a single-item fetch is
-        // self-describing (share/with-me carries this for lists; clients that
-        // re-fetch one item — e.g. the Android detail screen — need it here too).
+        // Make a single-item fetch self-describing about its shared status, so
+        // clients that re-fetch one item (Android detail, web hash-navigation /
+        // refresh) keep gating writes correctly instead of treating it as owned.
+        // `canWrite` = viewer may edit; `sharedByUser` = set when the viewer is
+        // a sharee (not the owner), mirroring the share/with-me list shape.
         $data = $item->jsonSerialize();
         $data['canWrite'] = $this->mediaService->canWrite($item, $userId);
+        if ($item->getUserId() !== $userId) {
+            $data['sharedByUser'] = $item->getUserId();
+        }
         return new DataResponse($data);
     }
 

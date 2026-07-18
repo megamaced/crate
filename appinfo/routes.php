@@ -92,6 +92,7 @@ return [
 		['name' => 'share#shareCategory',       'url' => '/api/v1/share/category/{category}',         'verb' => 'POST'],
 		['name' => 'share#sharesForCategory',   'url' => '/api/v1/share/category/{category}',         'verb' => 'GET'],
 		['name' => 'share#sharedWithMe',        'url' => '/api/v1/share/with-me',                     'verb' => 'GET'],
+		['name' => 'share#sharedByMe',          'url' => '/api/v1/share/by-me',                       'verb' => 'GET'],
 		['name' => 'share#unshare',             'url' => '/api/v1/share/{id}',                        'verb' => 'DELETE',  'requirements' => ['id' => '\d+']],
 
 		// ── Android / mobile API ───────────────────────────────────────────────

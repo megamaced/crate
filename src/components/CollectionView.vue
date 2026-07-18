@@ -105,6 +105,12 @@
 
           <NcButton
             variant="secondary"
+            @click="shareOpen = true"
+          >
+            Share
+          </NcButton>
+          <NcButton
+            variant="secondary"
             @click="exportOpen = true"
           >
             Export
@@ -293,6 +299,12 @@
       :has-price-charting-token="props.hasPriceChartingToken"
       @close="exportOpen = false"
     />
+
+    <ShareCollectionModal
+      :show="shareOpen"
+      :category="props.category"
+      @close="shareOpen = false"
+    />
   </div>
 </template>
 
@@ -305,6 +317,7 @@ import { showError } from '@nextcloud/dialogs'
 import MediaCard from './MediaCard.vue'
 import MediaThumb from './MediaThumb.vue'
 import ExportModal from './ExportModal.vue'
+import ShareCollectionModal from './ShareCollectionModal.vue'
 import { formatMarketValue } from '../utils/formatMarketValue.js'
 import { CATEGORY_LABELS, FORMAT_LIST } from '../utils/categoryFormats.js'
 
@@ -339,6 +352,7 @@ const items = ref([])
 const loading = ref(false)
 const statusFilter = ref('owned') // 'owned' | 'wanted'
 const exportOpen = ref(false)
+const shareOpen = ref(false)
 const viewMode = ref(localStorage.getItem('crate_viewMode') ?? 'card')
 const sortKey = ref('artist-asc')
 const filterFormat = ref('')
