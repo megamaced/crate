@@ -146,7 +146,7 @@ class Version0001Date20260421000000 extends SimpleMigrationStep
             $shares->addColumn('owner_user_id', Types::STRING, ['notnull' => true, 'length' => 64]);
             $shares->addColumn('shared_with_user_id', Types::STRING, ['notnull' => true, 'length' => 64]);
             $shares->addColumn('shareable_type', Types::STRING, ['notnull' => true, 'length' => 16]);
-            $shares->addColumn('shareable_id', Types::INTEGER, ['notnull' => true]);
+            $shares->addColumn('shareable_id', Types::INTEGER, ['notnull' => true, 'default' => 0]);
             $shares->addColumn('created_at', Types::DATETIME, ['notnull' => true]);
 
             $shares->setPrimaryKey(['id']);
