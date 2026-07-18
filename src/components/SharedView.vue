@@ -89,6 +89,15 @@
         <h3 class="sv-section-title">
           {{ lib.sharedByUser }}’s library
           <span class="sv-section-sub">{{ lib.items.length }} item{{ lib.items.length === 1 ? '' : 's' }}</span>
+          <NcButton
+            v-if="lib.canWrite"
+            variant="secondary"
+            size="small"
+            class="sv-add-btn"
+            @click="$emit('add-shared', { owner: lib.sharedByUser })"
+          >
+            Add item
+          </NcButton>
         </h3>
         <div class="sv-list">
           <div
@@ -131,6 +140,15 @@
         <h3 class="sv-section-title">
           {{ cat.sharedByUser }}’s {{ categoryLabel(cat.category) }}
           <span class="sv-section-sub">{{ cat.items.length }} item{{ cat.items.length === 1 ? '' : 's' }}</span>
+          <NcButton
+            v-if="cat.canWrite"
+            variant="secondary"
+            size="small"
+            class="sv-add-btn"
+            @click="$emit('add-shared', { owner: cat.sharedByUser, category: cat.category })"
+          >
+            Add item
+          </NcButton>
         </h3>
         <div class="sv-list">
           <div
@@ -169,11 +187,12 @@ import { ref, computed, onMounted } from 'vue'
 import axios from '@nextcloud/axios'
 import { generateUrl, generateOcsUrl } from '@nextcloud/router'
 import { showError } from '@nextcloud/dialogs'
+import { NcButton } from '@nextcloud/vue'
 import { playlistCountLabel } from '../utils/categoryFormats.js'
 import { artworkStyleFor } from '../composables/useArtworkStyle.js'
 import MediaThumb from './MediaThumb.vue'
 
-defineEmits(['detail', 'playlist'])
+defineEmits(['detail', 'playlist', 'add-shared'])
 
 const CATEGORY_LABELS = { music: 'Music', film: 'Films', book: 'Books', game: 'Games', comic: 'Comics' }
 
@@ -199,7 +218,13 @@ function categoryLabel(key) {
 // owner uid + shareId lets the detail view render the "Shared by" badge
 // and (later) decide whether to disable owner-only actions.
 function tagShared(item, wrapper) {
-  return { ...item, sharedByUser: wrapper.sharedByUser, shareId: wrapper.shareId }
+  return {
+    ...item,
+    sharedByUser: wrapper.sharedByUser,
+    shareId: wrapper.shareId,
+    canWrite: wrapper.canWrite === true,
+    permission: wrapper.permission,
+  }
 }
 
 function playlistCoverStyle(pl) {
@@ -286,6 +311,10 @@ defineExpose({ load })
   font-weight: 500;
   text-transform: none;
   letter-spacing: 0;
+}
+
+.sv-add-btn {
+  margin-left: auto;
 }
 
 /* Album list */

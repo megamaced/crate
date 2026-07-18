@@ -93,6 +93,34 @@ class MediaService
     }
 
     /**
+     * Read an item the viewer may WRITE — they own it, or hold a read/write
+     * album / library / category share covering it. Used by edit / enrich /
+     * artwork / market-value write paths. Deletes still use find()/findByUser().
+     */
+    public function findWritable(int $id, string $viewerUserId): MediaItem
+    {
+        return $this->mapper->findWritableForUser($id, $viewerUserId);
+    }
+
+    /**
+     * Whether $viewerUserId may write this already-loaded item — owner, or a
+     * read/write sharee. Cheap owner short-circuit avoids a second query for
+     * the common (owner reading their own item) case.
+     */
+    public function canWrite(MediaItem $item, string $viewerUserId): bool
+    {
+        if ($item->getUserId() === $viewerUserId) {
+            return true;
+        }
+        try {
+            $this->mapper->findWritableForUser($item->getId(), $viewerUserId);
+            return true;
+        } catch (\OCP\AppFramework\Db\DoesNotExistException) {
+            return false;
+        }
+    }
+
+    /**
      * Read an item visible to the viewer — they own it, or it's covered by an
      * album / library / category share to them. Used by read-only callers; do
      * not use for writes.
@@ -102,12 +130,33 @@ class MediaService
         return $this->mapper->findVisibleForUser($id, $viewerUserId);
     }
 
+    /**
+     * Create a new media item.
+     *
+     * By default the item is added to $callerUserId's own collection. If
+     * $targetOwnerUserId is given and differs from the caller, the caller is
+     * adding into another user's collection via a read/write library or
+     * category share — the item is owned by that user so it appears in the
+     * shared collection for everyone. Throws if the caller lacks such a share.
+     *
+     * @throws \InvalidArgumentException if adding into a collection the caller can't write
+     */
     public function create(
-        string $userId,
+        string $callerUserId,
         MediaItemData $data,
+        ?string $targetOwnerUserId = null,
     ): MediaItem {
+        $ownerUserId = $callerUserId;
+        if ($targetOwnerUserId !== null && $targetOwnerUserId !== $callerUserId) {
+            $category = $data->category ?? CrateCategories::MUSIC;
+            if (!$this->shareMapper->hasWritableCollectionShare($callerUserId, $targetOwnerUserId, $category)) {
+                throw new \InvalidArgumentException('No write access to that collection.');
+            }
+            $ownerUserId = $targetOwnerUserId;
+        }
+
         $item = new MediaItem();
-        $item->setUserId($userId);
+        $item->setUserId($ownerUserId);
         $item->setTitle($data->title);
         $item->setArtist($data->artist);
         $item->setFormat($data->format);
@@ -126,7 +175,7 @@ class MediaService
         $item->setCreatedAt($now);
         $item->setUpdatedAt($now);
         $item = $this->mapper->insert($item);
-        $this->activityService->itemCreated($item, $userId);
+        $this->activityService->itemCreated($item, $ownerUserId);
         return $item;
     }
 
@@ -135,7 +184,8 @@ class MediaService
         string $userId,
         MediaItemData $data,
     ): MediaItem {
-        $item = $this->mapper->findByUser($id, $userId);
+        // Owner or a read/write sharee may edit. (Delete stays owner-only.)
+        $item = $this->mapper->findWritableForUser($id, $userId);
         $item->setTitle($data->title);
         $item->setArtist($data->artist);
         $item->setFormat($data->format);
@@ -330,7 +380,7 @@ class MediaService
      */
     public function patchDiscogsId(int $id, string $userId, string $discogsId): MediaItem
     {
-        $item = $this->mapper->findByUser($id, $userId);
+        $item = $this->mapper->findWritableForUser($id, $userId);
         $item->setDiscogsId($discogsId);
         $item->setUpdatedAt((new \DateTime())->format('Y-m-d H:i:s'));
         return $this->mapper->update($item);
@@ -433,7 +483,7 @@ class MediaService
      */
     private function applyEnrichmentFields(int $id, string $userId, array $fields): MediaItem
     {
-        $item = $this->mapper->findByUser($id, $userId);
+        $item = $this->mapper->findWritableForUser($id, $userId);
         $this->snapshotOriginals($item);
 
         $map = [
@@ -500,7 +550,7 @@ class MediaService
      */
     public function stripEnrichment(int $id, string $userId): MediaItem
     {
-        $item = $this->mapper->findByUser($id, $userId);
+        $item = $this->mapper->findWritableForUser($id, $userId);
 
         // Determine whether the pre-enrichment state had user-uploaded artwork.
         // If so, preserve the file on disk. Otherwise, delete stale cache files

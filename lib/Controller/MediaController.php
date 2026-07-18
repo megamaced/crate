@@ -9,6 +9,7 @@ use OCA\Crate\Dto\MediaItemData;
 use OCA\Crate\Service\EnrichmentService;
 use OCA\Crate\Service\MarketValueService;
 use OCA\Crate\Service\MediaService;
+use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
@@ -84,9 +85,15 @@ class MediaController extends OCSController
     #[NoAdminRequired]
     public function show(int $id): DataResponse
     {
-        // Read-path: owner OR sharee (via per-album / library / category share).
-        // Writes still go through find() so sharees can't mutate items.
-        return new DataResponse($this->mediaService->findVisible($id, $this->userId()));
+        // Read-path: owner OR sharee (via per-album / library / category / playlist share).
+        $userId = $this->userId();
+        $item   = $this->mediaService->findVisible($id, $userId);
+        // Report the viewer's effective write access so a single-item fetch is
+        // self-describing (share/with-me carries this for lists; clients that
+        // re-fetch one item — e.g. the Android detail screen — need it here too).
+        $data = $item->jsonSerialize();
+        $data['canWrite'] = $this->mediaService->canWrite($item, $userId);
+        return new DataResponse($data);
     }
 
     #[NoAdminRequired]
@@ -105,6 +112,7 @@ class MediaController extends OCSController
         string $category = CrateCategories::MUSIC,
         ?float $purchasePrice = null,
         ?string $purchasePriceCurrency = null,
+        ?string $owner = null,
     ): DataResponse {
         if (!CrateCategories::isStatus($status)) {
             return new DataResponse(['error' => 'Invalid status'], Http::STATUS_BAD_REQUEST);
@@ -132,7 +140,14 @@ class MediaController extends OCSController
             $priceResult['price'],
             $priceResult['currency'],
         );
-        return new DataResponse($this->mediaService->create($this->userId(), $data));
+        // $owner set → adding into another user's collection via a read/write
+        // library/category share. MediaService verifies the share and rejects
+        // otherwise.
+        try {
+            return new DataResponse($this->mediaService->create($this->userId(), $data, $owner));
+        } catch (\InvalidArgumentException $e) {
+            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_FORBIDDEN);
+        }
     }
 
     #[NoAdminRequired]
@@ -261,7 +276,15 @@ class MediaController extends OCSController
     #[UserRateLimit(limit: 60, period: 60)]
     public function enrich(int $id): DataResponse
     {
-        $result = $this->enrichmentService->enrich($id, $this->userId());
+        // Owner-only: enrich mutates the item. A sharee (read-only access via a
+        // shared album/library/category/playlist) does not own the item, so the
+        // lookup misses — return a clean 404 rather than surfacing the raw
+        // DoesNotExistException as a 500.
+        try {
+            $result = $this->enrichmentService->enrich($id, $this->userId());
+        } catch (DoesNotExistException) {
+            return new DataResponse(['error' => 'Not found'], Http::STATUS_NOT_FOUND);
+        }
         if ($result->isOk()) {
             return new DataResponse($result->item);
         }

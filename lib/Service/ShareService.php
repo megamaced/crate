@@ -27,9 +27,14 @@ class ShareService
      * @return array<string, mixed>
      * @throws \InvalidArgumentException if already shared or item not found
      */
-    public function shareAlbum(string $ownerUserId, int $mediaItemId, string $sharedWithUserId): array
-    {
+    public function shareAlbum(
+        string $ownerUserId,
+        int $mediaItemId,
+        string $sharedWithUserId,
+        string $permission = CrateShare::PERMISSION_READ,
+    ): array {
         $this->validateTargetUser($sharedWithUserId, $ownerUserId);
+        $permission = $this->normalisePermission($permission);
 
         // Verify item belongs to owner
         $this->mediaItemMapper->findByUser($mediaItemId, $ownerUserId);
@@ -38,7 +43,14 @@ class ShareService
             throw new \InvalidArgumentException('Already shared with this user.');
         }
 
-        $share = $this->createShare($ownerUserId, $sharedWithUserId, CrateShare::TYPE_ALBUM, $mediaItemId);
+        $share = $this->createShare(
+            $ownerUserId,
+            $sharedWithUserId,
+            CrateShare::TYPE_ALBUM,
+            $mediaItemId,
+            CrateShare::CATEGORY_NONE,
+            $permission,
+        );
         return $share->jsonSerialize();
     }
 
@@ -46,9 +58,14 @@ class ShareService
      * @return array<string, mixed>
      * @throws \InvalidArgumentException if already shared or playlist not found
      */
-    public function sharePlaylist(string $ownerUserId, int $playlistId, string $sharedWithUserId): array
-    {
+    public function sharePlaylist(
+        string $ownerUserId,
+        int $playlistId,
+        string $sharedWithUserId,
+        string $permission = CrateShare::PERMISSION_READ,
+    ): array {
         $this->validateTargetUser($sharedWithUserId, $ownerUserId);
+        $permission = $this->normalisePermission($permission);
 
         // Verify playlist belongs to owner (will throw DoesNotExistException if not)
         $this->playlistService->find($playlistId, $ownerUserId);
@@ -63,7 +80,14 @@ class ShareService
             throw new \InvalidArgumentException('Already shared with this user.');
         }
 
-        $share = $this->createShare($ownerUserId, $sharedWithUserId, CrateShare::TYPE_PLAYLIST, $playlistId);
+        $share = $this->createShare(
+            $ownerUserId,
+            $sharedWithUserId,
+            CrateShare::TYPE_PLAYLIST,
+            $playlistId,
+            CrateShare::CATEGORY_NONE,
+            $permission,
+        );
         return $share->jsonSerialize();
     }
 
@@ -73,15 +97,26 @@ class ShareService
      * @return array<string, mixed>
      * @throws \InvalidArgumentException if already shared
      */
-    public function shareLibrary(string $ownerUserId, string $sharedWithUserId): array
-    {
+    public function shareLibrary(
+        string $ownerUserId,
+        string $sharedWithUserId,
+        string $permission = CrateShare::PERMISSION_READ,
+    ): array {
         $this->validateTargetUser($sharedWithUserId, $ownerUserId);
+        $permission = $this->normalisePermission($permission);
 
         if ($this->shareMapper->alreadyShared($ownerUserId, $sharedWithUserId, CrateShare::TYPE_LIBRARY, 0)) {
             throw new \InvalidArgumentException('Library already shared with this user.');
         }
 
-        $share = $this->createShare($ownerUserId, $sharedWithUserId, CrateShare::TYPE_LIBRARY, 0);
+        $share = $this->createShare(
+            $ownerUserId,
+            $sharedWithUserId,
+            CrateShare::TYPE_LIBRARY,
+            0,
+            CrateShare::CATEGORY_NONE,
+            $permission,
+        );
         return $share->jsonSerialize();
     }
 
@@ -91,10 +126,15 @@ class ShareService
      * @return array<string, mixed>
      * @throws \InvalidArgumentException if already shared or category invalid
      */
-    public function shareCategory(string $ownerUserId, string $category, string $sharedWithUserId): array
-    {
+    public function shareCategory(
+        string $ownerUserId,
+        string $category,
+        string $sharedWithUserId,
+        string $permission = CrateShare::PERMISSION_READ,
+    ): array {
         $this->validateCategory($category);
         $this->validateTargetUser($sharedWithUserId, $ownerUserId);
+        $permission = $this->normalisePermission($permission);
 
         $alreadyShared = $this->shareMapper->alreadyShared(
             $ownerUserId,
@@ -107,7 +147,14 @@ class ShareService
             throw new \InvalidArgumentException('Category already shared with this user.');
         }
 
-        $share = $this->createShare($ownerUserId, $sharedWithUserId, CrateShare::TYPE_CATEGORY, 0, $category);
+        $share = $this->createShare(
+            $ownerUserId,
+            $sharedWithUserId,
+            CrateShare::TYPE_CATEGORY,
+            0,
+            $category,
+            $permission,
+        );
         return $share->jsonSerialize();
     }
 
@@ -235,6 +282,7 @@ class ShareService
         string $type,
         int $shareableId,
         string $shareableCategory = CrateShare::CATEGORY_NONE,
+        string $permission = CrateShare::PERMISSION_READ,
     ): CrateShare {
         $share = new CrateShare();
         $share->setOwnerUserId($ownerUserId);
@@ -242,8 +290,27 @@ class ShareService
         $share->setShareableType($type);
         $share->setShareableId($shareableId);
         $share->setShareableCategory($shareableCategory);
+        $share->setPermission($permission);
         $share->setCreatedAt((new \DateTime())->format('Y-m-d H:i:s'));
         return $this->shareMapper->insert($share);
+    }
+
+    /** Share-permission validation: must be a known permission key. */
+    private function normalisePermission(string $permission): string
+    {
+        if (!in_array($permission, CrateShare::ALL_PERMISSIONS, true)) {
+            throw new \InvalidArgumentException('Unknown permission.');
+        }
+        return $permission;
+    }
+
+    /**
+     * True if $callerUserId may add a new item of $category into
+     * $ownerUserId's collection via a read/write library or category share.
+     */
+    public function canAddToCollection(string $callerUserId, string $ownerUserId, string $category): bool
+    {
+        return $this->shareMapper->hasWritableCollectionShare($callerUserId, $ownerUserId, $category);
     }
 
     /** Verify the target user exists and is not the owner. */
@@ -289,6 +356,8 @@ class ShareService
             $data = $item->jsonSerialize();
             $data['shareId']      = $share->getId();
             $data['sharedByUser'] = $share->getOwnerUserId();
+            $data['permission']   = $share->getPermission();
+            $data['canWrite']     = $share->canWrite();
             $out[] = $data;
         }
         return $out;
@@ -306,6 +375,8 @@ class ShareService
                 $data = $this->playlistService->findForSharedAccess($share->getShareableId(), $viewerUserId);
                 $data['shareId']      = $share->getId();
                 $data['sharedByUser'] = $share->getOwnerUserId();
+                $data['permission']   = $share->getPermission();
+                $data['canWrite']     = $share->canWrite();
                 $out[] = $data;
             } catch (DoesNotExistException) {
                 // Shared playlist was deleted or revoked — skip
@@ -330,6 +401,8 @@ class ShareService
             $out[] = [
                 'shareId'      => $share->getId(),
                 'sharedByUser' => $share->getOwnerUserId(),
+                'permission'   => $share->getPermission(),
+                'canWrite'     => $share->canWrite(),
                 'createdAt'    => $share->getCreatedAt(),
                 'items'        => array_map(fn($i) => $i->jsonSerialize(), $items),
             ];
@@ -350,6 +423,8 @@ class ShareService
                 'shareId'      => $share->getId(),
                 'sharedByUser' => $share->getOwnerUserId(),
                 'category'     => $share->getShareableCategory(),
+                'permission'   => $share->getPermission(),
+                'canWrite'     => $share->canWrite(),
                 'createdAt'    => $share->getCreatedAt(),
                 'items'        => array_map(fn($i) => $i->jsonSerialize(), $items),
             ];

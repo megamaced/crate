@@ -10,19 +10,26 @@
         ← Back
       </NcButton>
       <div class="pd-topbar-actions">
+        <span
+          v-if="isShared"
+          class="pd-shared-badge"
+        >Shared by {{ playlist.sharedByUser }} · {{ canWrite ? 'can edit' : 'read-only' }}</span>
         <NcButton
+          v-if="canWrite"
           variant="tertiary"
           @click="startEdit"
         >
           Edit
         </NcButton>
         <NcButton
+          v-if="!isShared"
           variant="tertiary"
           @click="$emit('share', playlist)"
         >
           Share
         </NcButton>
         <NcButton
+          v-if="!isShared"
           variant="error"
           @click="confirmDelete = true"
         >
@@ -105,6 +112,7 @@
           </span>
         </div>
         <div
+          v-if="canWrite"
           class="pd-actions"
           @click.stop
         >
@@ -206,6 +214,12 @@ const props = defineProps({
 
 const emit = defineEmits(['back', 'detail', 'delete', 'share', 'updated'])
 
+// A playlist opened from Shared-with-me carries `sharedByUser` and `canWrite`.
+// canWrite covers own playlists (no sharedByUser) plus read/write sharees —
+// they may rename and add/remove tracks. Delete and re-share stay owner-only.
+const isShared = computed(() => !!props.playlist.sharedByUser)
+const canWrite = computed(() => !props.playlist.sharedByUser || props.playlist.canWrite === true)
+
 const confirmDelete = ref(false)
 const editOpen = ref(false)
 const editName = ref('')
@@ -304,7 +318,17 @@ async function removeItem(item) {
 
 .pd-topbar-actions {
   display: flex;
+  align-items: center;
   gap: 8px;
+}
+
+.pd-shared-badge {
+  font-size: 0.85em;
+  font-style: italic;
+  color: var(--color-text-maxcontrast);
+  padding: 6px 12px;
+  background: var(--color-background-dark);
+  border-radius: var(--border-radius);
 }
 
 /* Header */

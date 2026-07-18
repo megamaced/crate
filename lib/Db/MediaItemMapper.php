@@ -185,6 +185,88 @@ class MediaItemMapper extends QBMapper
                     ),
                 ),
             )
+            // Playlist-share case: the item is a track in a playlist that has
+            // been shared with the viewer. Join playlist membership to the item,
+            // then a matching playlist share row. Kept as a separate join since
+            // it targets crate_playlist_items rather than the item directly.
+            ->leftJoin(
+                'mi',
+                'crate_playlist_items',
+                'pi',
+                $qb->expr()->eq('pi.media_item_id', 'mi.id'),
+            )
+            ->leftJoin(
+                'pi',
+                'crate_shares',
+                'csp',
+                $qb->expr()->andX(
+                    $qb->expr()->eq('csp.shared_with_user_id', $viewerParam),
+                    $qb->expr()->eq('csp.shareable_type', $qb->createNamedParameter(CrateShare::TYPE_PLAYLIST)),
+                    $qb->expr()->eq('csp.shareable_id', 'pi.playlist_id'),
+                ),
+            )
+            ->where($qb->expr()->eq('mi.id', $idParam))
+            ->andWhere($qb->expr()->orX(
+                $qb->expr()->isNotNull('cs.id'),
+                $qb->expr()->isNotNull('csp.id'),
+            ))
+            ->setMaxResults(1);
+        return $this->findEntity($qb);
+    }
+
+    /**
+     * Find a media item that $viewerUserId may WRITE (edit/enrich/artwork/etc) —
+     * they own it, or there is a read/write share granting them access to it:
+     * a per-album RW share, or a whole-library / per-category RW share from the
+     * item's owner.
+     *
+     * Deliberately narrower than findVisibleForUser: playlist shares are NOT
+     * included, because read/write on a playlist governs its track list, not
+     * the right to modify the underlying media items (which may belong to other
+     * users). Deletes must still use findByUser() — sharees cannot delete.
+     *
+     * @throws DoesNotExistException
+     */
+    public function findWritableForUser(int $id, string $viewerUserId): MediaItem
+    {
+        // Owner fast path.
+        try {
+            return $this->findByUser($id, $viewerUserId);
+        } catch (DoesNotExistException) {
+            // Fall through to read/write share resolution.
+        }
+
+        $qb = $this->db->getQueryBuilder();
+        $idParam     = $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT);
+        $viewerParam = $qb->createNamedParameter($viewerUserId);
+        $rwParam     = $qb->createNamedParameter(CrateShare::PERMISSION_READWRITE);
+
+        $qb->select('mi.*')
+            ->from($this->getTableName(), 'mi')
+            ->leftJoin(
+                'mi',
+                'crate_shares',
+                'cs',
+                $qb->expr()->andX(
+                    $qb->expr()->eq('cs.shared_with_user_id', $viewerParam),
+                    $qb->expr()->eq('cs.permission', $rwParam),
+                    $qb->expr()->orX(
+                        $qb->expr()->andX(
+                            $qb->expr()->eq('cs.shareable_type', $qb->createNamedParameter(CrateShare::TYPE_ALBUM)),
+                            $qb->expr()->eq('cs.shareable_id', $idParam),
+                        ),
+                        $qb->expr()->andX(
+                            $qb->expr()->eq('cs.shareable_type', $qb->createNamedParameter(CrateShare::TYPE_LIBRARY)),
+                            $qb->expr()->eq('cs.owner_user_id', 'mi.user_id'),
+                        ),
+                        $qb->expr()->andX(
+                            $qb->expr()->eq('cs.shareable_type', $qb->createNamedParameter(CrateShare::TYPE_CATEGORY)),
+                            $qb->expr()->eq('cs.owner_user_id', 'mi.user_id'),
+                            $qb->expr()->eq('cs.shareable_category', 'mi.category'),
+                        ),
+                    ),
+                ),
+            )
             ->where($qb->expr()->eq('mi.id', $idParam))
             ->andWhere($qb->expr()->isNotNull('cs.id'))
             ->setMaxResults(1);

@@ -37,7 +37,8 @@ class EnrichmentService
      */
     public function enrich(int $id, string $userId): EnrichmentResult
     {
-        $item     = $this->mediaService->find($id, $userId);
+        // Owner or read/write sharee — enrich mutates the item.
+        $item     = $this->mediaService->findWritable($id, $userId);
         $category = $item->getCategory();
 
         return match ($category) {

@@ -22,6 +22,17 @@
         {{ subscopeHint }}
       </p>
 
+      <!-- Access level -->
+      <div class="share-permission">
+        <NcCheckboxRadioSwitch
+          type="switch"
+          :model-value="allowWrite"
+          @update:model-value="allowWrite = $event"
+        >
+          Allow adding &amp; editing (read/write)
+        </NcCheckboxRadioSwitch>
+      </div>
+
       <!-- User search -->
       <div class="share-search">
         <input
@@ -70,7 +81,13 @@
           :key="share.id"
           class="share-current-row"
         >
-          <span class="share-current-user">{{ share.sharedWithUserId }}</span>
+          <span class="share-current-user">
+            {{ share.sharedWithUserId }}
+            <span
+              class="share-access-badge"
+              :class="share.canWrite ? 'share-access-badge--write' : ''"
+            >{{ share.canWrite ? 'Can edit' : 'Read-only' }}</span>
+          </span>
           <NcButton
             variant="tertiary"
             size="small"
@@ -95,7 +112,7 @@
 
 <script setup>
 import { ref, watch, computed } from 'vue'
-import { NcModal, NcButton } from '@nextcloud/vue'
+import { NcModal, NcButton, NcCheckboxRadioSwitch } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
 import { showError } from '@nextcloud/dialogs'
@@ -121,6 +138,7 @@ const query = ref('')
 const searching = ref(false)
 const searchResults = ref([])
 const currentShares = ref([])
+const allowWrite = ref(false)
 const statusMessage = ref('')
 const statusError = ref(false)
 let searchTimeout = null
@@ -142,9 +160,12 @@ const headingForTarget = computed(() => {
 })
 
 const subscopeHint = computed(() => {
+  const access = allowWrite.value
+    ? 'They can add and edit items, but not delete them.'
+    : 'Read-only.'
   switch (props.target?.type) {
-    case 'library':  return 'Sharees can view every item in your collection. Read-only.'
-    case 'category': return 'Sharees can view items in this category. Read-only.'
+    case 'library':  return `Sharees can view every item in your collection. ${access}`
+    case 'category': return `Sharees can view items in this category. ${access}`
     default:         return ''
   }
 })
@@ -160,6 +181,7 @@ watch(() => props.show, async (open) => {
     query.value = ''
     searchResults.value = []
     statusMessage.value = ''
+    allowWrite.value = false
     return
   }
   if (props.target) {
@@ -235,7 +257,7 @@ async function shareWith(user) {
   if (!url) return
   statusMessage.value = ''
   try {
-    await axios.post(url, { userId: user.uid })
+    await axios.post(url, { userId: user.uid, permission: allowWrite.value ? 'readwrite' : 'read' })
     query.value = ''
     searchResults.value = []
     statusError.value = false
@@ -378,6 +400,29 @@ async function unshare(share) {
 
 .share-current-user {
   font-size: 0.875em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.share-permission {
+  margin: 4px 0 16px;
+}
+
+.share-access-badge {
+  font-size: 0.72em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: var(--color-background-dark);
+  color: var(--color-text-maxcontrast);
+}
+
+.share-access-badge--write {
+  background: var(--color-primary-element);
+  color: var(--color-primary-element-text);
 }
 
 /* Status */

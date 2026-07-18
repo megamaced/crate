@@ -94,6 +94,66 @@ class CrateShareMapper extends QBMapper
         }
     }
 
+    /**
+     * True if $viewerUserId has a read/write share of the given shape by anyone.
+     * Used to authorize writes (edit/add) by a sharee on a specific resource.
+     */
+    public function isWritableSharedWith(
+        string $viewerUserId,
+        string $type,
+        int $shareableId,
+        string $shareableCategory = CrateShare::CATEGORY_NONE,
+    ): bool {
+        $qb = $this->db->getQueryBuilder();
+        $shareableIdParam = $qb->createNamedParameter($shareableId, IQueryBuilder::PARAM_INT);
+        $qb->select('id')
+            ->from($this->getTableName())
+            ->where($qb->expr()->eq('shared_with_user_id', $qb->createNamedParameter($viewerUserId)))
+            ->andWhere($qb->expr()->eq('shareable_type', $qb->createNamedParameter($type)))
+            ->andWhere($qb->expr()->eq('shareable_id', $shareableIdParam))
+            ->andWhere($qb->expr()->eq('shareable_category', $qb->createNamedParameter($shareableCategory)))
+            ->andWhere($qb->expr()->eq('permission', $qb->createNamedParameter(CrateShare::PERMISSION_READWRITE)))
+            ->setMaxResults(1);
+        try {
+            $this->findEntity($qb);
+            return true;
+        } catch (DoesNotExistException) {
+            return false;
+        }
+    }
+
+    /**
+     * True if $viewerUserId may add a new item of $category into $ownerUserId's
+     * collection — i.e. $ownerUserId granted them a read/write whole-library
+     * share, or a read/write share of that specific category.
+     */
+    public function hasWritableCollectionShare(
+        string $viewerUserId,
+        string $ownerUserId,
+        string $category,
+    ): bool {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('id')
+            ->from($this->getTableName())
+            ->where($qb->expr()->eq('shared_with_user_id', $qb->createNamedParameter($viewerUserId)))
+            ->andWhere($qb->expr()->eq('owner_user_id', $qb->createNamedParameter($ownerUserId)))
+            ->andWhere($qb->expr()->eq('permission', $qb->createNamedParameter(CrateShare::PERMISSION_READWRITE)))
+            ->andWhere($qb->expr()->orX(
+                $qb->expr()->eq('shareable_type', $qb->createNamedParameter(CrateShare::TYPE_LIBRARY)),
+                $qb->expr()->andX(
+                    $qb->expr()->eq('shareable_type', $qb->createNamedParameter(CrateShare::TYPE_CATEGORY)),
+                    $qb->expr()->eq('shareable_category', $qb->createNamedParameter($category)),
+                ),
+            ))
+            ->setMaxResults(1);
+        try {
+            $this->findEntity($qb);
+            return true;
+        } catch (DoesNotExistException) {
+            return false;
+        }
+    }
+
     public function alreadyShared(
         string $ownerUserId,
         string $sharedWithUserId,

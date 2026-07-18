@@ -61,14 +61,17 @@ class ShareController extends OCSController
     // ── Share album ────────────────────────────────────────────────────────────
 
     #[NoAdminRequired]
-    public function shareAlbum(int $id, string $userId): DataResponse
+    public function shareAlbum(int $id, string $userId, string $permission = 'read'): DataResponse
     {
         try {
-            return new DataResponse($this->shareService->shareAlbum($this->userId(), $id, $userId));
+            return new DataResponse($this->shareService->shareAlbum($this->userId(), $id, $userId, $permission));
         } catch (DoesNotExistException) {
             return new DataResponse(['error' => 'Album not found'], Http::STATUS_NOT_FOUND);
         } catch (\InvalidArgumentException $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_CONFLICT);
+            $status = $e->getMessage() === 'Unknown permission.'
+                ? Http::STATUS_BAD_REQUEST
+                : Http::STATUS_CONFLICT;
+            return new DataResponse(['error' => $e->getMessage()], $status);
         }
     }
 
@@ -86,14 +89,17 @@ class ShareController extends OCSController
     // ── Share playlist ─────────────────────────────────────────────────────────
 
     #[NoAdminRequired]
-    public function sharePlaylist(int $id, string $userId): DataResponse
+    public function sharePlaylist(int $id, string $userId, string $permission = 'read'): DataResponse
     {
         try {
-            return new DataResponse($this->shareService->sharePlaylist($this->userId(), $id, $userId));
+            return new DataResponse($this->shareService->sharePlaylist($this->userId(), $id, $userId, $permission));
         } catch (DoesNotExistException) {
             return new DataResponse(['error' => 'Playlist not found'], Http::STATUS_NOT_FOUND);
         } catch (\InvalidArgumentException $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_CONFLICT);
+            $status = $e->getMessage() === 'Unknown permission.'
+                ? Http::STATUS_BAD_REQUEST
+                : Http::STATUS_CONFLICT;
+            return new DataResponse(['error' => $e->getMessage()], $status);
         }
     }
 
@@ -111,12 +117,15 @@ class ShareController extends OCSController
     // ── Share whole library ────────────────────────────────────────────────────
 
     #[NoAdminRequired]
-    public function shareLibrary(string $userId): DataResponse
+    public function shareLibrary(string $userId, string $permission = 'read'): DataResponse
     {
         try {
-            return new DataResponse($this->shareService->shareLibrary($this->userId(), $userId));
+            return new DataResponse($this->shareService->shareLibrary($this->userId(), $userId, $permission));
         } catch (\InvalidArgumentException $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_CONFLICT);
+            $status = $e->getMessage() === 'Unknown permission.'
+                ? Http::STATUS_BAD_REQUEST
+                : Http::STATUS_CONFLICT;
+            return new DataResponse(['error' => $e->getMessage()], $status);
         }
     }
 
@@ -129,12 +138,14 @@ class ShareController extends OCSController
     // ── Share single category ──────────────────────────────────────────────────
 
     #[NoAdminRequired]
-    public function shareCategory(string $category, string $userId): DataResponse
+    public function shareCategory(string $category, string $userId, string $permission = 'read'): DataResponse
     {
         try {
-            return new DataResponse($this->shareService->shareCategory($this->userId(), $category, $userId));
+            return new DataResponse(
+                $this->shareService->shareCategory($this->userId(), $category, $userId, $permission),
+            );
         } catch (\InvalidArgumentException $e) {
-            $status = $e->getMessage() === 'Unknown category.'
+            $status = in_array($e->getMessage(), ['Unknown category.', 'Unknown permission.'], true)
                 ? Http::STATUS_BAD_REQUEST
                 : Http::STATUS_CONFLICT;
             return new DataResponse(['error' => $e->getMessage()], $status);

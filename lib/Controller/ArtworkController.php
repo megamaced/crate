@@ -211,7 +211,7 @@ class ArtworkController extends Controller
         $userId = $user->getUID();
 
         try {
-            $item = $this->mapper->findByUser($itemId, $userId);
+            $item = $this->mapper->findWritableForUser($itemId, $userId);
         } catch (\OCP\AppFramework\Db\DoesNotExistException) {
             return new DataResponse(['error' => 'Not found'], Http::STATUS_NOT_FOUND);
         }
@@ -256,7 +256,7 @@ class ArtworkController extends Controller
         $this->db->beginTransaction();
         try {
             // Re-read inside the transaction
-            $item = $this->mapper->findByUser($itemId, $userId);
+            $item = $this->mapper->findWritableForUser($itemId, $userId);
 
             foreach (self::ARTWORK_EXTENSIONS as $oldExt) {
                 try {
@@ -299,14 +299,14 @@ class ArtworkController extends Controller
         $userId = $user->getUID();
 
         try {
-            $item = $this->mapper->findByUser($itemId, $userId);
+            $item = $this->mapper->findWritableForUser($itemId, $userId);
         } catch (\OCP\AppFramework\Db\DoesNotExistException) {
             return new DataResponse(['error' => 'Not found'], Http::STATUS_NOT_FOUND);
         }
 
         $this->db->beginTransaction();
         try {
-            $item = $this->mapper->findByUser($itemId, $userId);
+            $item = $this->mapper->findWritableForUser($itemId, $userId);
             try {
                 $folder = $this->appDataFactory->get('crate')->getFolder('artwork');
                 foreach (self::ARTWORK_EXTENSIONS as $ext) {

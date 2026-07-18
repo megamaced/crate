@@ -9,21 +9,21 @@
 Add items manually or by barcode scan. Pull rich metadata automatically from Discogs (music), TMDB (films), Open Library (books), RAWG (games) and ComicVine (comics). Track market values from Discogs and PriceCharting alongside what you originally paid. Attach the cover art plus two extra user photos per item (receipts, sleevenotes, disc shots).
 
 Owned vs. wanted, playlists, sharing with other Nextcloud users, full CSV and XLSX import / export. There's a native Android companion at https://github.com/megamaced/crate-android.]]></description>
-    <version>1.0.3</version>
+    <version>1.1.0</version>
     <licence>AGPL-3.0-or-later</licence>
     <author mail="22581049+megamaced@users.noreply.github.com" homepage="https://github.com/megamaced/crate">megamaced</author>
     <namespace>Crate</namespace>
     <category>multimedia</category>
     <bugs>https://github.com/megamaced/crate/issues</bugs>
     <repository type="git">https://github.com/megamaced/crate</repository>
-    <screenshot>https://raw.githubusercontent.com/megamaced/crate/v1.0.2/docs/screenshots/home.png</screenshot>
-    <screenshot>https://raw.githubusercontent.com/megamaced/crate/v1.0.2/docs/screenshots/music.png</screenshot>
-    <screenshot>https://raw.githubusercontent.com/megamaced/crate/v1.0.2/docs/screenshots/films.png</screenshot>
-    <screenshot>https://raw.githubusercontent.com/megamaced/crate/v1.0.2/docs/screenshots/books.png</screenshot>
-    <screenshot>https://raw.githubusercontent.com/megamaced/crate/v1.0.2/docs/screenshots/games.png</screenshot>
-    <screenshot>https://raw.githubusercontent.com/megamaced/crate/v1.0.2/docs/screenshots/comics.png</screenshot>
-    <screenshot>https://raw.githubusercontent.com/megamaced/crate/v1.0.2/docs/screenshots/detail-music.png</screenshot>
-    <screenshot>https://raw.githubusercontent.com/megamaced/crate/v1.0.2/docs/screenshots/playlists.png</screenshot>
+    <screenshot>https://raw.githubusercontent.com/megamaced/crate/v1.1.0/docs/screenshots/home.png</screenshot>
+    <screenshot>https://raw.githubusercontent.com/megamaced/crate/v1.1.0/docs/screenshots/music.png</screenshot>
+    <screenshot>https://raw.githubusercontent.com/megamaced/crate/v1.1.0/docs/screenshots/films.png</screenshot>
+    <screenshot>https://raw.githubusercontent.com/megamaced/crate/v1.1.0/docs/screenshots/books.png</screenshot>
+    <screenshot>https://raw.githubusercontent.com/megamaced/crate/v1.1.0/docs/screenshots/games.png</screenshot>
+    <screenshot>https://raw.githubusercontent.com/megamaced/crate/v1.1.0/docs/screenshots/comics.png</screenshot>
+    <screenshot>https://raw.githubusercontent.com/megamaced/crate/v1.1.0/docs/screenshots/detail-music.png</screenshot>
+    <screenshot>https://raw.githubusercontent.com/megamaced/crate/v1.1.0/docs/screenshots/playlists.png</screenshot>
     <dependencies>
         <nextcloud min-version="29" max-version="35"/>
     </dependencies>

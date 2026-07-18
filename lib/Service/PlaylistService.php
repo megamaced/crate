@@ -100,7 +100,7 @@ class PlaylistService
             throw new DoesNotExistException('Playlist not shared with user');
         }
         $playlist = $this->playlistMapper->findById($id);
-        return $this->hydrateWithItems($playlist, $playlist->getUserId());
+        return $this->hydrateWithItems($playlist);
     }
 
     public function create(string $userId, string $name, ?string $description): array
@@ -121,9 +121,29 @@ class PlaylistService
         return $data;
     }
 
+    /**
+     * Resolve a playlist the caller may WRITE — they own it, or hold a
+     * read/write playlist share of it. Used for rename and add/remove track.
+     * Deleting a playlist stays owner-only (findByUser).
+     *
+     * @throws DoesNotExistException if the caller neither owns nor has RW access
+     */
+    private function resolveWritablePlaylist(int $id, string $userId): Playlist
+    {
+        try {
+            return $this->playlistMapper->findByUser($id, $userId);
+        } catch (DoesNotExistException $e) {
+            if ($this->shareMapper->isWritableSharedWith($userId, 'playlist', $id)) {
+                return $this->playlistMapper->findById($id);
+            }
+            throw $e;
+        }
+    }
+
     public function update(int $id, string $userId, string $name, ?string $description): array
     {
-        $playlist = $this->playlistMapper->findByUser($id, $userId);
+        // Owner or a read/write sharee may rename. (Delete stays owner-only.)
+        $playlist = $this->resolveWritablePlaylist($id, $userId);
         $playlist->setName($name);
         $playlist->setDescription($description);
         $playlist->setUpdatedAt((new \DateTime())->format('Y-m-d H:i:s'));
@@ -150,9 +170,11 @@ class PlaylistService
 
     public function addItem(int $playlistId, string $userId, int $mediaItemId): array
     {
-        $playlist = $this->playlistMapper->findByUser($playlistId, $userId);
-        // Verify the media item belongs to this user
-        $this->mediaItemMapper->findByUser($mediaItemId, $userId);
+        // Owner or a read/write sharee may add tracks.
+        $playlist = $this->resolveWritablePlaylist($playlistId, $userId);
+        // The track must be an item the caller can view (their own, or one
+        // shared with them) — not necessarily the playlist owner's.
+        $this->mediaItemMapper->findVisibleForUser($mediaItemId, $userId);
 
         if (!$this->playlistItemMapper->existsInPlaylist($playlistId, $mediaItemId)) {
             $now    = (new \DateTime())->format('Y-m-d H:i:s');
@@ -180,7 +202,8 @@ class PlaylistService
 
     public function removeItem(int $playlistId, string $userId, int $mediaItemId): array
     {
-        $playlist = $this->playlistMapper->findByUser($playlistId, $userId);
+        // Owner or a read/write sharee may remove tracks.
+        $playlist = $this->resolveWritablePlaylist($playlistId, $userId);
 
         $this->db->beginTransaction();
         try {
@@ -199,19 +222,19 @@ class PlaylistService
     // ── Private helpers ────────────────────────────────────────────────────────
 
     /** @return array<string, mixed> */
-    private function hydrateWithItems(Playlist $playlist, ?string $ownerUserId = null): array
+    private function hydrateWithItems(Playlist $playlist): array
     {
-        $uid   = $ownerUserId ?? $playlist->getUserId();
         $pItems = $this->playlistItemMapper->findByPlaylist($playlist->getId());
 
-        // Bulk-fetch all referenced media items in one query, then filter by
-        // owner in PHP and reorder to match the playlist's position order.
+        // Bulk-fetch all referenced media items in one query, then reorder to
+        // match the playlist's position order. Tracks are included regardless of
+        // which user owns them: a read/write sharee may add their own items to a
+        // shared playlist, and every participant should see the full track list.
+        // Only authorised writers (owner or RW sharee) can create these rows.
         $ids = array_map(fn($pi) => $pi->getMediaItemId(), $pItems);
         $byId = [];
         foreach ($this->mediaItemMapper->findByIds($ids) as $mi) {
-            if ($mi->getUserId() === $uid) {
-                $byId[$mi->getId()] = $mi;
-            }
+            $byId[$mi->getId()] = $mi;
         }
 
         $mediaItems = [];

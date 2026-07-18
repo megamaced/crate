@@ -12,14 +12,14 @@
           ← Back
         </NcButton>
         <div class="detail-topbar-actions">
-          <!-- Shared items are read-only for the recipient. The server enforces
-               this (write endpoints 404 because the sharee doesn't own the
-               item) — these buttons are hidden so the user doesn't trip them. -->
+          <!-- Read/write sharees can add & edit; read-only sharees see just the
+               badge. Delete and re-share stay owner-only (the server enforces
+               this too — those endpoints 403 for a sharee). -->
           <span
             v-if="isShared"
             class="detail-shared-badge"
-          >Shared by {{ item.sharedByUser }} · read-only</span>
-          <template v-if="!isShared">
+          >Shared by {{ item.sharedByUser }} · {{ canWrite ? 'can edit' : 'read-only' }}</span>
+          <template v-if="canWrite">
             <NcButton
               v-if="!enriching && !stripping"
               variant="secondary"
@@ -55,31 +55,34 @@
               v-if="fetchingMarket"
               class="detail-enriching"
             >Fetching price…</span>
-            <NcButton
-              variant="secondary"
-              @click="$emit('addToPlaylist', item)"
-            >
-              Add to playlist
-            </NcButton>
-            <NcButton
-              variant="secondary"
-              @click="$emit('share', item)"
-            >
-              Share
-            </NcButton>
-            <NcButton
-              variant="secondary"
-              @click="$emit('edit', item)"
-            >
-              Edit
-            </NcButton>
-            <NcButton
-              variant="error"
-              @click="$emit('delete', item)"
-            >
-              Delete
-            </NcButton>
           </template>
+          <NcButton
+            variant="secondary"
+            @click="$emit('addToPlaylist', item)"
+          >
+            Add to playlist
+          </NcButton>
+          <NcButton
+            v-if="!isShared"
+            variant="secondary"
+            @click="$emit('share', item)"
+          >
+            Share
+          </NcButton>
+          <NcButton
+            v-if="canWrite"
+            variant="secondary"
+            @click="$emit('edit', item)"
+          >
+            Edit
+          </NcButton>
+          <NcButton
+            v-if="!isShared"
+            variant="error"
+            @click="$emit('delete', item)"
+          >
+            Delete
+          </NcButton>
         </div>
       </div>
 
@@ -347,10 +350,11 @@ const fetchingMarket = ref(false)
 const isMusic = computed(() => !props.item.category || props.item.category === 'music')
 const hasMarketValue = computed(() => !['film', 'book'].includes(props.item.category))
 const isPriceChartingCategory = computed(() => ['game', 'comic'].includes(props.item.category))
-// `sharedByUser` is set on items that came from the Shared-with-me view —
-// shares are read-only in this release, so the action toolbar is suppressed
-// and a "shared by …" badge is shown in its place.
+// `sharedByUser` is set on items that came from the Shared-with-me view.
+// `canWrite` covers own items (no sharedByUser) plus read/write sharees —
+// they may enrich/edit. Delete and re-share remain owner-only (see template).
 const isShared = computed(() => !!props.item.sharedByUser)
+const canWrite = computed(() => !props.item.sharedByUser || props.item.canWrite === true)
 
 const enrichSourceLabel = computed(() => {
   const map = { music: 'Discogs', film: 'TMDB', book: 'Open Library', game: 'RAWG', comic: 'ComicVine' }

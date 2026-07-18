@@ -42,7 +42,7 @@ class MarketValueService
      */
     public function fetchAndStore(int $id, string $userId, string $currency): ?MediaItem
     {
-        $item     = $this->mapper->findByUser($id, $userId);
+        $item     = $this->mapper->findWritableForUser($id, $userId);
         $category = $item->getCategory();
 
         if (!CrateCategories::hasMarketValue($category)) {

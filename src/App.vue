@@ -89,6 +89,7 @@
         ref="sharedView"
         @detail="showDetail"
         @playlist="showPlaylistDetail"
+        @add-shared="openAddShared"
       />
 
       <!-- Home / landing view -->
@@ -256,6 +257,7 @@ const {
 // or the current/previous nav view's category for new items.
 const modalCategory = computed(() => {
   if (editingItem.value) return editingItem.value.category ?? 'music'
+  if (addSharedCategory.value) return addSharedCategory.value
   return VIEW_TO_CATEGORY[view.value] ?? VIEW_TO_CATEGORY[previousView.value] ?? 'music'
 })
 
@@ -299,6 +301,11 @@ const collectionViewRef = ref(null)
 
 const modalOpen = ref(false)
 const editingItem = ref(null)
+// When adding into a read/write shared library/category, the new item must be
+// created in the owner's collection: `addOwner` becomes the `owner` field on
+// the POST /media payload, and `addSharedCategory` pre-selects the category.
+const addOwner = ref(null)
+const addSharedCategory = ref(null)
 const deletingItem = ref(null)
 const importOpen = ref(false)
 const hasDiscogsToken = ref(false)
@@ -460,7 +467,9 @@ function showDetail(item) {
     cat === 'book' ||
     (cat === 'game' && hasRawgKey.value) ||
     (cat === 'comic' && hasComicVineKey.value)
-  if (notEnriched && autoEnrichOnClick.value && canAutoEnrich && !enrich.running.value && !market.running.value) {
+  // Never auto-enrich a shared item — enrichment writes into the owner's
+  // record and is only appropriate for items the current user owns.
+  if (!item.sharedByUser && notEnriched && autoEnrichOnClick.value && canAutoEnrich && !enrich.running.value && !market.running.value) {
     triggerEnrich(item.id)
   }
 }
@@ -571,6 +580,18 @@ function openShareCategory(category) {
 // ── modal helpers ─────────────────────────────────────────────────────────────
 function openAdd() {
   editingItem.value = null
+  addOwner.value = null
+  addSharedCategory.value = null
+  modalOpen.value = true
+}
+
+// Triggered from SharedView's "Add item" button on a read/write shared
+// library/category. Seeds the owner (so the item lands in their collection)
+// and, for a category share, the category.
+function openAddShared({ owner, category }) {
+  editingItem.value = null
+  addOwner.value = owner ?? null
+  addSharedCategory.value = category ?? null
   modalOpen.value = true
 }
 
@@ -582,6 +603,8 @@ function openEdit(item) {
 function closeModal() {
   modalOpen.value = false
   editingItem.value = null
+  addOwner.value = null
+  addSharedCategory.value = null
 }
 
 function handleImported() {
@@ -599,6 +622,9 @@ async function saveItem(payload) {
     // Capture before closeModal clears it
     const wasEditing = !!editingItem.value
     const editId = editingItem.value?.id
+    // Owner for a read/write shared add — routes the new item into the
+    // owner's collection via POST /media's `owner` field.
+    const sharedOwner = !wasEditing ? addOwner.value : null
 
     // Pull out artwork side-effects before sending to the API
     const artworkFile = payload._artworkFile ?? null
@@ -626,6 +652,8 @@ async function saveItem(payload) {
     payload.mediaFormat = payload.format
     delete payload.format
     // category is always set by the modal's form — no injection needed
+    // Route into the owner's collection when adding to a shared library/category.
+    if (sharedOwner) payload.owner = sharedOwner
 
     // Discogs-switch: delete the stale cached file BEFORE the PUT so the
     // PUT's new artworkPath survives (DELETE sets artworkPath=null in DB,
@@ -751,6 +779,8 @@ async function saveItem(payload) {
       }
     } else if (view.value === 'home') {
       homeView.value?.load()
+    } else if (view.value === 'shared') {
+      sharedView.value?.load()
     } else if (COLLECTION_VIEWS.includes(view.value)) {
       collectionViewRef.value?.reload()
     }

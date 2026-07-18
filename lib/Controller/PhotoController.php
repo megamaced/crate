@@ -135,7 +135,7 @@ class PhotoController extends Controller
         $userId = $user->getUID();
 
         try {
-            $item = $this->mapper->findByUser($itemId, $userId);
+            $item = $this->mapper->findWritableForUser($itemId, $userId);
         } catch (\OCP\AppFramework\Db\DoesNotExistException) {
             return new DataResponse(['error' => 'Not found'], Http::STATUS_NOT_FOUND);
         }
@@ -178,7 +178,7 @@ class PhotoController extends Controller
         // ArtworkController upload pattern.
         $this->db->beginTransaction();
         try {
-            $item = $this->mapper->findByUser($itemId, $userId);
+            $item = $this->mapper->findWritableForUser($itemId, $userId);
 
             // Clear any prior file in this slot (any extension).
             foreach (self::PHOTO_EXTENSIONS as $oldExt) {
@@ -230,14 +230,14 @@ class PhotoController extends Controller
         $userId = $user->getUID();
 
         try {
-            $item = $this->mapper->findByUser($itemId, $userId);
+            $item = $this->mapper->findWritableForUser($itemId, $userId);
         } catch (\OCP\AppFramework\Db\DoesNotExistException) {
             return new DataResponse(['error' => 'Not found'], Http::STATUS_NOT_FOUND);
         }
 
         $this->db->beginTransaction();
         try {
-            $item = $this->mapper->findByUser($itemId, $userId);
+            $item = $this->mapper->findWritableForUser($itemId, $userId);
             try {
                 $folder = $this->appDataFactory->get('crate')->getFolder('photos');
                 foreach (self::PHOTO_EXTENSIONS as $ext) {
