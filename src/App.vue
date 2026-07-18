@@ -126,6 +126,7 @@
         :category="activeSharedCategory"
         :shared-items="itemsForActiveSharedCategory"
         :shared-can-write="activeCategoryCanWrite"
+        :shared-export-owner="sharedExportOwnerForActiveCategory"
         :scroll-container="appContentRef"
         :has-discogs-token="hasDiscogsToken"
         :has-price-charting-token="hasPriceChartingToken"
@@ -327,7 +328,7 @@ const {
 // entered and refreshed after a shared-add save.
 const {
   sharedCategories, sharedPlaylists, itemsByCategory, writeOwnersForCategory,
-  load: loadSharedContent,
+  collectionOwnersForCategory, load: loadSharedContent,
 } = useSharedContent()
 
 // Category to seed the AddEditModal with — uses the editing item's category for edits,
@@ -385,6 +386,17 @@ const writeOwnerForActiveCategory = computed(() =>
   activeSharedCategory.value ? (writeOwnersForCategory(activeSharedCategory.value)[0] ?? null) : null,
 )
 const activeCategoryCanWrite = computed(() => writeOwnerForActiveCategory.value !== null)
+
+// Owner to route a shared Export to: only when exactly one owner shared a
+// readable *collection* (library/category) covering this category. Purely
+// playlist-derived categories, or several collection owners, yield null — the
+// shared CollectionView then hides Export (a playlist share can't back a
+// server-side collection export).
+const sharedExportOwnerForActiveCategory = computed(() => {
+  if (!activeSharedCategory.value) return null
+  const owners = collectionOwnersForCategory(activeSharedCategory.value)
+  return owners.length === 1 ? owners[0] : null
+})
 
 // Category the ImportModal targets: the shared category when importing into an
 // owner's collection, otherwise the current/previous nav view's category.

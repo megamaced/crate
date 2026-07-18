@@ -281,34 +281,44 @@ class ShareService
             $row['sharedWithDisplayName'] = $recipient !== null
                 ? $recipient->getDisplayName()
                 : $share->getSharedWithUserId();
-            $row['label'] = $this->describeShareable($share, $userId);
+            [$label, $itemCategory] = $this->describeShareable($share, $userId);
+            $row['label'] = $label;
+            // Category of what's shared, so clients can badge a single-item
+            // ('album') share by its real category (e.g. a shared game) rather
+            // than the legacy 'album' type name. Null for library/playlist.
+            $row['itemCategory'] = $itemCategory;
             $out[] = $row;
         }
         return $out;
     }
 
-    /** Human label for what a share points at (title / playlist name / scope). */
-    private function describeShareable(CrateShare $share, string $ownerUserId): string
+    /**
+     * Human label + category for what a share points at.
+     *
+     * @return array{0: string, 1: ?string} [label, category or null]
+     */
+    private function describeShareable(CrateShare $share, string $ownerUserId): array
     {
         switch ($share->getShareableType()) {
             case CrateShare::TYPE_ALBUM:
                 try {
-                    return $this->mediaItemMapper->findByUser($share->getShareableId(), $ownerUserId)->getTitle();
+                    $item = $this->mediaItemMapper->findByUser($share->getShareableId(), $ownerUserId);
+                    return [$item->getTitle(), $item->getCategory()];
                 } catch (DoesNotExistException) {
-                    return 'Item';
+                    return ['Item', null];
                 }
             case CrateShare::TYPE_PLAYLIST:
                 try {
-                    return $this->playlistService->find($share->getShareableId(), $ownerUserId)['name'] ?? 'Playlist';
+                    return [$this->playlistService->find($share->getShareableId(), $ownerUserId)['name'] ?? 'Playlist', null];
                 } catch (DoesNotExistException) {
-                    return 'Playlist';
+                    return ['Playlist', null];
                 }
             case CrateShare::TYPE_LIBRARY:
-                return 'Whole library';
+                return ['Whole library', null];
             case CrateShare::TYPE_CATEGORY:
-                return ucfirst($share->getShareableCategory());
+                return [ucfirst($share->getShareableCategory()), $share->getShareableCategory()];
             default:
-                return '';
+                return ['', null];
         }
     }
 

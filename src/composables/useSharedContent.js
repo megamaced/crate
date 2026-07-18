@@ -66,6 +66,19 @@ const itemsByCategory = computed(() => {
       add(tagShared(item, share), item.category)
     }
   }
+  // Shared playlists — a playlist share is read-only at the item level, but its
+  // items should still surface in the owner's category subpages (otherwise a
+  // book reaching the user only via a shared playlist would never appear under
+  // "Books"). Added last and forced canWrite:false, so any writable (or
+  // already-present) library/category copy still wins the dedupe below.
+  for (const share of playlists.value) {
+    for (const item of share.items ?? []) {
+      add(
+        { ...item, sharedByUser: share.sharedByUser, canWrite: false },
+        item.category,
+      )
+    }
+  }
 
   // Materialise the Maps into arrays.
   const out = {}
@@ -132,6 +145,28 @@ function writeOwnersForCategory(category) {
   return owners
 }
 
+/**
+ * Owners who shared a *collection* (whole library or that specific category)
+ * covering this category, at ANY permission level (read or write). These are
+ * the owners whose collection can be read as a whole — the prerequisite for a
+ * server-side Export. A playlist share does NOT grant this (it exposes only the
+ * playlist's items), so a purely playlist-derived category yields no owners and
+ * Export is correctly withheld. Distinct from writeOwnersForCategory, which is
+ * write-only (for Add/Import).
+ */
+function collectionOwnersForCategory(category) {
+  const owners = []
+  const seen = new Set()
+  const push = uid => {
+    if (uid && !seen.has(uid)) { seen.add(uid); owners.push(uid) }
+  }
+  for (const share of libraries.value) push(share.sharedByUser)
+  for (const share of categories.value) {
+    if (share.category === category) push(share.sharedByUser)
+  }
+  return owners
+}
+
 async function load() {
   loading.value = true
   error.value = null
@@ -159,6 +194,7 @@ export function useSharedContent() {
     sharedPlaylists,
     recentShared,
     writeOwnersForCategory,
+    collectionOwnersForCategory,
     load,
   }
 }

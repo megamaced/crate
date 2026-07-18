@@ -119,6 +119,7 @@
             Share
           </NcButton>
           <NcButton
+            v-if="!sharedMode || sharedExportOwner"
             variant="secondary"
             @click="exportOpen = true"
           >
@@ -314,7 +315,7 @@
       :show="exportOpen"
       :scope="statusFilter"
       :category="props.category"
-      :owner="sharedMode ? singleSharedOwner : null"
+      :owner="sharedMode ? sharedExportOwner : null"
       :has-discogs-token="props.hasDiscogsToken"
       :has-price-charting-token="props.hasPriceChartingToken"
       @close="exportOpen = false"
@@ -376,6 +377,11 @@ const props = defineProps({
   // write owner exists via `sharedCanWrite`.
   sharedItems:            { type: Array, default: null },
   sharedCanWrite:         { type: Boolean, default: false },
+  // Owner to route a shared Export to, or null when Export isn't available in
+  // shared mode (no single readable collection share backing this category —
+  // e.g. the items come purely from a shared playlist). Gates the Export
+  // button and supplies its owner. Unused in own-collection mode.
+  sharedExportOwner:      { type: String, default: null },
 })
 
 const emit = defineEmits(['add', 'import', 'detail', 'edit', 'delete', 'add-shared'])

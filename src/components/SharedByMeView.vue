@@ -29,7 +29,7 @@
         :key="share.id"
         class="sbm-row"
       >
-        <span class="sbm-type-badge">{{ typeLabel(share.shareableType) }}</span>
+        <span class="sbm-type-badge">{{ typeBadge(share) }}</span>
         <div class="sbm-info">
           <span class="sbm-label">{{ share.label }}</span>
           <span class="sbm-meta">
@@ -59,6 +59,7 @@ import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
 import { showError } from '@nextcloud/dialogs'
 import { NcButton } from '@nextcloud/vue'
+import { CATEGORY_LABELS } from '../utils/categoryFormats.js'
 
 const TYPE_LABELS = {
   album:    'Album',
@@ -71,8 +72,15 @@ const shares = ref([])
 const loading = ref(false)
 const removing = ref([])
 
-function typeLabel(type) {
-  return TYPE_LABELS[type] ?? type
+// A single-item share carries the legacy internal type "album" regardless of
+// the item's real category, so badge it by the item's category instead (e.g.
+// GAME / FILM). `itemCategory` is null for library/playlist shares — those keep
+// their plain type label. The badge style already uppercases the text.
+function typeBadge(share) {
+  if (share.shareableType === 'album') {
+    return CATEGORY_LABELS[share.itemCategory] ?? 'Item'
+  }
+  return TYPE_LABELS[share.shareableType] ?? share.shareableType
 }
 
 async function load() {
