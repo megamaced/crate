@@ -125,7 +125,6 @@
         ref="sharedCategory"
         :category="activeSharedCategory"
         :shared-items="itemsForActiveSharedCategory"
-        :shared-owner="writeOwnerForActiveCategory"
         :shared-can-write="activeCategoryCanWrite"
         :scroll-container="appContentRef"
         :has-discogs-token="hasDiscogsToken"
@@ -188,6 +187,14 @@
       :has-price-charting-token="hasPriceChartingToken"
       @close="closeImport"
       @imported="handleImported"
+    />
+
+    <OwnerPickerModal
+      :show="ownerPickerOpen"
+      :owners="ownerPickerOwners"
+      :title="ownerPickerTitle"
+      @select="onOwnerPicked"
+      @close="closeOwnerPicker"
     />
 
     <AddEditModal
@@ -278,6 +285,7 @@ import CollectionView from './components/CollectionView.vue'
 import HomeView from './components/HomeView.vue'
 import ImportModal from './components/ImportModal.vue'
 import ItemDetailView from './components/ItemDetailView.vue'
+import OwnerPickerModal from './components/OwnerPickerModal.vue'
 import PlaylistDetailView from './components/PlaylistDetailView.vue'
 import PlaylistsView from './components/PlaylistsView.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
@@ -406,6 +414,18 @@ const importOpen = ref(false)
 // created in the owner's collection: `importOwner` becomes the `owner` form
 // field on POST /import/commit and locks the modal's category to the shared one.
 const importOwner = ref(null)
+// Owner picker — shown before Add / Import when several owners share the active
+// category read/write. `ownerPickerMode` records which flow to resume on pick;
+// `ownerPickerCategory` carries the category through the prompt.
+const ownerPickerOpen = ref(false)
+const ownerPickerOwners = ref([])
+const ownerPickerMode = ref(null) // 'add' | 'import'
+const ownerPickerCategory = ref(null)
+const ownerPickerTitle = computed(() =>
+  ownerPickerMode.value === 'import'
+    ? 'Import into whose collection?'
+    : 'Add to whose collection?',
+)
 const hasDiscogsToken = ref(false)
 const hasTmdbToken = ref(false)
 const hasRawgKey = ref(false)
@@ -734,10 +754,22 @@ function openAdd() {
   modalOpen.value = true
 }
 
-// Triggered from the shared category subpage's "Add item" button on a read/write shared
-// library/category. Seeds the owner (so the item lands in their collection)
-// and, for a category share, the category.
-function openAddShared({ owner, category }) {
+// Triggered from the shared category subpage's "Add item" button. Resolves the
+// read/write owners for the category: one owner → open AddEdit straight away;
+// several → prompt with the owner picker first (see onOwnerPicked).
+function openAddShared({ category }) {
+  const owners = writeOwnersForCategory(category)
+  if (owners.length > 1) {
+    openOwnerPicker('add', category, owners)
+    return
+  }
+  startSharedAdd(owners[0] ?? null, category)
+}
+
+// Seed the AddEdit modal for a shared add: `owner` routes the new item into
+// that owner's collection, `category` pre-selects (and, for the modal, fixes)
+// the category.
+function startSharedAdd(owner, category) {
   editingItem.value = null
   addOwner.value = owner ?? null
   addSharedCategory.value = category ?? null
@@ -763,10 +795,48 @@ function openImport() {
 }
 
 // Open the ImportModal for a read/write shared category — rows land in the
-// owner's collection and the category is locked to the shared one.
+// owner's collection and the category is locked to the shared one. As with
+// Add, prompt when several owners share the category read/write.
 function openSharedImport() {
-  importOwner.value = writeOwnerForActiveCategory.value
+  const category = activeSharedCategory.value
+  const owners = writeOwnersForCategory(category)
+  if (owners.length > 1) {
+    openOwnerPicker('import', category, owners)
+    return
+  }
+  startSharedImport(owners[0] ?? null)
+}
+
+function startSharedImport(owner) {
+  importOwner.value = owner
   importOpen.value = true
+}
+
+// ── owner picker (multi-owner Add / Import) ────────────────────────────────────
+function openOwnerPicker(mode, category, owners) {
+  ownerPickerMode.value = mode
+  ownerPickerCategory.value = category
+  ownerPickerOwners.value = owners
+  ownerPickerOpen.value = true
+}
+
+// Resume the deferred Add / Import once the user picks an owner.
+function onOwnerPicked(owner) {
+  const mode = ownerPickerMode.value
+  const category = ownerPickerCategory.value
+  closeOwnerPicker()
+  if (mode === 'import') {
+    startSharedImport(owner)
+  } else {
+    startSharedAdd(owner, category)
+  }
+}
+
+function closeOwnerPicker() {
+  ownerPickerOpen.value = false
+  ownerPickerOwners.value = []
+  ownerPickerMode.value = null
+  ownerPickerCategory.value = null
 }
 
 function closeImport() {

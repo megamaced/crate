@@ -22,6 +22,10 @@
           class="media-card-market"
         >{{ formatMarketValue(item) }}</span>
       </div>
+      <span
+        v-if="ownerLabel"
+        class="media-card-owner"
+      >Shared by {{ ownerLabel }}</span>
     </div>
   </div>
 </template>
@@ -32,6 +36,9 @@ import MediaThumb from './MediaThumb.vue'
 
 defineProps({
   item: { type: Object, required: true },
+  // Optional "Shared by {uid}" caption — only supplied by the shared-category
+  // view when the same category is shared by more than one owner.
+  ownerLabel: { type: String, default: null },
 })
 
 defineEmits(['detail'])
@@ -118,5 +125,15 @@ defineEmits(['detail'])
   font-weight: 700;
   color: #4ade80;
   white-space: nowrap;
+}
+
+.media-card-owner {
+  margin-top: 4px;
+  font-size: 0.72em;
+  font-style: italic;
+  color: var(--color-text-maxcontrast);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>

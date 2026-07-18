@@ -224,6 +224,7 @@
             v-for="item in group.items"
             :key="item.id"
             :item="item"
+            :owner-label="multiOwner ? item.sharedByUser : null"
             @detail="$emit('detail', item)"
           />
         </div>
@@ -254,6 +255,10 @@
                   class="cv-badge cv-badge--wanted"
                 >Wanted</span>
                 <template v-if="item.label">&ensp;·&ensp;{{ item.label }}</template>
+                <span
+                  v-if="multiOwner"
+                  class="cv-shared-by-row"
+                >&ensp;·&ensp;Shared by {{ item.sharedByUser }}</span>
               </span>
             </div>
             <div
@@ -365,9 +370,11 @@ const props = defineProps({
   // from the prop (the shared-content store) rather than the API, the Share
   // button is hidden, and Add / Import / per-item Edit-Delete are gated on
   // write access. With the props at their defaults the component behaves
-  // exactly as the owner's own-collection view.
+  // exactly as the owner's own-collection view. Owner resolution for Add /
+  // Import lives in the parent (App), which prompts when several owners share
+  // the category read/write — so this component only reports whether *any*
+  // write owner exists via `sharedCanWrite`.
   sharedItems:            { type: Array, default: null },
-  sharedOwner:            { type: String, default: null },
   sharedCanWrite:         { type: Boolean, default: false },
 })
 
@@ -376,19 +383,28 @@ const emit = defineEmits(['add', 'import', 'detail', 'edit', 'delete', 'add-shar
 // SHARED MODE is active whenever the parent passes a (non-null) item array.
 const sharedMode = computed(() => props.sharedItems !== null)
 
-// When every shared item in this category comes from the same owner, surface a
-// small "Shared by {owner}" note; with mixed owners we stay generic.
-const singleSharedOwner = computed(() => {
-  if (!sharedMode.value) return null
-  const owners = new Set(items.value.map(i => i.sharedByUser).filter(Boolean))
-  return owners.size === 1 ? [...owners][0] : null
+// Distinct owner uids across the shared items in this category. When more than
+// one owner shares the same category (e.g. Alice's library + Bob's Films), the
+// view merges them and we tag each item with its own owner.
+const sharedOwners = computed(() => {
+  if (!sharedMode.value) return new Set()
+  return new Set(items.value.map(i => i.sharedByUser).filter(Boolean))
 })
+const multiOwner = computed(() => sharedOwners.value.size > 1)
 
-// Add: in shared mode target the owner's collection via `add-shared`, otherwise
-// the plain owner-collection `add`.
+// When every shared item in this category comes from the same owner, surface a
+// single "Shared by {owner}" header note; with mixed owners we stay generic in
+// the header and instead label each item (see multiOwner).
+const singleSharedOwner = computed(() =>
+  sharedOwners.value.size === 1 ? [...sharedOwners.value][0] : null,
+)
+
+// Add: in shared mode emit `add-shared` with just the category — App resolves
+// which owner's collection to target (prompting when several owners share this
+// category read/write). Otherwise the plain own-collection `add`.
 function onAddClick() {
   if (sharedMode.value) {
-    emit('add-shared', { owner: props.sharedOwner, category: props.category })
+    emit('add-shared', { category: props.category })
   } else {
     emit('add')
   }
@@ -761,6 +777,11 @@ function scrollToGroup(header) {
   color: var(--color-text-maxcontrast);
   font-style: italic;
   margin-left: 8px;
+}
+
+/* Per-row owner tag shown in the merged multi-owner shared view. */
+.cv-shared-by-row {
+  font-style: italic;
 }
 
 /* Every bordered toolbar control is forced to the same external height
