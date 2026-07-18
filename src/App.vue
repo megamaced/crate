@@ -115,13 +115,25 @@
         @open-category="openSharedCategory"
       />
 
-      <!-- Shared with me — per-category subpage -->
-      <SharedCategoryView
+      <!-- Shared with me — per-category subpage. Reuses CollectionView in
+           "shared mode" so a shared category gets the same toolbar, tabs,
+           grouping and (for read/write shares) Add + per-item Edit as the
+           owner's own view. Keyed per category so it re-inits on switch. -->
+      <CollectionView
         v-else-if="view === 'shared-cat'"
+        :key="'shared-' + activeSharedCategory"
         ref="sharedCategory"
         :category="activeSharedCategory"
+        :shared-items="itemsForActiveSharedCategory"
+        :shared-owner="writeOwnerForActiveCategory"
+        :shared-can-write="activeCategoryCanWrite"
+        :scroll-container="appContentRef"
+        :has-discogs-token="hasDiscogsToken"
+        :has-price-charting-token="hasPriceChartingToken"
         @detail="showDetail"
+        @edit="openEdit"
         @add-shared="openAddShared"
+        @import="openSharedImport"
       />
 
       <!-- Shared with me — playlists subpage -->
@@ -158,7 +170,7 @@
         :has-discogs-token="hasDiscogsToken"
         :has-price-charting-token="hasPriceChartingToken"
         @add="openAdd"
-        @import="importOpen = true"
+        @import="openImport"
         @detail="showDetail"
         @edit="openEdit"
         @delete="confirmDelete"
@@ -167,13 +179,14 @@
 
     <ImportModal
       :show="importOpen"
-      :category="VIEW_TO_CATEGORY[view] ?? 'music'"
+      :category="importCategory"
+      :owner="importOwner"
       :has-discogs-token="hasDiscogsToken"
       :has-tmdb-token="hasTmdbToken"
       :has-rawg-key="hasRawgKey"
       :has-comic-vine-key="hasComicVineKey"
       :has-price-charting-token="hasPriceChartingToken"
-      @close="importOpen = false"
+      @close="closeImport"
       @imported="handleImported"
     />
 
@@ -270,7 +283,6 @@ import PlaylistsView from './components/PlaylistsView.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
 import ShareModal from './components/ShareModal.vue'
 import SharedHomeView from './components/SharedHomeView.vue'
-import SharedCategoryView from './components/SharedCategoryView.vue'
 import SharedPlaylistsView from './components/SharedPlaylistsView.vue'
 import SharedByMeView from './components/SharedByMeView.vue'
 import { useEnrichQueue } from './composables/useEnrichQueue.js'
@@ -306,7 +318,8 @@ const {
 // decide which children to render, so it's loaded whenever a shared view is
 // entered and refreshed after a shared-add save.
 const {
-  sharedCategories, sharedPlaylists, load: loadSharedContent,
+  sharedCategories, sharedPlaylists, itemsByCategory, writeOwnersForCategory,
+  load: loadSharedContent,
 } = useSharedContent()
 
 // Category to seed the AddEditModal with — uses the editing item's category for edits,
@@ -353,6 +366,26 @@ const collectionViewVisible = computed(() => COLLECTION_VIEWS.includes(view.valu
 const activeSharedCategory = ref(null)
 const sharedNavOpen = ref(false)
 
+// The shared-category subpage reuses CollectionView in "shared mode". These
+// feed its shared-* props from the shared-content store: the deduped item
+// list, the write-owner to route Add into (first read/write owner, if any) and
+// whether that grants write access at all.
+const itemsForActiveSharedCategory = computed(() =>
+  activeSharedCategory.value ? (itemsByCategory.value[activeSharedCategory.value] ?? []) : [],
+)
+const writeOwnerForActiveCategory = computed(() =>
+  activeSharedCategory.value ? (writeOwnersForCategory(activeSharedCategory.value)[0] ?? null) : null,
+)
+const activeCategoryCanWrite = computed(() => writeOwnerForActiveCategory.value !== null)
+
+// Category the ImportModal targets: the shared category when importing into an
+// owner's collection, otherwise the current/previous nav view's category.
+const importCategory = computed(() =>
+  importOwner.value
+    ? (activeSharedCategory.value ?? 'music')
+    : (VIEW_TO_CATEGORY[view.value] ?? 'music'),
+)
+
 // ── state ─────────────────────────────────────────────────────────────────────
 const appContentRef = ref(null)
 const selectedItem = ref(null)
@@ -369,6 +402,10 @@ const addOwner = ref(null)
 const addSharedCategory = ref(null)
 const deletingItem = ref(null)
 const importOpen = ref(false)
+// When importing into a read/write shared library/category, the rows must be
+// created in the owner's collection: `importOwner` becomes the `owner` form
+// field on POST /import/commit and locks the modal's category to the shared one.
+const importOwner = ref(null)
 const hasDiscogsToken = ref(false)
 const hasTmdbToken = ref(false)
 const hasRawgKey = ref(false)
@@ -558,7 +595,10 @@ function switchView(newView) {
   } else if (newView === 'shared') {
     nextTick(() => sharedHome.value?.load())
   } else if (newView === 'shared-cat') {
-    nextTick(() => sharedCategory.value?.load())
+    // CollectionView (shared mode) exposes reload(); the store was refreshed
+    // above via loadSharedContent() and the view's sharedItems watcher tracks
+    // it, so this is just a belt-and-braces re-copy.
+    nextTick(() => sharedCategory.value?.reload?.())
   } else if (newView === 'shared-playlists') {
     nextTick(() => sharedPlaylistsView.value?.load())
   } else if (newView === 'shared-by-me') {
@@ -716,8 +756,30 @@ function closeModal() {
   addSharedCategory.value = null
 }
 
+// Open the ImportModal for the current user's own collection.
+function openImport() {
+  importOwner.value = null
+  importOpen.value = true
+}
+
+// Open the ImportModal for a read/write shared category — rows land in the
+// owner's collection and the category is locked to the shared one.
+function openSharedImport() {
+  importOwner.value = writeOwnerForActiveCategory.value
+  importOpen.value = true
+}
+
+function closeImport() {
+  importOpen.value = false
+  importOwner.value = null
+}
+
 function handleImported() {
-  if (view.value === 'home') {
+  if (importOwner.value) {
+    // Shared import — refresh the shared-content store so the subpage's
+    // CollectionView (which reads it) reflects the new items.
+    loadSharedContent()
+  } else if (view.value === 'home') {
     homeView.value?.load()
   } else {
     collectionViewRef.value?.reload()

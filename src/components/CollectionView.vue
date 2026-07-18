@@ -5,8 +5,16 @@
       <!-- Toolbar -->
       <div class="cv-toolbar">
         <div class="cv-toolbar-left">
+          <span
+            v-if="sharedMode"
+            class="cv-eyebrow"
+          >Shared with me</span>
           <h2 class="cv-heading">
             {{ heading }}
+            <span
+              v-if="sharedMode && singleSharedOwner"
+              class="cv-shared-by"
+            >Shared by {{ singleSharedOwner }}</span>
           </h2>
         </div>
 
@@ -104,6 +112,7 @@
           </div>
 
           <NcButton
+            v-if="!sharedMode"
             variant="secondary"
             @click="shareOpen = true"
           >
@@ -116,14 +125,16 @@
             Export
           </NcButton>
           <NcButton
+            v-if="!sharedMode || sharedCanWrite"
             variant="secondary"
             @click="$emit('import')"
           >
             Import
           </NcButton>
           <NcButton
+            v-if="!sharedMode || sharedCanWrite"
             variant="primary"
-            @click="$emit('add')"
+            @click="onAddClick"
           >
             <template #icon>
               <span class="cv-plus">+</span>
@@ -182,8 +193,9 @@
       <template v-else>
         <p>{{ statusFilter === 'wanted' ? 'Your wanted list is empty.' : `No ${heading} items yet.` }}</p>
         <NcButton
+          v-if="!sharedMode || sharedCanWrite"
           variant="primary"
-          @click="$emit('add')"
+          @click="onAddClick"
         >
           Add item
         </NcButton>
@@ -255,6 +267,7 @@
               @click.stop
             >
               <NcButton
+                v-if="!sharedMode || sharedCanWrite"
                 variant="tertiary"
                 :aria-label="'Edit ' + item.title"
                 @click="$emit('edit', item)"
@@ -262,6 +275,7 @@
                 Edit
               </NcButton>
               <NcButton
+                v-if="!sharedMode"
                 variant="tertiary"
                 :aria-label="'Delete ' + item.title"
                 @click="$emit('delete', item)"
@@ -295,6 +309,7 @@
       :show="exportOpen"
       :scope="statusFilter"
       :category="props.category"
+      :owner="sharedMode ? singleSharedOwner : null"
       :has-discogs-token="props.hasDiscogsToken"
       :has-price-charting-token="props.hasPriceChartingToken"
       @close="exportOpen = false"
@@ -344,9 +359,40 @@ const props = defineProps({
   hasDiscogsToken:        { type: Boolean, default: false },
   hasPriceChartingToken:  { type: Boolean, default: false },
   visible:                { type: Boolean, default: true },
+  // ── Shared mode (opt-in) ──────────────────────────────────────────────────
+  // When `sharedItems` is non-null the view renders a "Shared with me"
+  // category instead of loading the current user's own collection: items come
+  // from the prop (the shared-content store) rather than the API, the Share
+  // button is hidden, and Add / Import / per-item Edit-Delete are gated on
+  // write access. With the props at their defaults the component behaves
+  // exactly as the owner's own-collection view.
+  sharedItems:            { type: Array, default: null },
+  sharedOwner:            { type: String, default: null },
+  sharedCanWrite:         { type: Boolean, default: false },
 })
 
-defineEmits(['add', 'import', 'detail', 'edit', 'delete'])
+const emit = defineEmits(['add', 'import', 'detail', 'edit', 'delete', 'add-shared'])
+
+// SHARED MODE is active whenever the parent passes a (non-null) item array.
+const sharedMode = computed(() => props.sharedItems !== null)
+
+// When every shared item in this category comes from the same owner, surface a
+// small "Shared by {owner}" note; with mixed owners we stay generic.
+const singleSharedOwner = computed(() => {
+  if (!sharedMode.value) return null
+  const owners = new Set(items.value.map(i => i.sharedByUser).filter(Boolean))
+  return owners.size === 1 ? [...owners][0] : null
+})
+
+// Add: in shared mode target the owner's collection via `add-shared`, otherwise
+// the plain owner-collection `add`.
+function onAddClick() {
+  if (sharedMode.value) {
+    emit('add-shared', { owner: props.sharedOwner, category: props.category })
+  } else {
+    emit('add')
+  }
+}
 
 const items = ref([])
 const loading = ref(false)
@@ -360,6 +406,13 @@ const filterFormat = ref('')
 watch(viewMode, v => localStorage.setItem('crate_viewMode', v))
 
 async function load() {
+  // Shared mode: items are supplied by the parent (the shared-content store),
+  // not the API — just (re-)copy them. `reload()` re-runs this after the store
+  // refreshes; the sharedItems watcher below keeps it live in between.
+  if (sharedMode.value) {
+    items.value = props.sharedItems ? [...props.sharedItems] : []
+    return
+  }
   loading.value = true
   try {
     const res = await axios.get(generateOcsUrl('/apps/crate/api/v1/media'), {
@@ -404,6 +457,14 @@ watch(() => props.visible, (vis) => {
   }
 })
 watch(() => props.category, load)
+
+// Keep shared-mode items in sync when the parent's store reloads (e.g. after a
+// shared add/edit). No-op for the owner's own-collection view.
+watch(() => props.sharedItems, () => {
+  if (sharedMode.value) {
+    items.value = props.sharedItems ? [...props.sharedItems] : []
+  }
+})
 
 // If we land on a category that doesn't support the active sort axis,
 // reset to a sensible default so the select doesn't show an empty /
@@ -680,6 +741,26 @@ function scrollToGroup(header) {
 .cv-heading {
   margin: 0;
   font-size: 1.4em;
+}
+
+/* Shared-mode header: "SHARED WITH ME" eyebrow above the category name and a
+   subtle "Shared by {owner}" note trailing it. */
+.cv-eyebrow {
+  display: block;
+  font-size: 0.7em;
+  font-weight: 600;
+  color: var(--color-text-maxcontrast);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 2px;
+}
+
+.cv-shared-by {
+  font-size: 0.6em;
+  font-weight: 500;
+  color: var(--color-text-maxcontrast);
+  font-style: italic;
+  margin-left: 8px;
 }
 
 /* Every bordered toolbar control is forced to the same external height

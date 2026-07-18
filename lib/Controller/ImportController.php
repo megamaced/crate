@@ -32,6 +32,7 @@ class ImportController extends OCSController
         IRequest $request,
         private readonly ImportService $importService,
         private readonly IUserSession $userSession,
+        private readonly \OCA\Crate\Db\CrateShareMapper $shareMapper,
     ) {
         parent::__construct($appName, $request);
     }
@@ -123,7 +124,20 @@ class ImportController extends OCSController
         $mappedRows  = $this->importService->applyMapping($parsed['rows'], $mapping);
         $rawCategory = (string) $this->request->getParam('category', CrateCategories::MUSIC);
         $category    = CrateCategories::isCategory($rawCategory) ? $rawCategory : CrateCategories::MUSIC;
-        $result      = $this->importService->import($mappedRows, $this->userId(), $category);
+
+        // Importing into a collection shared read/write with the caller: rows
+        // are created in the owner's collection, but only if the caller holds a
+        // read/write share covering that category (or the owner's whole library).
+        $importUserId = $this->userId();
+        $owner = (string) $this->request->getParam('owner', '');
+        if ($owner !== '' && $owner !== $importUserId) {
+            if (!$this->shareMapper->hasWritableCollectionShare($importUserId, $owner, $category)) {
+                return new DataResponse(['error' => 'No write access to that collection'], Http::STATUS_FORBIDDEN);
+            }
+            $importUserId = $owner;
+        }
+
+        $result = $this->importService->import($mappedRows, $importUserId, $category);
 
         return new DataResponse($result);
     }

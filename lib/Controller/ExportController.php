@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Crate\Controller;
 
 use OCA\Crate\CrateCategories;
+use OCA\Crate\Db\CrateShareMapper;
 use OCA\Crate\Service\ExportService;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
@@ -20,6 +21,7 @@ class ExportController extends Controller
         IRequest $request,
         private readonly ExportService $exportService,
         private readonly IUserSession $userSession,
+        private readonly CrateShareMapper $shareMapper,
     ) {
         parent::__construct($appName, $request);
     }
@@ -44,6 +46,7 @@ class ExportController extends Controller
         int $includeEnriched = 0,
         int $includeMarket = 0,
         int $includePrice = 0,
+        ?string $owner = null,
     ): DataDownloadResponse {
         $user = $this->userSession->getUser();
         if ($user === null) {
@@ -53,8 +56,19 @@ class ExportController extends Controller
 
         $cat = CrateCategories::isCategory($category) ? $category : null;
 
+        // Exporting a collection shared with the caller: export the owner's
+        // items instead, but only if the caller actually holds a read share of
+        // that category (or the owner's whole library).
+        $exportUserId = $userId;
+        if ($owner !== null && $owner !== '' && $owner !== $userId) {
+            if ($cat === null || !$this->shareMapper->hasReadableCollectionShare($userId, $owner, $cat)) {
+                return new DataDownloadResponse('', 'error.txt', 'text/plain');
+            }
+            $exportUserId = $owner;
+        }
+
         [$content, $mimeType, $filename] = $this->exportService->generate(
-            $userId,
+            $exportUserId,
             in_array($format, ['csv', 'xlsx'], true) ? $format : 'csv',
             in_array($scope, ['owned', 'wanted', 'all'], true) ? $scope : 'owned',
             $includeEnriched === 1,

@@ -165,6 +165,38 @@ class CrateShareMapper extends QBMapper
         }
     }
 
+    /**
+     * True if $viewerUserId may READ $ownerUserId's items of $category — i.e.
+     * $ownerUserId granted them a whole-library share, or a share of that
+     * category (any permission). Used to authorize exporting a shared
+     * collection. (Write variant: hasWritableCollectionShare.)
+     */
+    public function hasReadableCollectionShare(
+        string $viewerUserId,
+        string $ownerUserId,
+        string $category,
+    ): bool {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('id')
+            ->from($this->getTableName())
+            ->where($qb->expr()->eq('shared_with_user_id', $qb->createNamedParameter($viewerUserId)))
+            ->andWhere($qb->expr()->eq('owner_user_id', $qb->createNamedParameter($ownerUserId)))
+            ->andWhere($qb->expr()->orX(
+                $qb->expr()->eq('shareable_type', $qb->createNamedParameter(CrateShare::TYPE_LIBRARY)),
+                $qb->expr()->andX(
+                    $qb->expr()->eq('shareable_type', $qb->createNamedParameter(CrateShare::TYPE_CATEGORY)),
+                    $qb->expr()->eq('shareable_category', $qb->createNamedParameter($category)),
+                ),
+            ))
+            ->setMaxResults(1);
+        try {
+            $this->findEntity($qb);
+            return true;
+        } catch (DoesNotExistException) {
+            return false;
+        }
+    }
+
     public function alreadyShared(
         string $ownerUserId,
         string $sharedWithUserId,

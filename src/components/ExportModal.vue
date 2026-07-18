@@ -19,6 +19,7 @@
           id="export-category"
           v-model="selectedCategory"
           class="export-select"
+          :disabled="!!owner"
         >
           <option value="book">
             Books
@@ -35,7 +36,10 @@
           <option value="music">
             Music
           </option>
-          <option value="all">
+          <option
+            v-if="!owner"
+            value="all"
+          >
             All categories
           </option>
         </select>
@@ -172,6 +176,11 @@ const props = defineProps({
   category:               { type: String,  default: 'music' },
   hasDiscogsToken:        { type: Boolean, default: false },
   hasPriceChartingToken:  { type: Boolean, default: false },
+  // Shared mode: when set to a shared collection's owner uid, the export is
+  // routed to that owner's items (the caller must hold a read share). The
+  // category is then locked to `category` — a single owner + specific category,
+  // never 'all'.
+  owner:                  { type: String,  default: null },
 })
 
 const emit = defineEmits(['close'])
@@ -281,6 +290,13 @@ watch(selectedScope, refreshCount)
  */
 async function refreshCount() {
   if (!props.show) return
+  // In shared mode the count would come from the caller's own /media list
+  // (which has no owner filter), so it wouldn't reflect the owner's items —
+  // skip the preview count rather than show a misleading number.
+  if (props.owner) {
+    itemCount.value = null
+    return
+  }
   try {
     const params = { limit: 1, offset: 0 }
     if (selectedCategory.value !== 'all') params.category = selectedCategory.value
@@ -315,6 +331,8 @@ async function doExport() {
       includeMarket:   includeMarket.value   ? '1' : '0',
       includePrice:    includePrice.value    ? '1' : '0',
     })
+    // Shared mode: route the export to the owner's items for this category.
+    if (props.owner) params.set('owner', props.owner)
     const url = generateUrl('/apps/crate/export') + '?' + params.toString()
     const res = await axios.get(url, {
       responseType: 'blob',

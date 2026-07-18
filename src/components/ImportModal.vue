@@ -29,6 +29,7 @@
             id="import-category"
             v-model="selectedCategory"
             class="import-select"
+            :disabled="!!owner"
           >
             <option value="music">
               Music
@@ -340,6 +341,11 @@ import { FIELD_CONFIG } from '../utils/categoryFormats.js'
 const props = defineProps({
   show:                  { type: Boolean, required: true },
   category:              { type: String,  default: 'music' },
+  // Shared mode: when set to a shared collection's owner uid, imported rows are
+  // created in that owner's collection (the caller must hold a read/write share
+  // covering `category`). The category selector is then locked to `category`
+  // so the rows can't be routed to a category the share doesn't cover.
+  owner:                 { type: String,  default: null },
   // One flag per enrichment / market-value provider. Open Library (books)
   // doesn't need a key, so there's no prop for it.
   hasDiscogsToken:       { type: Boolean, default: false },
@@ -566,6 +572,9 @@ async function doImport() {
     Object.keys(mapping.value).forEach(k => { mappingObj[k] = mapping.value[k] || '' })
     fd.append('mapping', JSON.stringify(mappingObj))
     fd.append('category', selectedCategory.value)
+    // Shared mode: create the rows in the owner's collection (backend checks
+    // the caller holds a read/write share covering this category).
+    if (props.owner) fd.append('owner', props.owner)
 
     const res = await axios.post(generateOcsUrl('/apps/crate/api/v1/import/commit'), fd)
     result.value = res.data.ocs?.data
