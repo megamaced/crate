@@ -60,8 +60,16 @@ class OpenLibraryService extends AbstractApiService
         $authorKey  = null;
         $authorKeys = (array)($body['authors'] ?? []);
         if (!empty($authorKeys[0]['author']['key'])) {
-            $authorKey  = (string)$authorKeys[0]['author']['key'];
-            $authorBody = $this->getJson('https://openlibrary.org' . $authorKey . '.json');
+            $authorKey = (string)$authorKeys[0]['author']['key'];
+            // The key comes from Open Library's response but is concatenated
+            // into the URL, so apply the same shape guard as $workId rather
+            // than trusting upstream blindly.
+            if (preg_match('#^/authors/OL[0-9]+A$#', $authorKey)) {
+                $authorBody = $this->getJson('https://openlibrary.org' . $authorKey . '.json');
+            } else {
+                $authorKey  = null;
+                $authorBody = [];
+            }
             if (!empty($authorBody)) {
                 $bio = $authorBody['bio'] ?? null;
                 if (is_array($bio)) {

@@ -40,7 +40,7 @@ Rich, category-aware detail with auto-fetched metadata, tracklists, market value
 
 ## Requirements
 
-- Nextcloud 29 – 33
+- Nextcloud 29 – 35
 
 ## Optional API tokens
 
@@ -56,14 +56,16 @@ Open Library (book metadata) needs no token.
 
 ## Installation
 
-This app is not yet on the Nextcloud App Store. To install (or upgrade) from a release archive, run the following from your `custom_apps` directory:
+The easiest way to install is from the [Nextcloud App Store](https://apps.nextcloud.com/apps/crate): in Nextcloud go to **Apps → Multimedia → Crate → Download and enable**.
+
+To install (or upgrade) manually from a release archive instead, run the following from your `custom_apps` directory:
 
 ```bash
 # 1. Back up the existing install (in case rollback needed; skip on first install)
 mv crate crate.bak.$(date +%s)
 
 # 2. Download & extract the release
-CRATE_VERSION=0.4.6
+CRATE_VERSION=1.4.5
 curl -sSL -o crate-${CRATE_VERSION}.tar.gz \
   https://github.com/megamaced/crate/releases/download/v${CRATE_VERSION}/crate-${CRATE_VERSION}.tar.gz
 tar -xzf crate-${CRATE_VERSION}.tar.gz

@@ -322,7 +322,8 @@ class MediaController extends OCSController
             $updated = $this->marketValueService->fetchAndStore($id, $this->userId(), $currency);
             if ($updated === null) {
                 return new DataResponse(
-                    ['error' => 'Item has no Discogs ID — enrich it first.'],
+                    ['error' => 'No market value available — this category may have no price source, '
+                        . 'no match was found, or (for music) the item needs a Discogs ID first.'],
                     Http::STATUS_UNPROCESSABLE_ENTITY,
                 );
             }

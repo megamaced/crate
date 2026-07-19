@@ -35,8 +35,16 @@ export function useHashRouter() {
 
   function parseHash() {
     const parts = (window.location.hash || '#/').replace(/^#\//, '').split('/')
-    if (parts[0] === 'detail' && parts[1]) return { view: 'detail', itemId: parseInt(parts[1], 10), playlistId: null }
-    if (parts[0] === 'playlists' && parts[1]) return { view: 'playlist-detail', itemId: null, playlistId: parseInt(parts[1], 10) }
+    // Numeric id routes: a non-numeric id (e.g. #/detail/abc) must not become
+    // a NaN id that then fetches /media/NaN — fall through to home instead.
+    if (parts[0] === 'detail' && parts[1]) {
+      const itemId = parseInt(parts[1], 10)
+      if (Number.isFinite(itemId)) return { view: 'detail', itemId, playlistId: null }
+    }
+    if (parts[0] === 'playlists' && parts[1]) {
+      const playlistId = parseInt(parts[1], 10)
+      if (Number.isFinite(playlistId)) return { view: 'playlist-detail', itemId: null, playlistId }
+    }
     if (parts[0] === 'playlists') return { view: 'playlists', itemId: null, playlistId: null }
     if (parts[0] === 'music') return { view: 'music', itemId: null, playlistId: null }
     if (parts[0] === 'films') return { view: 'films', itemId: null, playlistId: null }

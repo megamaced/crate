@@ -54,8 +54,20 @@ export function createApiQueue(urlFn, payloadFn = () => ({}), opts = {}) {
       // Already running: append and extend the progress bar. `liveArgs`
       // isn't overwritten — the in-flight call owns them — but callers
       // can still mutate via updateArgs() if needed (e.g. currency).
+      //
+      // A cancel may have just been requested while the loop is still
+      // finishing its in-flight item (finished is not yet true). If we
+      // appended without clearing the flag, drainLoop would break on its
+      // next iteration and silently drop this batch. Clear it so the same
+      // loop keeps going and picks these ids up.
+      if (cancelRequested) {
+        cancelRequested = false
+        total.value = done.value + itemIds.length
+        failed.value = 0
+      } else {
+        total.value += itemIds.length
+      }
       pending.push(...itemIds)
-      total.value += itemIds.length
       return waiter
     }
 

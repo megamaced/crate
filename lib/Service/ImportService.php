@@ -52,14 +52,18 @@ class ImportService
      * Column length caps that mirror the DB schema; rows exceeding any of
      * these are skipped rather than being silently truncated by the DB.
      */
+    // Must match the DB column widths in Version0001Date20260421000000 — the
+    // up-front length check below relies on these being accurate so an
+    // over-length cell is skipped with a clear error instead of overflowing
+    // the column at insert time.
     private const MAX_LEN = [
         'artist'    => 500,
         'title'     => 500,
-        'format'    => 100,
+        'format'    => 50,
         'notes'     => 2000,
-        'barcode'   => 100,
+        'barcode'   => 50,
         'label'     => 500,
-        'discogsId' => 100,
+        'discogsId' => 50,
     ];
 
     /** Column name aliases → canonical field name */
@@ -93,6 +97,8 @@ class ImportService
         // Barcode / ISBN
         'barcode'         => 'barcode',
         'isbn'            => 'barcode',
+        'barcode / isbn'  => 'barcode', // header used by the all-categories export
+        'barcode/isbn'    => 'barcode',
         // Label / publisher / studio
         'label'           => 'label',
         'publisher'       => 'label',
@@ -143,18 +149,63 @@ class ImportService
      */
     public static function parsePurchasePriceCell(?string $raw): array
     {
-        if ($raw === null || $raw === '') {
+        if ($raw === null || trim($raw) === '') {
             return ['price' => null];
         }
-        $stripped = preg_replace('/[^0-9.\-]/', '', $raw);
-        if ($stripped === '' || !is_numeric($stripped)) {
+        $normalised = self::normaliseDecimalString($raw);
+        if ($normalised === null || !is_numeric($normalised)) {
             return ['error' => "unparseable purchase price \"{$raw}\""];
         }
-        $val = (float) $stripped;
+        $val = (float) $normalised;
         if ($val < 0 || $val > 1_000_000) {
             return ['error' => 'purchase price out of range'];
         }
         return ['price' => $val];
+    }
+
+    /**
+     * Normalise a spreadsheet money cell to a dot-decimal numeric string,
+     * coping with both "1,234.56" (comma thousands) and "1.234,56" / "24,99"
+     * (comma decimal) conventions. Currency symbols and spaces are stripped.
+     * Returns null when nothing numeric remains.
+     *
+     * The previous implementation stripped every comma unconditionally, so a
+     * European-formatted "24,99" became 2499 (a silent 100x error).
+     */
+    private static function normaliseDecimalString(string $raw): ?string
+    {
+        $s = preg_replace('/[^0-9.,\-]/', '', $raw);
+        if ($s === '' || $s === '-') {
+            return null;
+        }
+        $sign = str_starts_with($s, '-') ? '-' : '';
+        $s = str_replace('-', '', $s);
+
+        $hasDot   = str_contains($s, '.');
+        $hasComma = str_contains($s, ',');
+
+        if ($hasDot && $hasComma) {
+            // The right-most separator is the decimal point; the other groups
+            // thousands.
+            $decimal   = strrpos($s, '.') > strrpos($s, ',') ? '.' : ',';
+            $thousands = $decimal === '.' ? ',' : '.';
+            $s = str_replace($thousands, '', $s);
+            $s = str_replace($decimal, '.', $s);
+        } elseif ($hasComma) {
+            // Comma only: treat as a decimal separator when it groups 1-2
+            // trailing digits ("24,99"), otherwise as thousands ("1,234").
+            $parts = explode(',', $s);
+            if (count($parts) === 2 && strlen($parts[1]) >= 1 && strlen($parts[1]) <= 2) {
+                $s = $parts[0] . '.' . $parts[1];
+            } else {
+                $s = str_replace(',', '', $s);
+            }
+        }
+        // Dot-only strings are already dot-decimal; an ambiguous multi-dot
+        // string (e.g. "1.234.567") fails is_numeric and is reported rather
+        // than silently mis-parsed.
+
+        return $sign . $s;
     }
 
     /**
@@ -363,7 +414,7 @@ class ImportService
      * @param  string[] $headers
      * @return array<int, string|null>
      */
-    public function detectMapping(array $headers): array
+    public static function detectMapping(array $headers): array
     {
         $mapping = [];
         foreach ($headers as $i => $header) {
@@ -381,7 +432,7 @@ class ImportService
      * @param  array<int, string|null>   $mapping
      * @return array<array<string, string|null>>
      */
-    public function applyMapping(array $rows, array $mapping): array
+    public static function applyMapping(array $rows, array $mapping): array
     {
         $result = [];
         foreach ($rows as $row) {
@@ -416,7 +467,12 @@ class ImportService
         $existing = $this->mapper->findAll($userId);
         $existingKeys = [];
         foreach ($existing as $item) {
-            $key = $this->dupKey($item->getArtist(), $item->getTitle(), $item->getFormat());
+            $key = $this->dupKey(
+                $item->getArtist(),
+                $item->getTitle(),
+                $item->getFormat(),
+                (string)$item->getCategory(),
+            );
             $existingKeys[$key] = true;
         }
 
@@ -471,8 +527,9 @@ class ImportService
                 continue;
             }
 
-            // Duplicate check
-            $key = $this->dupKey($artist, $title, $format);
+            // Duplicate check (scoped by category — the same release can
+            // legitimately exist in more than one category)
+            $key = $this->dupKey($artist, $title, $format, $category);
             if (isset($existingKeys[$key])) {
                 $duplicates++;
                 continue;
@@ -481,7 +538,7 @@ class ImportService
             // Parse optional fields
             $year      = isset($row['year']) && $row['year'] !== '' ? (int)$row['year'] : null;
             $notes     = $row['notes']     ?? null;
-            $status    = $row['status']    ?? 'owned';
+            $status    = strtolower(trim((string)($row['status'] ?? 'owned')));
             $discogsId = $row['discogsId'] ?? null;
             $barcode   = $row['barcode']   ?? null;
             $label     = $row['label']     ?? null;
@@ -535,7 +592,24 @@ class ImportService
             $item->setCreatedAt($now);
             $item->setUpdatedAt($now);
 
-            $saved = $this->mapper->insert($item);
+            // Insert inside a savepoint so an unexpected DB failure on one
+            // row (e.g. a value the up-front checks didn't anticipate) skips
+            // just that row instead of poisoning the surrounding transaction
+            // and discarding every already-processed row.
+            $this->db->executeStatement('SAVEPOINT crate_import_row');
+            try {
+                $saved = $this->mapper->insert($item);
+            } catch (\Throwable $e) {
+                $this->db->executeStatement('ROLLBACK TO SAVEPOINT crate_import_row');
+                $skipped++;
+                $errors[] = "Row {$rowNum}: could not be saved — skipped";
+                $this->logger->warning(
+                    'Import row {row} for user {user} failed to insert: {msg}',
+                    ['row' => $rowNum, 'user' => $userId, 'msg' => $e->getMessage(), 'app' => 'crate'],
+                );
+                continue;
+            }
+            $this->db->executeStatement('RELEASE SAVEPOINT crate_import_row');
             $existingKeys[$key] = true;
             $itemIds[] = $saved->getId();
             $created++;
@@ -569,8 +643,9 @@ class ImportService
         ];
     }
 
-    private function dupKey(string $artist, string $title, string $format): string
+    private function dupKey(string $artist, string $title, string $format, string $category): string
     {
-        return strtolower(trim($artist)) . '||' . strtolower(trim($title)) . '||' . strtolower(trim($format));
+        return strtolower(trim($category)) . '||' . strtolower(trim($artist)) . '||'
+            . strtolower(trim($title)) . '||' . strtolower(trim($format));
     }
 }

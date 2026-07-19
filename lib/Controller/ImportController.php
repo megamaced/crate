@@ -60,7 +60,7 @@ class ImportController extends OCSController
             return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
         }
 
-        $mapping  = $this->importService->detectMapping($parsed['headers']);
+        $mapping  = ImportService::detectMapping($parsed['headers']);
         $preview  = array_slice($parsed['rows'], 0, 5);
 
         return new DataResponse([
@@ -121,7 +121,7 @@ class ImportController extends OCSController
             return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
         }
 
-        $mappedRows  = $this->importService->applyMapping($parsed['rows'], $mapping);
+        $mappedRows  = ImportService::applyMapping($parsed['rows'], $mapping);
         $rawCategory = (string) $this->request->getParam('category', CrateCategories::MUSIC);
         $category    = CrateCategories::isCategory($rawCategory) ? $rawCategory : CrateCategories::MUSIC;
 

@@ -205,13 +205,13 @@ class ExportService
             }
             $row[] = $item->getPressingNotes() ?? '';
             if ($category === 'music' || $category === null) {
-                $row[] = $item->getTracklist() ?? '';
+                $row[] = $this->flattenTracklist($item->getTracklist());
             }
             if ($this->categoryExportsBio($category)) {
                 $row[] = $item->getArtistBio() ?? '';
             }
             if ($category === 'music' || $category === null) {
-                $row[] = $item->getArtistMembers() ?? '';
+                $row[] = $this->flattenMembers($item->getArtistMembers());
             }
         }
 
@@ -234,6 +234,61 @@ class ExportService
         }
 
         return $row;
+    }
+
+    /**
+     * Flatten the stored tracklist JSON ([{position,title,duration}, …]) into
+     * a human-readable single cell, e.g. "A1. Intro (1:20); A2. Verse (3:04)".
+     * Falls back to an empty string on null/malformed input.
+     */
+    private function flattenTracklist(?string $json): string
+    {
+        if ($json === null || $json === '') {
+            return '';
+        }
+        $tracks = json_decode($json, true);
+        if (!is_array($tracks)) {
+            return '';
+        }
+        $parts = [];
+        foreach ($tracks as $t) {
+            if (!is_array($t)) {
+                continue;
+            }
+            $pos   = trim((string)($t['position'] ?? ''));
+            $title = trim((string)($t['title'] ?? ''));
+            $dur   = trim((string)($t['duration'] ?? ''));
+            if ($title === '') {
+                continue;
+            }
+            $line = $pos !== '' ? "{$pos}. {$title}" : $title;
+            if ($dur !== '') {
+                $line .= " ({$dur})";
+            }
+            $parts[] = $line;
+        }
+        return implode('; ', $parts);
+    }
+
+    /**
+     * Flatten the stored artist-members JSON (["Name", …]) into a
+     * comma-separated cell. Falls back to an empty string on null/malformed
+     * input.
+     */
+    private function flattenMembers(?string $json): string
+    {
+        if ($json === null || $json === '') {
+            return '';
+        }
+        $members = json_decode($json, true);
+        if (!is_array($members)) {
+            return '';
+        }
+        $names = array_filter(array_map(
+            static fn($m) => is_string($m) ? trim($m) : '',
+            $members,
+        ), static fn(string $n) => $n !== '');
+        return implode(', ', $names);
     }
 
     /** Barcode column label for a category, or null to suppress it. */

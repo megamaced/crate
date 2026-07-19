@@ -118,6 +118,30 @@ class PurchasePriceTest extends TestCase
         self::assertSame(['price' => 0.0], ImportService::parsePurchasePriceCell('0'));
     }
 
+    public function testParsePriceCellAcceptsCommaDecimal(): void
+    {
+        // European decimal-comma cells must not be read as 100x too large:
+        // "24,99" is 24.99, not 2499. (Regression: the old parser stripped
+        // every comma unconditionally.)
+        self::assertSame(['price' => 24.99], ImportService::parsePurchasePriceCell('24,99'));
+        self::assertSame(['price' => 1234.56], ImportService::parsePurchasePriceCell('1.234,56'));
+        self::assertSame(['price' => 1234.56], ImportService::parsePurchasePriceCell('1,234.56'));
+        self::assertSame(['price' => 1299.0], ImportService::parsePurchasePriceCell('£1.299,00'));
+        self::assertSame(['price' => 12.5], ImportService::parsePurchasePriceCell('12,5'));
+    }
+
+    public function testParsePriceCellTreatsCommaGroupsAsThousands(): void
+    {
+        // A comma grouping three digits ("1,234") is a thousands separator.
+        self::assertSame(['price' => 1234.0], ImportService::parsePurchasePriceCell('1,234'));
+        self::assertSame(['price' => 12000.0], ImportService::parsePurchasePriceCell('12,000'));
+    }
+
+    public function testParsePriceCellBlankAfterTrim(): void
+    {
+        self::assertSame(['price' => null], ImportService::parsePurchasePriceCell('   '));
+    }
+
     public function testParsePriceCellRejectsGibberish(): void
     {
         $r = ImportService::parsePurchasePriceCell('not a price');

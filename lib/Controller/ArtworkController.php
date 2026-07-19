@@ -136,21 +136,41 @@ class ArtworkController extends Controller
         } catch (NotFoundException) {
             try {
                 $client = $this->clientService->newClient();
-                // Cap redirect chain and require https targets. The host
-                // allowlist above is enforced on the initial URL only — these
-                // limits keep a 302 from an allowlisted CDN from chaining to
-                // an arbitrary internal address.
-                $download = $client->get($artworkPath, [
-                    'headers' => ['User-Agent' => 'CrateNextcloudApp/0.4'],
-                    'timeout' => 10,
-                    'allow_redirects' => [
-                        'max'             => 3,
-                        'protocols'       => ['https'],
-                        'strict'          => true,
-                        'referer'         => false,
-                        'track_redirects' => false,
-                    ],
-                ]);
+                // Follow redirects manually so every hop's host is re-checked
+                // against the allowlist — not just the initial URL. A 302 from
+                // an allowlisted CDN to an off-allowlist (or non-https) target
+                // is rejected. NC's client additionally blocks private IPs.
+                $url = $artworkPath;
+                $download = null;
+                for ($hop = 0; $hop <= 3; $hop++) {
+                    $download = $client->get($url, [
+                        'headers' => ['User-Agent' => 'CrateNextcloudApp/0.4'],
+                        'timeout' => 10,
+                        'allow_redirects' => false,
+                    ]);
+                    $status = $download->getStatusCode();
+                    if ($status < 300 || $status >= 400) {
+                        break;
+                    }
+                    $location = trim($download->getHeader('Location'));
+                    if ($location === '') {
+                        break;
+                    }
+                    $next      = $this->resolveRedirect($url, $location);
+                    $nextHost  = parse_url($next, PHP_URL_HOST) ?? '';
+                    $nextSchme = parse_url($next, PHP_URL_SCHEME);
+                    if ($nextSchme !== 'https' || !in_array($nextHost, self::REMOTE_IMAGE_HOSTS, true)) {
+                        return new Response(Http::STATUS_FORBIDDEN);
+                    }
+                    $url = $next;
+                    if ($hop === 3) {
+                        // Too many redirects.
+                        return new Response(Http::STATUS_BAD_GATEWAY);
+                    }
+                }
+                if ($download === null) {
+                    return new Response(Http::STATUS_BAD_GATEWAY);
+                }
                 // Reject non-image responses to prevent cache-poisoning via
                 // compromised upstream or MITM returning HTML / scripts.
                 $contentType = strtolower(trim(
@@ -328,6 +348,34 @@ class ArtworkController extends Controller
         }
 
         return new DataResponse(['status' => 'ok']);
+    }
+
+    /**
+     * Resolve a redirect Location (which may be absolute, protocol-relative,
+     * or host-relative) against the URL that issued it, so the caller can
+     * validate the resulting host. Host-relative targets stay on the current
+     * (already-allowlisted) host.
+     */
+    private function resolveRedirect(string $base, string $location): string
+    {
+        // Absolute URL with its own scheme.
+        if (parse_url($location, PHP_URL_SCHEME) !== null) {
+            return $location;
+        }
+        $scheme = parse_url($base, PHP_URL_SCHEME) ?? 'https';
+        $host   = parse_url($base, PHP_URL_HOST) ?? '';
+        // Protocol-relative: //host/path
+        if (str_starts_with($location, '//')) {
+            return $scheme . ':' . $location;
+        }
+        // Host-relative: /path
+        if (str_starts_with($location, '/')) {
+            return $scheme . '://' . $host . $location;
+        }
+        // Path-relative: resolve against the base directory.
+        $basePath = parse_url($base, PHP_URL_PATH) ?? '/';
+        $dir      = substr($basePath, 0, strrpos($basePath, '/') + 1) ?: '/';
+        return $scheme . '://' . $host . $dir . $location;
     }
 
     private function extension(string $url): string

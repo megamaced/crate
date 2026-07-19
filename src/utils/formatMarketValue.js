@@ -5,7 +5,9 @@
  * @returns {string}
  */
 export function formatMarketValue(item) {
-  if (!item.marketValue) return ''
+  // Distinguish "no value recorded" (null/undefined) from a legitimate 0
+  // (e.g. a PriceCharting tier of 0), which should still render as a price.
+  if (item.marketValue == null) return ''
   try {
     return new Intl.NumberFormat(undefined, {
       style: 'currency',
