@@ -309,7 +309,8 @@ class ShareService
                 }
             case CrateShare::TYPE_PLAYLIST:
                 try {
-                    return [$this->playlistService->find($share->getShareableId(), $ownerUserId)['name'] ?? 'Playlist', null];
+                    $playlist = $this->playlistService->find($share->getShareableId(), $ownerUserId);
+                    return [$playlist['name'] ?? 'Playlist', null];
                 } catch (DoesNotExistException) {
                     return ['Playlist', null];
                 }
