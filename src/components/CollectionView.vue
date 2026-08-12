@@ -99,13 +99,13 @@
           >
             <button
               :class="['cv-status-tab', { active: statusFilter === 'owned' }]"
-              @click="statusFilter = 'owned'; filterFormat = ''"
+              @click="statusFilter = 'owned'; clearFilters()"
             >
               Collection
             </button>
             <button
               :class="['cv-status-tab', { active: statusFilter === 'wanted' }]"
-              @click="statusFilter = 'wanted'; filterFormat = ''"
+              @click="statusFilter = 'wanted'; clearFilters()"
             >
               Wanted
             </button>
@@ -167,6 +167,65 @@
           {{ fmt }} ({{ formatCount(fmt) }})
         </button>
       </div>
+
+      <!-- Year (decade) + genre filters. Dropdowns rather than chips: an
+           enriched music collection easily carries dozens of genres. -->
+      <div
+        v-if="presentDecades.length > 1 || presentGenres.length > 1"
+        class="cv-selects"
+      >
+        <label
+          v-if="presentDecades.length > 1"
+          class="cv-select-label"
+        >
+          Year
+          <select
+            v-model="filterDecade"
+            class="cv-filter-select"
+          >
+            <option value="">
+              Any year ({{ filteredByStatus.length }})
+            </option>
+            <option
+              v-for="bucket in presentDecades"
+              :key="bucket.value"
+              :value="bucket.value"
+            >
+              {{ bucket.value }} ({{ bucket.count }})
+            </option>
+          </select>
+        </label>
+
+        <label
+          v-if="presentGenres.length > 1"
+          class="cv-select-label"
+        >
+          Genre
+          <select
+            v-model="filterGenre"
+            class="cv-filter-select"
+          >
+            <option value="">
+              Any genre ({{ filteredByStatus.length }})
+            </option>
+            <option
+              v-for="bucket in presentGenres"
+              :key="bucket.value"
+              :value="bucket.value"
+            >
+              {{ bucket.value }} ({{ bucket.count }})
+            </option>
+          </select>
+        </label>
+
+        <button
+          v-if="filtersActive"
+          class="cv-clear-filters"
+          @click="clearFilters"
+        >
+          Clear filters
+        </button>
+      </div>
     </div><!-- /cv-sticky-header -->
 
     <!-- Loading -->
@@ -182,13 +241,13 @@
       v-else-if="filteredSorted.length === 0"
       class="cv-empty"
     >
-      <template v-if="filterFormat">
-        <p>No {{ filterFormat }} items in your {{ statusFilter === 'wanted' ? 'wanted list' : 'collection' }}.</p>
+      <template v-if="filtersActive">
+        <p>No {{ activeFilterDescription }} in your {{ statusFilter === 'wanted' ? 'wanted list' : 'collection' }}.</p>
         <NcButton
           variant="tertiary"
-          @click="filterFormat = ''"
+          @click="clearFilters"
         >
-          Clear filter
+          Clear filters
         </NcButton>
       </template>
       <template v-else>
@@ -345,6 +404,7 @@ import { NcButton } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
 import { showError } from '@nextcloud/dialogs'
+import { decadeBuckets, decadeOf, genreBuckets, hasGenre } from '../utils/genres.js'
 import MediaCard from './MediaCard.vue'
 import MediaThumb from './MediaThumb.vue'
 import ExportModal from './ExportModal.vue'
@@ -434,8 +494,27 @@ const shareOpen = ref(false)
 const viewMode = ref(localStorage.getItem('crate_viewMode') ?? 'card')
 const sortKey = ref('artist-asc')
 const filterFormat = ref('')
+const filterDecade = ref('')
+const filterGenre = ref('')
 
 watch(viewMode, v => localStorage.setItem('crate_viewMode', v))
+
+function clearFilters() {
+  filterFormat.value = ''
+  filterDecade.value = ''
+  filterGenre.value = ''
+}
+
+/**
+ * Jump straight to one genre — called from the item detail view's genre chips.
+ * Other filters are cleared so the result is the whole genre, not whatever the
+ * list happened to be narrowed to beforehand.
+ */
+function applyGenreFilter(genre, status = 'owned') {
+  clearFilters()
+  statusFilter.value = status === 'wanted' ? 'wanted' : 'owned'
+  filterGenre.value = genre ?? ''
+}
 
 async function load() {
   // Shared mode: items are supplied by the parent (the shared-content store),
@@ -470,7 +549,7 @@ function update(updated) {
   if (i >= 0) items.value[i] = updated
 }
 
-defineExpose({ reload: load, update })
+defineExpose({ reload: load, update, applyGenreFilter })
 
 // Defer initial load until the view is actually visible. When the parent
 // uses v-show, the component mounts immediately (even while hidden), so
@@ -537,10 +616,42 @@ function formatCount(fmt) {
   return filteredByStatus.value.filter(i => i.format === fmt).length
 }
 
+// Decade / genre options are computed over the status-filtered list rather than
+// the fully-filtered one, so picking a genre doesn't reshuffle every other
+// option's count — same rule the format chips follow.
+const presentDecades = computed(() => decadeBuckets(filteredByStatus.value))
+const presentGenres = computed(() => genreBuckets(filteredByStatus.value))
+
+// A filter whose value has vanished (last item of that genre deleted, category
+// switched) would otherwise silently hide everything. Skipped while the list is
+// empty: arriving from a detail-view genre chip sets the filter before the
+// items have loaded, and validating against nothing would drop it immediately.
+watch([presentDecades, presentGenres], ([decades, genres]) => {
+  if (items.value.length === 0) return
+  if (filterDecade.value && !decades.some(d => d.value === filterDecade.value)) {
+    filterDecade.value = ''
+  }
+  if (filterGenre.value && !genres.some(g => g.value.toLowerCase() === filterGenre.value.toLowerCase())) {
+    filterGenre.value = ''
+  }
+})
+
+const filtersActive = computed(() =>
+  !!(filterFormat.value || filterDecade.value || filterGenre.value),
+)
+
+// "No 1990s Rock LP items" — reads as one phrase in the empty state.
+const activeFilterDescription = computed(() =>
+  [filterDecade.value, filterGenre.value, filterFormat.value]
+    .filter(Boolean)
+    .join(' ') + ' items',
+)
+
 const filteredSorted = computed(() => {
-  let list = filterFormat.value
-    ? filteredByStatus.value.filter(i => i.format === filterFormat.value)
-    : [...filteredByStatus.value]
+  let list = [...filteredByStatus.value]
+  if (filterFormat.value) list = list.filter(i => i.format === filterFormat.value)
+  if (filterDecade.value) list = list.filter(i => decadeOf(i) === filterDecade.value)
+  if (filterGenre.value) list = list.filter(i => hasGenre(i, filterGenre.value))
 
   const [field, dir] = sortKey.value.split('-')
 
@@ -954,6 +1065,51 @@ function scrollToGroup(header) {
   flex-wrap: wrap;
   gap: 6px;
   margin-bottom: 8px;
+}
+
+/* Year + genre dropdowns. Lighter chrome than the sort select so the
+   toolbar keeps one primary control and these read as secondary. */
+.cv-selects {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.cv-select-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8em;
+  font-weight: 500;
+  color: var(--color-text-maxcontrast);
+}
+
+.cv-filter-select {
+  max-width: 220px;
+  border: 2px solid var(--color-border-dark);
+  border-radius: 20px;
+  background: var(--color-main-background);
+  color: var(--color-main-text);
+  padding: 3px 8px;
+  font-size: 1em;
+  cursor: pointer;
+}
+
+.cv-filter-select:hover {
+  border-color: var(--color-primary-element);
+}
+
+.cv-clear-filters {
+  border: none;
+  background: none;
+  color: var(--color-primary-element);
+  padding: 3px 4px;
+  font-size: 0.8em;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: underline;
 }
 
 .cv-chip {

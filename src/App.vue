@@ -86,6 +86,7 @@
         @enriched="handleEnriched"
         @add-to-playlist="openAddToPlaylist"
         @share="openShareAlbum"
+        @genre="showGenre"
       />
 
       <!-- Playlist detail view -->
@@ -667,6 +668,22 @@ function showDetail(item) {
   if (!item.sharedByUser && notEnriched && autoEnrichOnClick.value && canAutoEnrich && !enrich.running.value && !market.running.value) {
     triggerEnrich(item.id)
   }
+}
+
+/**
+ * A genre chip in the detail view was clicked: go back to the list the item
+ * lives in — the shared-category page for a shared item, otherwise the owner's
+ * own category view — with that genre as the only active filter.
+ */
+function showGenre({ item, genre }) {
+  const category = item.category ?? 'music'
+  const target = item.sharedByUser ? sharedCategory : collectionViewRef
+  if (item.sharedByUser) {
+    openSharedCategory(category)
+  } else {
+    switchView(CATEGORY_TO_VIEW[category] ?? 'music')
+  }
+  nextTick(() => target.value?.applyGenreFilter?.(genre, item.status))
 }
 
 // Tracks the in-flight auto-enrich so a navigation away cancels it; this

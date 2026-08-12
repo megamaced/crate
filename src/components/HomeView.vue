@@ -154,6 +154,7 @@ import { generateOcsUrl, generateUrl } from '@nextcloud/router'
 import { showError } from '@nextcloud/dialogs'
 import MediaCard from './MediaCard.vue'
 import { CATEGORY_LABELS, FORMAT_LIST } from '../utils/categoryFormats.js'
+import { genreTokens } from '../utils/genres.js'
 import { useSettings } from '../composables/useSettings.js'
 
 defineEmits(['add', 'detail'])
@@ -320,12 +321,7 @@ function pluralLabel(fmt) {
 }
 
 function genreList(item) {
-  try {
-    const g = typeof item.genres === 'string' ? JSON.parse(item.genres) : item.genres
-    return Array.isArray(g) ? g.join(' · ') : ''
-  } catch {
-    return ''
-  }
+  return genreTokens(item).join(' · ')
 }
 
 onMounted(() => {

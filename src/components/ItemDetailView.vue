@@ -189,9 +189,19 @@
               <dt>{{ labelFieldLabel }}</dt>
               <dd>{{ item.label }}</dd>
             </template>
-            <template v-if="item.genres">
+            <template v-if="genres.length">
               <dt>Genres</dt>
-              <dd>{{ item.genres }}</dd>
+              <dd class="detail-genres">
+                <button
+                  v-for="genre in genres"
+                  :key="genre"
+                  class="detail-genre"
+                  :title="`Show all ${genre} items`"
+                  @click="$emit('genre', { item, genre })"
+                >
+                  {{ genre }}
+                </button>
+              </dd>
             </template>
             <template v-if="item.barcode && showBarcode">
               <dt>{{ barcodeFieldLabel }}</dt>
@@ -329,6 +339,7 @@ import { generateOcsUrl } from '@nextcloud/router'
 import { showError } from '@nextcloud/dialogs'
 import { useSettings } from '../composables/useSettings.js'
 import { formatMarketValue } from '../utils/formatMarketValue.js'
+import { genreTokens } from '../utils/genres.js'
 import { useArtworkStyle } from '../composables/useArtworkStyle.js'
 import { photoGet } from '../api.js'
 
@@ -339,7 +350,11 @@ const props = defineProps({
   queueBusy: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['back', 'edit', 'delete', 'enriched', 'addToPlaylist', 'share'])
+const emit = defineEmits(['back', 'edit', 'delete', 'enriched', 'addToPlaylist', 'share', 'genre'])
+
+// Genres render as buttons that filter the collection by that genre, so the
+// stored comma-separated string has to be split first.
+const genres = computed(() => genreTokens(props.item))
 
 const { autoFetchMarketRates, marketCurrency } = useSettings()
 
@@ -827,6 +842,31 @@ async function stripEnrich() {
 
 .detail-meta dd {
   margin: 0;
+}
+
+/* Genres are filter entry points — pill-shaped so they read as clickable
+   next to the plain text of every other meta row. */
+.detail-genres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.detail-genre {
+  border: 1px solid var(--color-border-dark);
+  border-radius: 12px;
+  background: none;
+  color: var(--color-main-text);
+  padding: 0 8px;
+  font-size: inherit;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.detail-genre:hover,
+.detail-genre:focus-visible {
+  border-color: var(--color-primary-element);
+  color: var(--color-primary-element);
 }
 
 /* Sections */
