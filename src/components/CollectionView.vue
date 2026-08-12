@@ -226,6 +226,7 @@
             :key="item.id"
             :item="item"
             :owner-label="multiOwner ? item.sharedByUser : null"
+            :artist-first="artistFirst"
             @detail="$emit('detail', item)"
           />
         </div>
@@ -236,7 +237,7 @@
           class="cv-list"
         >
           <div
-            v-for="item in group.items"
+            v-for="(item, idx) in group.items"
             :key="item.id"
             class="cv-list-row"
             @click="$emit('detail', item)"
@@ -246,8 +247,17 @@
               class="cv-list-thumb"
             />
             <div class="cv-list-info">
-              <span class="cv-list-title">{{ item.title }}</span>
-              <span class="cv-list-artist">{{ item.artist }}</span>
+              <!-- Artist sort leads with the artist and prints it once per run;
+                   every other sort keeps the title as the headline. -->
+              <span
+                v-if="leadsWithArtist(item) && !isArtistRepeat(item, group.items[idx - 1])"
+                class="cv-list-primary"
+              >{{ item.artist }}</span>
+              <span :class="leadsWithArtist(item) ? 'cv-list-secondary' : 'cv-list-primary'">{{ item.title }}</span>
+              <span
+                v-if="!leadsWithArtist(item) && item.artist"
+                class="cv-list-secondary"
+              >{{ item.artist }}</span>
               <span class="cv-list-meta">
                 <span class="cv-badge">{{ item.format }}</span>
                 <template v-if="item.year">&thinsp;{{ item.year }}</template>
@@ -563,6 +573,24 @@ const filteredSorted = computed(() => {
 // Strip leading articles for alphabetical grouping (but not display)
 function stripArticle(str) {
   return str.replace(/^(the |a |an )\s*/i, '')
+}
+
+// The artist axis is the one people scan by name, so it leads the row/card with
+// the artist instead of the title. Mirrored in crate-android's MediaCard /
+// CollectionListRow so both clients read the same way.
+const artistFirst = computed(() => sortKey.value.startsWith('artist-'))
+
+// An item with no artist keeps the title as its headline either way.
+function leadsWithArtist(item) {
+  return artistFirst.value && (item.artist ?? '').trim() !== ''
+}
+
+// True when the row above already named this artist, so a run by one artist
+// prints the name once. Mirrors isArtistRepeat() in CollectionGrouping.kt.
+function isArtistRepeat(item, previous) {
+  const artist = (item.artist ?? '').trim()
+  if (!artist || !previous) return false
+  return artist.toLowerCase() === (previous.artist ?? '').trim().toLowerCase()
 }
 
 // Compute the group header label for a single item given the active sort field
@@ -1044,14 +1072,14 @@ function scrollToGroup(header) {
   flex-shrink: 0;
 }
 
-.cv-list-title {
+.cv-list-primary {
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.cv-list-artist {
+.cv-list-secondary {
   font-size: 0.875em;
   color: var(--color-text-maxcontrast);
   white-space: nowrap;

@@ -10,8 +10,8 @@
       <span class="media-card-format-label">{{ item.format }}</span>
     </MediaThumb>
     <div class="media-card-info">
-      <span class="media-card-title">{{ item.title }}</span>
-      <span class="media-card-artist">{{ item.artist }}</span>
+      <span class="media-card-title">{{ artistFirst && item.artist ? item.artist : item.title }}</span>
+      <span class="media-card-artist">{{ artistFirst && item.artist ? item.title : item.artist }}</span>
       <div class="media-card-footer">
         <span
           v-if="item.year"
@@ -39,6 +39,9 @@ defineProps({
   // Optional "Shared by {uid}" caption — only supplied by the shared-category
   // view when the same category is shared by more than one owner.
   ownerLabel: { type: String, default: null },
+  // Lead with the artist (director / author / developer / writer) instead of
+  // the title, so a grid sorted by that axis reads in the order it's sorted.
+  artistFirst: { type: Boolean, default: false },
 })
 
 defineEmits(['detail'])

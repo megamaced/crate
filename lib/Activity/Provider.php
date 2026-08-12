@@ -33,13 +33,24 @@ class Provider implements IProvider
 
         $itemLabel = $artist ? "$artist – $title" : $title;
 
+        // A deleted item has no detail page left to open, so those entries point
+        // at the category it was removed from instead.
+        $link = $event->getSubject() === 'item_deleted'
+            ? $this->categoryLink($category)
+            : $this->itemLink((int) $event->getObjectId());
+
         $richParams = [
             'item' => [
                 'type' => 'highlight',
                 'id' => (string) $event->getObjectId(),
                 'name' => $itemLabel,
+                // 'highlight' renders as a plain <a> in the Activity app once a
+                // link is present, which is what makes the entry clickable.
+                'link' => $link,
             ],
         ];
+
+        $event->setLink($link);
 
         switch ($event->getSubject()) {
             case 'item_created':
@@ -91,5 +102,32 @@ class Provider implements IProvider
         ));
 
         return $event;
+    }
+
+    /**
+     * Deep link to an item's detail view in the Crate SPA — the same
+     * `#/detail/{id}` route the unified-search provider hands out.
+     */
+    private function itemLink(int $itemId): string
+    {
+        return $this->urlGenerator->linkToRouteAbsolute('crate.page.index') . '#/detail/' . $itemId;
+    }
+
+    /**
+     * Deep link to a category view. The SPA's hash routes are plural, while the
+     * stored category is singular; an unknown value falls back to the app root.
+     */
+    private function categoryLink(string $category): string
+    {
+        $routes = [
+            'music' => 'music',
+            'film' => 'films',
+            'book' => 'books',
+            'game' => 'games',
+            'comic' => 'comics',
+        ];
+
+        $base = $this->urlGenerator->linkToRouteAbsolute('crate.page.index');
+        return isset($routes[$category]) ? $base . '#/' . $routes[$category] : $base;
     }
 }
