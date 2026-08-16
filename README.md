@@ -65,7 +65,7 @@ To install (or upgrade) manually from a release archive instead, run the followi
 mv crate crate.bak.$(date +%s)
 
 # 2. Download & extract the release
-CRATE_VERSION=1.6.0
+CRATE_VERSION=1.6.1
 curl -sSL -o crate-${CRATE_VERSION}.tar.gz \
   https://github.com/megamaced/crate/releases/download/v${CRATE_VERSION}/crate-${CRATE_VERSION}.tar.gz
 tar -xzf crate-${CRATE_VERSION}.tar.gz
