@@ -145,78 +145,67 @@
         </div>
       </div>
 
-      <!-- Format filter chips -->
+      <!-- One filter row: year + genre as dropdowns (an enriched collection
+           carries dozens of genres, far too many for chips), then the format
+           chips. Each control drops out when there's nothing to choose. -->
       <div
-        v-if="presentFormats.length > 1"
+        v-if="presentFormats.length > 1 || presentDecades.length > 1 || presentGenres.length > 1"
         class="cv-filters"
         role="group"
-        aria-label="Filter by format"
+        aria-label="Filters"
       >
-        <button
-          :class="['cv-chip', { active: filterFormat === '' }]"
-          @click="filterFormat = ''"
-        >
-          All ({{ filteredByStatus.length }})
-        </button>
-        <button
-          v-for="fmt in presentFormats"
-          :key="fmt"
-          :class="['cv-chip', { active: filterFormat === fmt }]"
-          @click="filterFormat = fmt"
-        >
-          {{ fmt }} ({{ formatCount(fmt) }})
-        </button>
-      </div>
-
-      <!-- Year (decade) + genre filters. Dropdowns rather than chips: an
-           enriched music collection easily carries dozens of genres. -->
-      <div
-        v-if="presentDecades.length > 1 || presentGenres.length > 1"
-        class="cv-selects"
-      >
-        <label
+        <select
           v-if="presentDecades.length > 1"
-          class="cv-select-label"
+          v-model="filterDecade"
+          class="cv-filter-select"
+          aria-label="Filter by year"
         >
-          Year
-          <select
-            v-model="filterDecade"
-            class="cv-filter-select"
+          <option value="">
+            Any year ({{ filteredByStatus.length }})
+          </option>
+          <option
+            v-for="bucket in presentDecades"
+            :key="bucket.value"
+            :value="bucket.value"
           >
-            <option value="">
-              Any year ({{ filteredByStatus.length }})
-            </option>
-            <option
-              v-for="bucket in presentDecades"
-              :key="bucket.value"
-              :value="bucket.value"
-            >
-              {{ bucket.value }} ({{ bucket.count }})
-            </option>
-          </select>
-        </label>
+            {{ bucket.value }} ({{ bucket.count }})
+          </option>
+        </select>
 
-        <label
+        <select
           v-if="presentGenres.length > 1"
-          class="cv-select-label"
+          v-model="filterGenre"
+          class="cv-filter-select"
+          aria-label="Filter by genre"
         >
-          Genre
-          <select
-            v-model="filterGenre"
-            class="cv-filter-select"
+          <option value="">
+            Any genre ({{ filteredByStatus.length }})
+          </option>
+          <option
+            v-for="bucket in presentGenres"
+            :key="bucket.value"
+            :value="bucket.value"
           >
-            <option value="">
-              Any genre ({{ filteredByStatus.length }})
-            </option>
-            <option
-              v-for="bucket in presentGenres"
-              :key="bucket.value"
-              :value="bucket.value"
-            >
-              {{ bucket.value }} ({{ bucket.count }})
-            </option>
-          </select>
-        </label>
+            {{ bucket.value }} ({{ bucket.count }})
+          </option>
+        </select>
+
+        <template v-if="presentFormats.length > 1">
+          <button
+            :class="['cv-chip', { active: filterFormat === '' }]"
+            @click="filterFormat = ''"
+          >
+            All ({{ filteredByStatus.length }})
+          </button>
+          <button
+            v-for="fmt in presentFormats"
+            :key="fmt"
+            :class="['cv-chip', { active: filterFormat === fmt }]"
+            @click="filterFormat = fmt"
+          >
+            {{ fmt }} ({{ formatCount(fmt) }})
+          </button>
+        </template>
 
         <button
           v-if="filtersActive"
@@ -1063,29 +1052,15 @@ function scrollToGroup(header) {
 .cv-filters {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
   margin-bottom: 8px;
 }
 
-/* Year + genre dropdowns. Lighter chrome than the sort select so the
-   toolbar keeps one primary control and these read as secondary. */
-.cv-selects {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.cv-select-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.8em;
-  font-weight: 500;
-  color: var(--color-text-maxcontrast);
-}
-
+/* Year + genre dropdowns. Sized to match the format chips they share the row
+   with; lighter chrome than the sort select so the toolbar keeps one primary
+   control and these read as secondary. The "Any year" / "Any genre" default
+   option names the axis, so no separate label is needed. */
 .cv-filter-select {
   max-width: 220px;
   border: 2px solid var(--color-border-dark);
@@ -1093,7 +1068,8 @@ function scrollToGroup(header) {
   background: var(--color-main-background);
   color: var(--color-main-text);
   padding: 3px 8px;
-  font-size: 1em;
+  font-size: 0.8em;
+  font-weight: 500;
   cursor: pointer;
 }
 
