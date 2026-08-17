@@ -394,6 +394,7 @@ import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
 import { showError } from '@nextcloud/dialogs'
 import { decadeBuckets, decadeOf, genreBuckets, hasGenre } from '../utils/genres.js'
+import { compareItems, stripArticle } from '../utils/sortItems.js'
 import MediaCard from './MediaCard.vue'
 import MediaThumb from './MediaThumb.vue'
 import ExportModal from './ExportModal.vue'
@@ -644,36 +645,12 @@ const filteredSorted = computed(() => {
 
   const [field, dir] = sortKey.value.split('-')
 
-  list.sort((a, b) => {
-    let av, bv
-    if (field === 'createdAt') {
-      av = a.createdAt ?? ''
-      bv = b.createdAt ?? ''
-    } else if (field === 'year') {
-      av = a.year ?? 0
-      bv = b.year ?? 0
-    } else if (field === 'marketValue') {
-      av = a.marketValue ?? 0
-      bv = b.marketValue ?? 0
-    } else if (field === 'artist') {
-      av = stripArticle(a.artist ?? '').toLowerCase()
-      bv = stripArticle(b.artist ?? '').toLowerCase()
-    } else {
-      av = (a[field] ?? '').toLowerCase()
-      bv = (b[field] ?? '').toLowerCase()
-    }
-    if (av < bv) return dir === 'asc' ? -1 : 1
-    if (av > bv) return dir === 'asc' ? 1 : -1
-    return 0
-  })
+  // Ordering (including how ties break) lives in utils/sortItems.js, which
+  // crate-android's CollectionGrouping.kt mirrors.
+  list.sort((a, b) => compareItems(a, b, field, dir))
 
   return list
 })
-
-// Strip leading articles for alphabetical grouping (but not display)
-function stripArticle(str) {
-  return str.replace(/^(the |a |an )\s*/i, '')
-}
 
 // The artist axis is the one people scan by name, so it leads the row/card with
 // the artist instead of the title. Mirrored in crate-android's MediaCard /
