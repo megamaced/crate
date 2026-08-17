@@ -32,7 +32,8 @@ class MediaItemMapper extends QBMapper
         $qb->select('*')
             ->from($this->getTableName())
             ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->orderBy('created_at', 'DESC');
+            ->orderBy('created_at', 'DESC')
+            ->addOrderBy('id', 'DESC');
 
         if ($category !== null) {
             $qb->andWhere($qb->expr()->eq('category', $qb->createNamedParameter($category)));
@@ -58,7 +59,14 @@ class MediaItemMapper extends QBMapper
         $qb->select('*')
             ->from($this->getTableName())
             ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+            // `created_at` is not unique — a bulk import stamps every row it
+            // creates with the same second. LIMIT/OFFSET over a non-unique sort
+            // key has no defined row order between pages, so the same row can
+            // come back on two pages while another is never returned at all.
+            // `id` breaks every tie, making the sequence total and pagination
+            // lossless. Keep this in lock-step with findAll()'s ordering.
             ->orderBy('created_at', 'DESC')
+            ->addOrderBy('id', 'DESC')
             ->setMaxResults($limit)
             ->setFirstResult($offset);
 
@@ -370,6 +378,7 @@ class MediaItemMapper extends QBMapper
                 )
             )
             ->orderBy('created_at', 'DESC')
+            ->addOrderBy('id', 'DESC')
             ->setMaxResults(10);
 
         return $this->findEntities($qb);
