@@ -87,6 +87,8 @@
         @add-to-playlist="openAddToPlaylist"
         @share="openShareAlbum"
         @genre="showGenre"
+        @open-item="showDetail"
+        @add-suggestion="openAddFromSuggestion"
       />
 
       <!-- Playlist detail view -->
@@ -202,7 +204,8 @@
     <AddEditModal
       :show="modalOpen"
       :item="editingItem"
-      :default-status="'owned'"
+      :default-status="modalDefaultStatus"
+      :prefill="suggestionPrefill"
       :has-token="hasDiscogsToken"
       :has-tmdb-token="hasTmdbToken"
       :has-rawg-key="hasRawgKey"
@@ -336,6 +339,7 @@ const {
 // or the current/previous nav view's category for new items.
 const modalCategory = computed(() => {
   if (editingItem.value) return editingItem.value.category ?? 'music'
+  if (suggestionCategory.value) return suggestionCategory.value
   if (addSharedCategory.value) return addSharedCategory.value
   return VIEW_TO_CATEGORY[view.value] ?? VIEW_TO_CATEGORY[previousView.value] ?? 'music'
 })
@@ -421,6 +425,12 @@ const editingItem = ref(null)
 // the POST /media payload, and `addSharedCategory` pre-selects the category.
 const addOwner = ref(null)
 const addSharedCategory = ref(null)
+// Set when the add form was opened from an "If you like this…" suggestion:
+// the external result to seed the form with, and its category (the detail
+// view isn't a category view, so modalCategory can't infer one).
+const suggestionPrefill = ref(null)
+const suggestionCategory = ref(null)
+const modalDefaultStatus = computed(() => (suggestionPrefill.value ? 'wanted' : 'owned'))
 const deletingItem = ref(null)
 const importOpen = ref(false)
 // When importing into a read/write shared library/category, the rows must be
@@ -815,6 +825,20 @@ function closeModal() {
   editingItem.value = null
   addOwner.value = null
   addSharedCategory.value = null
+  suggestionPrefill.value = null
+  suggestionCategory.value = null
+}
+
+// Opening the add form from an "If you like this…" suggestion. The user
+// doesn't own the thing yet, so it defaults to the wishlist, and the external
+// result is applied to the form so they don't have to search for it again.
+function openAddFromSuggestion({ category, result }) {
+  editingItem.value = null
+  addOwner.value = null
+  addSharedCategory.value = null
+  suggestionCategory.value = category
+  suggestionPrefill.value = result
+  modalOpen.value = true
 }
 
 // Open the ImportModal for the current user's own collection.

@@ -8,6 +8,28 @@ class RawgService extends AbstractApiService
 {
     private const API_BASE = 'https://api.rawg.io/api';
 
+    /**
+     * RAWG genre names whose slug isn't just the lower-cased, hyphenated name.
+     * The `genres` filter matches on slug, and a wrong slug is not an error —
+     * it returns zero results, or is silently dropped from a multi-genre
+     * filter — so guessing here fails quietly. Verified against /genres: this
+     * is the only name in RAWG's fixed 19-genre vocabulary that differs.
+     *
+     * @var array<string, string>
+     */
+    private const GENRE_SLUGS = [
+        'rpg' => 'role-playing-games-rpg',
+    ];
+
+    /**
+     * Genres too broad to make a useful suggestion on their own — most games
+     * carry at least one of them, so they'd return the same blockbusters
+     * regardless of the item being viewed.
+     *
+     * @var list<string>
+     */
+    private const BROAD_GENRES = ['action', 'indie', 'adventure', 'casual'];
+
     /** Map RAWG platform names → Crate format values (physical media only). */
     private const PLATFORM_FORMAT_MAP = [
         'PlayStation 5'    => 'PS5',
@@ -78,6 +100,121 @@ class RawgService extends AbstractApiService
 
         $results = array_slice((array)($body['results'] ?? []), 0, 10);
         return array_values(array_map(fn(array $r) => $this->normaliseResult($r), $results));
+    }
+
+    /**
+     * Games resembling one already in the collection, in the same shape as
+     * search() so the add-from-external path can consume either.
+     *
+     * RAWG's own similar-games endpoint (/games/{id}/suggested) is a paid
+     * Business-plan feature, so this composes two free endpoints instead:
+     * franchise entries first (high precision — the same series is almost
+     * always a good suggestion), then popular games sharing the item's
+     * genres to fill the rail.
+     *
+     * @param string|null $genres Stored `genres` value (comma-separated RAWG genre names)
+     * @return array<int, array<string, mixed>>
+     */
+    public function similar(string $userId, string $gameId, ?string $genres, int $limit = 8): array
+    {
+        $key = $this->getCredential($userId);
+        if ($key === '') {
+            return [];
+        }
+
+        $out  = [];
+        $seen = [$gameId => true];
+
+        $series = $this->getJson(
+            self::API_BASE . '/games/' . rawurlencode($gameId) . '/game-series',
+            ['key' => $key, 'page_size' => (string)$limit],
+        );
+        $this->collect((array)($series['results'] ?? []), $seen, $out, $limit);
+
+        if (count($out) < $limit) {
+            $slug = $this->genreSlug($genres);
+            if ($slug !== null) {
+                $byGenre = $this->getJson(self::API_BASE . '/games', [
+                    'key' => $key,
+                    'genres' => $slug,
+                    // "-added" is RAWG's popularity proxy: how many users have
+                    // the game in a library. Better than -rating, which floats
+                    // obscure games with a handful of high scores.
+                    'ordering' => '-added',
+                    'page_size' => (string)($limit * 2),
+                ]);
+                $this->collect((array)($byGenre['results'] ?? []), $seen, $out, $limit);
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Normalise RAWG rows into $out, skipping ids already seen, until $limit.
+     *
+     * @param array<int, mixed>          $results
+     * @param array<string, bool>        $seen
+     * @param array<int, array<string, mixed>> $out
+     */
+    private function collect(array $results, array &$seen, array &$out, int $limit): void
+    {
+        foreach ($results as $result) {
+            if (count($out) >= $limit) {
+                return;
+            }
+            if (!is_array($result)) {
+                continue;
+            }
+            $id = (string)($result['id'] ?? '');
+            if ($id === '' || isset($seen[$id])) {
+                continue;
+            }
+            $seen[$id] = true;
+            $out[] = $this->normaliseResult($result);
+        }
+    }
+
+    /**
+     * The single genre slug to search on, or null when the item has none.
+     *
+     * Only one: RAWG's `genres` filter is a union, not an intersection, so
+     * passing two widens the pool rather than narrowing it (verified against
+     * the live API — action=191k, rpg=62k, both=238k).
+     *
+     * Broad genres are skipped in favour of a specific one where the item has
+     * both. Nearly every game is tagged "Action", so searching that returns
+     * the same handful of blockbusters whatever the user is looking at.
+     */
+    private function genreSlug(?string $genres): ?string
+    {
+        if ($genres === null || trim($genres) === '') {
+            return null;
+        }
+
+        $fallback = null;
+        foreach (explode(',', $genres) as $raw) {
+            $name = trim($raw);
+            if ($name === '') {
+                continue;
+            }
+            $slug = self::GENRE_SLUGS[mb_strtolower($name)] ?? $this->slugify($name);
+            if ($slug === '') {
+                continue;
+            }
+            $fallback ??= $slug;
+            if (!in_array($slug, self::BROAD_GENRES, true)) {
+                return $slug;
+            }
+        }
+
+        return $fallback;
+    }
+
+    private function slugify(string $name): string
+    {
+        $slug = preg_replace('/[^a-z0-9]+/', '-', mb_strtolower($name)) ?? '';
+        return trim($slug, '-');
     }
 
     /**

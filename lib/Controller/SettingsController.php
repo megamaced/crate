@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Crate\Controller;
 
+use OCA\Crate\Service\CategoryVisibilityService;
 use OCA\Crate\Service\MarketValueService;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
@@ -24,6 +25,7 @@ class SettingsController extends OCSController
         private readonly IConfig $config,
         private readonly IUserSession $userSession,
         private readonly ICredentialsManager $credentialsManager,
+        private readonly CategoryVisibilityService $visibility,
     ) {
         parent::__construct($appName, $request);
     }
@@ -204,6 +206,9 @@ class SettingsController extends OCSController
 
         $autoEnrichClick = $this->config->getUserValue($uid, 'crate', 'auto_enrich_click', '1') === '1';
         $autoEnrichImport = $this->config->getUserValue($uid, 'crate', 'auto_enrich_import', '1') === '1';
+        // Defaults off: enabling it means Crate contacts the enrichment
+        // providers when an item is opened, which is the user's call to make.
+        $onlineRecs = $this->config->getUserValue($uid, 'crate', 'online_recommendations', 'no') === 'yes';
 
         return new DataResponse([
             'userId'              => $uid,
@@ -214,9 +219,32 @@ class SettingsController extends OCSController
             'autoFetchMarketRates' => $autoFetch,
             'autoEnrichOnClick'    => $autoEnrichClick,
             'autoEnrichOnImport'   => $autoEnrichImport,
-            'hiddenCategories'     => $this->getHiddenCategories($uid),
+            'hiddenCategories'     => $this->visibility->hidden($uid),
+            'onlineRecommendations' => $onlineRecs,
             'crateVersion'         => $this->config->getAppValue('crate', 'installed_version', '0.0.0'),
         ]);
+    }
+
+    /**
+     * PUT /api/v1/settings/online-recommendations
+     * Opt in or out of provider-backed recommendations on the item detail
+     * view. Off by default: when on, opening an item may trigger an outbound
+     * request to the provider that enriched it.
+     *
+     * Only affects the online rail. The local "more from your crate" rail is
+     * computed from the user's own items and is always available.
+     */
+    #[NoAdminRequired]
+    public function setOnlineRecommendations(bool $enabled = false): DataResponse
+    {
+        $this->config->setUserValue(
+            $this->userId(),
+            'crate',
+            'online_recommendations',
+            $enabled ? 'yes' : 'no',
+        );
+
+        return new DataResponse(['onlineRecommendations' => $enabled]);
     }
 
     /**
@@ -268,28 +296,5 @@ class SettingsController extends OCSController
         );
 
         return new DataResponse(['hiddenCategories' => $clean]);
-    }
-
-    /**
-     * Resolve the user's hidden_categories setting back to a clean list of
-     * known category keys. Tolerates stale entries from older clients.
-     *
-     * @return string[]
-     */
-    private function getHiddenCategories(string $uid): array
-    {
-        $raw = $this->config->getUserValue($uid, 'crate', 'hidden_categories', '[]');
-        try {
-            $decoded = json_decode($raw, true, 16, JSON_THROW_ON_ERROR);
-        } catch (\JsonException) {
-            return [];
-        }
-        if (!is_array($decoded)) {
-            return [];
-        }
-        return array_values(array_unique(array_filter(
-            $decoded,
-            static fn($c) => is_string($c) && in_array($c, \OCA\Crate\CrateCategories::ALL, true),
-        )));
     }
 }

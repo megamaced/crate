@@ -24,6 +24,7 @@ export const mediaEnrich       = (id) => ocs(`/media/${id}/enrich`)
 export const mediaStripEnrich  = (id) => ocs(`/media/${id}/enrich`)
 export const mediaMarketValue  = (id) => ocs(`/media/${id}/market-value`)
 export const mediaRefreshAllMv = () => ocs('/market-value/refresh-all')
+export const mediaRecommendations = (id) => ocs(`/media/${id}/recommendations`)
 
 /* ── Enrichment API proxies ───────────────────────────────────────────── */
 export const discogsSearch       = () => ocs('/discogs/search')
@@ -54,6 +55,7 @@ export const settingsMarket             = () => ocs('/settings/market')
 export const settingsCurrencies         = () => ocs('/settings/currencies')
 export const settingsMe                 = () => ocs('/me')
 export const settingsCurrency           = () => ocs('/settings/currency')
+export const settingsOnlineRecs          = () => ocs('/settings/online-recommendations')
 export const homeFeed                   = () => ocs('/home')
 
 /* ── Import / Export ──────────────────────────────────────────────────── */

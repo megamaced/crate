@@ -301,6 +301,17 @@
           {{ members.join(', ') }}
         </div>
       </section>
+      <RecommendationRail
+        title="More from your crate"
+        :items="localRail"
+        @pick="onLocalPick"
+      />
+      <RecommendationRail
+        title="If you like this…"
+        :source="onlineSource"
+        :items="onlineRail"
+        @pick="onOnlinePick"
+      />
     </div><!-- /detail-body -->
 
     <div
@@ -341,7 +352,8 @@ import { useSettings } from '../composables/useSettings.js'
 import { formatMarketValue } from '../utils/formatMarketValue.js'
 import { genreTokens } from '../utils/genres.js'
 import { useArtworkStyle } from '../composables/useArtworkStyle.js'
-import { photoGet } from '../api.js'
+import { mediaRecommendations, photoGet } from '../api.js'
+import RecommendationRail from './RecommendationRail.vue'
 
 const props = defineProps({
   item: { type: Object, required: true },
@@ -350,7 +362,10 @@ const props = defineProps({
   queueBusy: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['back', 'edit', 'delete', 'enriched', 'addToPlaylist', 'share', 'genre'])
+const emit = defineEmits([
+  'back', 'edit', 'delete', 'enriched', 'addToPlaylist', 'share', 'genre',
+  'open-item', 'add-suggestion',
+])
 
 // Genres render as buttons that filter the collection by that genre, so the
 // stored comma-separated string has to be split first.
@@ -543,8 +558,80 @@ function shouldAutoFetchMarket() {
   return false
 }
 
+// ── Recommendations ───────────────────────────────────────────────────────────
+// The two rails are fetched together in one request. `local` is worked out
+// server-side from the viewer's own collection; `online` is present only when
+// the user opted in AND the item carries an enrichment id, so an empty array
+// here is the normal "not available" case rather than an error.
+const localSuggestions  = ref([])
+const onlineSuggestions = ref([])
+const onlineSource      = ref('')
+
+// The provider-specific id key for each category, matching the shape each
+// provider's search results already use.
+const SUGGESTION_ID_KEY = {
+  music: 'discogsId',
+  film:  'tmdbId',
+  book:  'workKey',
+  game:  'rawgId',
+  comic: 'comicVineId',
+}
+
+const localRail = computed(() => localSuggestions.value.map(item => ({
+  key:      `local-${item.id}`,
+  title:    item.title,
+  subtitle: [item.artist, item.year].filter(Boolean).join(' · '),
+  tooltip:  `Open ${item.title}`,
+  item,
+})))
+
+const onlineRail = computed(() => {
+  const idKey = SUGGESTION_ID_KEY[props.item.category] ?? 'discogsId'
+  return onlineSuggestions.value.map((result, i) => ({
+    key:      `online-${result[idKey] ?? i}`,
+    title:    result.title,
+    subtitle: [result.artist, result.year].filter(Boolean).join(' · '),
+    tooltip:  `Add ${result.title} to your wishlist`,
+    thumb:    result.thumb ?? result.artworkUrl ?? null,
+  }))
+})
+
+async function loadRecommendations() {
+  localSuggestions.value = []
+  onlineSuggestions.value = []
+  onlineSource.value = ''
+  try {
+    const res = await axios.get(mediaRecommendations(props.item.id))
+    const data = res.data.ocs?.data ?? {}
+    localSuggestions.value  = Array.isArray(data.local) ? data.local : []
+    onlineSuggestions.value = Array.isArray(data.online) ? data.online : []
+    onlineSource.value      = data.onlineSource ?? ''
+  } catch {
+    // Rails stay empty and render nothing — never worth an error toast.
+  }
+}
+
+function onLocalPick({ index }) {
+  const item = localSuggestions.value[index]
+  if (item) emit('open-item', item)
+}
+
+// Online suggestions are things the user doesn't own, so picking one opens the
+// add form pre-filled and defaulted to the wishlist.
+function onOnlinePick({ index }) {
+  const result = onlineSuggestions.value[index]
+  if (result) emit('add-suggestion', { category: props.item.category, result })
+}
+
 onMounted(() => {
   if (shouldAutoFetchMarket()) fetchMarketValue()
+  loadRecommendations()
+})
+
+// Navigating between items reuses this component, so the rails have to follow
+// the item rather than only loading once on mount.
+watch(() => props.item.id, () => {
+  loadRecommendations()
 })
 
 // Fires when enrichment completes and updates props.item — fetch market rate if configured.

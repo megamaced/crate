@@ -29,6 +29,9 @@ return [
 		// ── Market values ──────────────────────────────────────────────────────
 		['name' => 'media#fetchMarketValue', 'url' => '/api/v1/media/{id}/market-value', 'verb' => 'POST'],
 
+		// Recommendations: local "more from your crate" + opt-in provider suggestions
+		['name' => 'media#recommendations', 'url' => '/api/v1/media/{id}/recommendations', 'verb' => 'GET'],
+
 		// ── Settings ───────────────────────────────────────────────────────────
 		['name' => 'settings#getDiscogsToken',  'url' => '/api/v1/settings/discogs-token', 'verb' => 'GET'],
 		['name' => 'settings#setDiscogsToken',  'url' => '/api/v1/settings/discogs-token', 'verb' => 'POST'],
@@ -44,6 +47,7 @@ return [
 		['name' => 'settings#setMarketSettings', 'url' => '/api/v1/settings/market',       'verb' => 'POST'],
 		['name' => 'settings#getSupportedCurrencies', 'url' => '/api/v1/settings/currencies', 'verb' => 'GET'],
 		['name' => 'settings#setHiddenCategories', 'url' => '/api/v1/settings/hidden-categories', 'verb' => 'PUT'],
+		['name' => 'settings#setOnlineRecommendations', 'url' => '/api/v1/settings/online-recommendations', 'verb' => 'PUT'],
 
 		// ── Discogs API proxy ──────────────────────────────────────────────────
 		['name' => 'discogs#search',       'url' => '/api/v1/discogs/search',            'verb' => 'GET'],

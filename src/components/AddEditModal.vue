@@ -369,6 +369,10 @@ const props = defineProps({
   hasRawgKey:       { type: Boolean, default: false },
   hasComicVineKey:  { type: Boolean, default: false },
   category:         { type: String,  default: 'music' },
+  // An external search result to apply as soon as the modal opens. Used by the
+  // recommendation rails, where the user has already picked the thing they
+  // want — re-searching for it inside the modal would be busywork.
+  prefill:          { type: Object,  default: null },
 })
 
 const emit = defineEmits(['close', 'save'])
@@ -572,6 +576,14 @@ watch(
             purchasePriceCurrency: props.item.purchasePriceCurrency ?? marketCurrency.value,
           }
         : blankForm()
+
+      // Applied after the form is seeded, so the enrichment result wins over
+      // the blank defaults.
+      if (!props.item && props.prefill) {
+        form.value.category = props.category
+        applyEnrichment(props.prefill)
+        form.value.status = props.defaultStatus
+      }
     }
   },
 )

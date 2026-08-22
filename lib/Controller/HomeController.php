@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace OCA\Crate\Controller;
 
-use OCA\Crate\CrateCategories;
 use OCA\Crate\Db\MediaItemMapper;
+use OCA\Crate\Service\CategoryVisibilityService;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\OCSController;
-use OCP\IConfig;
 use OCP\IRequest;
 use OCP\IUserSession;
 
@@ -22,7 +21,7 @@ class HomeController extends OCSController
         IRequest $request,
         private readonly MediaItemMapper $mapper,
         private readonly IUserSession $userSession,
-        private readonly IConfig $config,
+        private readonly CategoryVisibilityService $visibility,
     ) {
         parent::__construct($appName, $request);
     }
@@ -36,7 +35,7 @@ class HomeController extends OCSController
     #[NoAdminRequired]
     public function home(): DataResponse
     {
-        $hidden = $this->loadHiddenCategories();
+        $hidden = $this->visibility->hidden($this->userId());
 
         $owned = array_values(array_filter(
             $this->mapper->findAll($this->userId()),
@@ -71,25 +70,5 @@ class HomeController extends OCSController
             'recentlyAdded' => array_slice($owned, 0, 12),
             'mostValuable'  => array_slice($valuable, 0, 6),
         ]);
-    }
-
-    /**
-     * @return string[]
-     */
-    private function loadHiddenCategories(): array
-    {
-        $raw = $this->config->getUserValue($this->userId(), 'crate', 'hidden_categories', '[]');
-        try {
-            $decoded = json_decode($raw, true, 16, JSON_THROW_ON_ERROR);
-        } catch (\JsonException) {
-            return [];
-        }
-        if (!is_array($decoded)) {
-            return [];
-        }
-        return array_values(array_filter(
-            $decoded,
-            static fn($c) => is_string($c) && in_array($c, CrateCategories::ALL, true),
-        ));
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Crate\Search;
 
 use OCA\Crate\Db\MediaItemMapper;
+use OCA\Crate\Service\CategoryVisibilityService;
 use OCP\IL10N;
 use OCP\IURLGenerator;
 use OCP\IUser;
@@ -19,6 +20,7 @@ class Provider implements IProvider
         private readonly MediaItemMapper $mapper,
         private readonly IURLGenerator $urlGenerator,
         private readonly IL10N $l,
+        private readonly CategoryVisibilityService $visibility,
     ) {
     }
 
@@ -41,7 +43,11 @@ class Provider implements IProvider
     public function search(IUser $user, ISearchQuery $query): SearchResult
     {
         $term  = $query->getTerm();
-        $items = $this->mapper->search($user->getUID(), $term);
+        $items = $this->mapper->search(
+            $user->getUID(),
+            $term,
+            $this->visibility->hidden($user->getUID()),
+        );
 
         $appUrl = $this->urlGenerator->linkToRouteAbsolute('crate.page.index');
 

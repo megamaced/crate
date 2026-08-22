@@ -6,12 +6,14 @@
 import { ref, watch } from 'vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
+import { settingsOnlineRecs } from '../api.js'
 
 const KEY_ENRICH_ON_CLICK  = 'crate_auto_enrich_click'
 const KEY_ENRICH_ON_IMPORT = 'crate_auto_enrich_import'
 const KEY_AUTO_MARKET      = 'crate_auto_fetch_market_rates'
 const KEY_MARKET_CURRENCY  = 'crate_market_currency'
 const KEY_HIDDEN_CATS      = 'crate_hidden_categories'
+const KEY_ONLINE_RECS      = 'crate_online_recommendations'
 
 const ALL_CATEGORIES = ['music', 'film', 'book', 'game', 'comic']
 
@@ -57,6 +59,9 @@ const autoEnrichOnImport     = ref(readBool(KEY_ENRICH_ON_IMPORT, true))
 const autoFetchMarketRates   = ref(readBool(KEY_AUTO_MARKET, false))
 const marketCurrency         = ref(readString(KEY_MARKET_CURRENCY, 'GBP'))
 const hiddenCategories       = ref(readStringList(KEY_HIDDEN_CATS))
+// Off by default: when on, opening an item may call out to the provider that
+// enriched it, so it stays the user's explicit choice.
+const onlineRecommendations  = ref(readBool(KEY_ONLINE_RECS, false))
 // Currency allowlist served by the backend (`MarketValueService::SUPPORTED_CURRENCIES`).
 // Kept here rather than duplicated per-component so the list can't drift, and
 // fetched once per page load (cached for the rest of the session).
@@ -121,6 +126,24 @@ watch(hiddenCategories, v => {
   persistHiddenCategories()
 }, { deep: true })
 
+watch(onlineRecommendations, v => {
+  safeSet(KEY_ONLINE_RECS, String(v))
+  persistOnlineRecs()
+})
+
+let onlineRecsSaveTimer = null
+function persistOnlineRecs() {
+  if (suppressPersist) return
+  clearTimeout(onlineRecsSaveTimer)
+  onlineRecsSaveTimer = setTimeout(async () => {
+    try {
+      await axios.put(settingsOnlineRecs(), { enabled: onlineRecommendations.value })
+    } catch {
+      // Best-effort — localStorage still has the value
+    }
+  }, 500)
+}
+
 let hiddenSaveTimer = null
 function persistHiddenCategories() {
   if (suppressPersist) return
@@ -149,6 +172,9 @@ async function loadHiddenCategoriesFromMe() {
     if (Array.isArray(data.hiddenCategories)) {
       suppressPersist = true
       hiddenCategories.value = data.hiddenCategories.filter(v => ALL_CATEGORIES.includes(v))
+      if (typeof data.onlineRecommendations === 'boolean') {
+        onlineRecommendations.value = data.onlineRecommendations
+      }
       hiddenLoaded = true
       queueMicrotask(() => { suppressPersist = false })
     }
@@ -182,5 +208,6 @@ export function useSettings() {
     marketCurrency,
     currencyOptions,
     hiddenCategories,
+    onlineRecommendations,
   }
 }

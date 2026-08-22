@@ -361,9 +361,14 @@ class MediaItemMapper extends QBMapper
     /**
      * Full-text search over title and artist for a user (case-insensitive).
      *
+     * `$excludeCategories` is applied in SQL rather than to the returned rows,
+     * so hiding a category shrinks the candidate set instead of eating into
+     * the result limit.
+     *
+     * @param list<string> $excludeCategories
      * @return MediaItem[]
      */
-    public function search(string $userId, string $term): array
+    public function search(string $userId, string $term, array $excludeCategories = []): array
     {
         $like = '%' . $this->db->escapeLikeParameter(strtolower($term)) . '%';
         $qb   = $this->db->getQueryBuilder();
@@ -376,8 +381,16 @@ class MediaItemMapper extends QBMapper
                     $qb->expr()->like($qb->func()->lower('title'), $qb->createNamedParameter($like)),
                     $qb->expr()->like($qb->func()->lower('artist'), $qb->createNamedParameter($like)),
                 )
-            )
-            ->orderBy('created_at', 'DESC')
+            );
+
+        if (!empty($excludeCategories)) {
+            $qb->andWhere($qb->expr()->notIn(
+                'category',
+                $qb->createNamedParameter($excludeCategories, IQueryBuilder::PARAM_STR_ARRAY),
+            ));
+        }
+
+        $qb->orderBy('created_at', 'DESC')
             ->addOrderBy('id', 'DESC')
             ->setMaxResults(10);
 

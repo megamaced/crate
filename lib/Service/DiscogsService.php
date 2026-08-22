@@ -9,6 +9,21 @@ class DiscogsService extends AbstractApiService
     private const API_BASE = 'https://api.discogs.com';
     private const USER_AGENT = 'CrateNextcloudApp/0.4 +https://github.com/megamaced/crate';
 
+    /**
+     * Discogs' fixed top-level genre vocabulary. The stored `genres` column
+     * merges genres and styles into one list (see normaliseRelease), so this
+     * is what lets us split a stored value back into the `genre=` and
+     * `style=` query parameters the search API expects. Anything not in this
+     * list is a style.
+     *
+     * @var list<string>
+     */
+    private const GENRE_VOCABULARY = [
+        'blues', 'brass & military', "children's", 'classical', 'electronic',
+        'folk, world, & country', 'funk / soul', 'hip hop', 'jazz', 'latin',
+        'non-music', 'pop', 'reggae', 'rock', 'stage & screen',
+    ];
+
     protected function serviceName(): string
     {
         return 'Discogs';
@@ -31,6 +46,137 @@ class DiscogsService extends AbstractApiService
     public function search(string $userId, string $query): array
     {
         return $this->searchRequest($userId, ['q' => $query, 'type' => 'release']);
+    }
+
+    /**
+     * Records resembling one already in the collection, in the same shape as
+     * search() so the add-from-external path can consume either.
+     *
+     * Discogs has no similarity endpoint, so this stands in for one: search
+     * the release's own genre + styles, ranked by how many Discogs users want
+     * the record. That reads as "well-regarded records in this style", which
+     * is the useful reading of "if you like this…".
+     *
+     * @param string|null $genres    Stored `genres` value (merged genres + styles)
+     * @param string|null $excludeId Release id of the item being viewed, so it can't recommend itself
+     * @return array<int, array<string, mixed>>
+     */
+    public function similarByStyle(
+        string $userId,
+        ?string $genres,
+        ?string $excludeId = null,
+        int $limit = 8,
+    ): array {
+        $token = $this->getToken($userId);
+        if ($token === '') {
+            return [];
+        }
+
+        [$genre, $styles] = $this->splitGenresAndStyles($genres);
+        if ($genre === null && empty($styles)) {
+            return [];
+        }
+
+        $params = [
+            'type'       => 'release',
+            'sort'       => 'want',
+            'sort_order' => 'desc',
+            // Over-fetch: dedup below collapses the many pressings of a
+            // popular record down to one row each.
+            'per_page'   => '75',
+        ];
+        if ($genre !== null) {
+            $params['genre'] = $genre;
+        }
+        if (!empty($styles)) {
+            // One style only: repeating the parameter changes nothing (verified
+            // against the live API — identical result counts), so Discogs keeps
+            // just one either way.
+            //
+            // Result quality tracks how tightly the style is tagged rather than
+            // anything we control: a narrow style is excellent (style=Math Rock
+            // returns Mars Volta, Black Midi, Shellac) while a broadly-applied
+            // one is noisier, because sorting 115k releases by want-count
+            // surfaces famous records carrying a stray tag.
+            $params['style'] = $styles[0];
+        }
+
+        $body = $this->discogsGet($token, self::API_BASE . '/database/search', $params);
+
+        return $this->dedupeByMaster((array)($body['results'] ?? []), $excludeId, $limit);
+    }
+
+    /**
+     * Collapse a want-sorted release list to one row per master release,
+     * keeping the most-wanted pressing of each.
+     *
+     * @param array<int, mixed> $results
+     * @return array<int, array<string, mixed>>
+     */
+    private function dedupeByMaster(array $results, ?string $excludeId, int $limit): array
+    {
+        $seen = [];
+        $out  = [];
+
+        foreach ($results as $result) {
+            if (!is_array($result)) {
+                continue;
+            }
+            $id = (string)($result['id'] ?? '');
+            if ($id === '' || ($excludeId !== null && $id === $excludeId)) {
+                continue;
+            }
+
+            // master_id is 0 for standalone releases with no master; fall back
+            // to the title so those still dedupe against each other.
+            $masterId = (int)($result['master_id'] ?? 0);
+            $key = $masterId > 0
+                ? 'm:' . $masterId
+                : 't:' . mb_strtolower(trim((string)($result['title'] ?? $id)));
+
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+
+            $out[] = $this->normalise($result);
+            if (count($out) >= $limit) {
+                break;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Split a stored `genres` value into a single Discogs genre plus the
+     * remaining styles, keeping the stored order. Discogs lists a release's
+     * styles in no particular order of breadth, so the first is as good a
+     * choice as any and at least keeps the query deterministic.
+     *
+     * @return array{0: string|null, 1: list<string>}
+     */
+    private function splitGenresAndStyles(?string $genres): array
+    {
+        if ($genres === null || trim($genres) === '') {
+            return [null, []];
+        }
+
+        $genre  = null;
+        $styles = [];
+        foreach (explode(',', $genres) as $raw) {
+            $token = trim($raw);
+            if ($token === '') {
+                continue;
+            }
+            if (in_array(mb_strtolower($token), self::GENRE_VOCABULARY, true)) {
+                $genre ??= $token;
+            } else {
+                $styles[] = $token;
+            }
+        }
+
+        return [$genre, $styles];
     }
 
     private function getToken(string $userId): string

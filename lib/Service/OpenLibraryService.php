@@ -33,6 +33,85 @@ class OpenLibraryService extends AbstractApiService
     }
 
     /**
+     * Read-alikes for a book, in the same shape as search() so the
+     * add-from-external path can consume either.
+     *
+     * Open Library has no read-alike endpoint, so this stands in for one:
+     * search the work's own subjects, ranked by how many Open Library users
+     * have the book on a reading log. Subjects are far more specific than
+     * genres ("Cyberpunk", "Space warfare"), which is what makes this work.
+     *
+     * @param string|null $subjects   Stored `genres` value (comma-separated Open Library subjects)
+     * @param string|null $excludeKey Work key of the item being viewed, so it can't recommend itself
+     * @return array<int, array<string, mixed>>
+     */
+    public function similarBySubject(?string $subjects, ?string $excludeKey = null, int $limit = 8): array
+    {
+        $subject = $this->firstUsableSubject($subjects);
+        if ($subject === null) {
+            return [];
+        }
+
+        $body = $this->getJson(self::SEARCH_URL, [
+            // Quoted so multi-word subjects match as a phrase.
+            'q'      => 'subject:"' . $subject . '"',
+            'sort'   => 'readinglog',
+            'limit'  => (string)($limit + 1),
+            'fields' => 'key,title,author_name,first_publish_year,cover_i,publisher,isbn,subject',
+        ]);
+
+        $out = [];
+        foreach ((array)($body['docs'] ?? []) as $doc) {
+            if (!is_array($doc)) {
+                continue;
+            }
+            $key = (string)($doc['key'] ?? '');
+            if ($key === '' || ($excludeKey !== null && $key === $excludeKey)) {
+                continue;
+            }
+            $out[] = $this->normaliseDoc($doc);
+            if (count($out) >= $limit) {
+                break;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Pick the subject to search on. Very broad subjects make for useless
+     * read-alikes ("Fiction" matches most of the catalogue), so those are
+     * skipped in favour of the first specific one.
+     */
+    private function firstUsableSubject(?string $subjects): ?string
+    {
+        if ($subjects === null || trim($subjects) === '') {
+            return null;
+        }
+
+        $tooBroad = [
+            'fiction', 'nonfiction', 'non-fiction', 'literature', 'general',
+            'english language', 'large type books', 'accessible book',
+        ];
+
+        $fallback = null;
+        foreach (explode(',', $subjects) as $raw) {
+            $subject = trim($raw);
+            // Quotes would break out of the phrase query.
+            $subject = str_replace(['"', '\\'], '', $subject);
+            if ($subject === '') {
+                continue;
+            }
+            $fallback ??= $subject;
+            if (!in_array(mb_strtolower($subject), $tooBroad, true)) {
+                return $subject;
+            }
+        }
+
+        return $fallback;
+    }
+
+    /**
      * Fetch full work details.
      * workId is the Open Library key, e.g. "/works/OL12345W" or just "OL12345W".
      *

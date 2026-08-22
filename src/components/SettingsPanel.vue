@@ -484,6 +484,27 @@
       </div>
     </NcAppSettingsSection>
 
+    <!-- ── Recommendations ── -->
+    <NcAppSettingsSection
+      id="crate-settings-recommendations"
+      name="Recommendations"
+    >
+      <p class="settings-hint">
+        Items show a "More from your crate" row, suggesting similar things you already own or want. That's worked out locally from your own collection and needs no setup.
+      </p>
+      <div class="settings-enrichment-options">
+        <NcCheckboxRadioSwitch
+          :model-value="onlineRecommendations"
+          @update:model-value="onlineRecommendations = $event"
+        >
+          Enable online recommendations
+        </NcCheckboxRadioSwitch>
+      </div>
+      <p class="settings-hint">
+        Also suggest things you don't own yet, from the same service that enriched the item — Discogs for music, TMDB for films, Open Library for books, RAWG for games. Only enriched items can have these, since suggestions are looked up by the ID enrichment stores. Results are cached, so re-opening an item won't re-query the service. Comics aren't covered: ComicVine publishes no similarity data.
+      </p>
+    </NcAppSettingsSection>
+
     <!-- ── Danger Zone ── -->
     <NcAppSettingsSection
       id="crate-settings-danger"
@@ -563,7 +584,13 @@ const emit = defineEmits(['update:open', 'token-changed', 'tmdb-token-changed', 
 
 const enrich = useEnrichQueue()
 const marketQueue = useMarketValueQueue()
-const { autoEnrichOnClick, autoFetchMarketRates, marketCurrency, hiddenCategories } = useSettings()
+const {
+  autoEnrichOnClick,
+  autoFetchMarketRates,
+  marketCurrency,
+  hiddenCategories,
+  onlineRecommendations,
+} = useSettings()
 
 // Alphabetical by label so the Categories list matches Android.
 const categoryToggles = [

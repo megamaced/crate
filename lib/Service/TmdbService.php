@@ -67,6 +67,38 @@ class TmdbService extends AbstractApiService
         return $this->normaliseMovie($body);
     }
 
+    /**
+     * Films similar to a movie, in the same shape as search() so the
+     * add-from-external path can consume either.
+     *
+     * Prefers /recommendations (TMDB's own blend, which factors in what users
+     * actually watch together) and falls back to /similar, which TMDB
+     * documents as genre + plot-keyword matching only.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function similar(string $userId, string $movieId, int $limit = 8): array
+    {
+        $token = $this->getCredential($userId);
+        if ($token === '') {
+            return [];
+        }
+
+        foreach (['recommendations', 'similar'] as $endpoint) {
+            $body = $this->getJson(
+                self::API_BASE . '/movie/' . rawurlencode($movieId) . '/' . $endpoint,
+                ['language' => 'en-US', 'page' => '1'],
+                ['Authorization' => 'Bearer ' . $token],
+            );
+            $results = array_slice((array)($body['results'] ?? []), 0, $limit);
+            if (!empty($results)) {
+                return array_values(array_map(fn(array $r) => $this->normaliseResult($r), $results));
+            }
+        }
+
+        return [];
+    }
+
     /** @param array<string, mixed> $r */
     private function normaliseResult(array $r): array
     {

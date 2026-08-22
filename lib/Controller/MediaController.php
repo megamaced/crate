@@ -9,6 +9,7 @@ use OCA\Crate\Dto\MediaItemData;
 use OCA\Crate\Service\EnrichmentService;
 use OCA\Crate\Service\MarketValueService;
 use OCA\Crate\Service\MediaService;
+use OCA\Crate\Service\RecommendationService;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
@@ -34,6 +35,7 @@ class MediaController extends OCSController
         private readonly MediaService $mediaService,
         private readonly EnrichmentService $enrichmentService,
         private readonly MarketValueService $marketValueService,
+        private readonly RecommendationService $recommendationService,
         private readonly IUserSession $userSession,
         private readonly IConfig $config,
     ) {
@@ -294,6 +296,33 @@ class MediaController extends OCSController
             return new DataResponse($result->item);
         }
         return new DataResponse(['error' => $result->error], $result->status);
+    }
+
+    /**
+     * Recommendations for a media item: the viewer's own similar items, plus
+     * provider suggestions when the user has opted in and the item has been
+     * enriched.
+     *
+     * Read-only and side-effect free, so a sharee viewing a shared item gets
+     * the rails too — with the local half drawn from their own collection.
+     *
+     * GET /api/v1/media/{id}/recommendations
+     */
+    #[NoAdminRequired]
+    #[UserRateLimit(limit: 120, period: 60)]
+    public function recommendations(int $id, string $include = 'both'): DataResponse
+    {
+        if (!in_array($include, ['both', 'local', 'online'], true)) {
+            return new DataResponse(['error' => 'Invalid include'], Http::STATUS_BAD_REQUEST);
+        }
+
+        try {
+            return new DataResponse(
+                $this->recommendationService->forItem($id, $this->userId(), 6, $include),
+            );
+        } catch (DoesNotExistException) {
+            return new DataResponse(['error' => 'Not found'], Http::STATUS_NOT_FOUND);
+        }
     }
 
     /**
