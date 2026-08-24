@@ -8,11 +8,11 @@ use OCA\Crate\Service\ImportService;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Covers the header→field mapping used by CSV/XLSX import. In particular it
- * locks in that the "Barcode / ISBN" header emitted by the all-categories
- * export re-imports into the barcode field — previously it was dropped
- * because only "barcode"/"isbn" were aliased, so an export→import round-trip
- * silently lost every barcode.
+ * Covers the header→field mapping used by CSV/XLSX import. Every header
+ * ExportService emits must resolve to a field, or an export→import round-trip
+ * silently drops that column — the "Barcode / ISBN" header from the
+ * all-categories export is the case most easily missed, since "barcode" and
+ * "isbn" on their own do not match it.
  */
 class ImportMappingTest extends TestCase
 {

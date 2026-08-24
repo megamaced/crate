@@ -212,7 +212,11 @@ class CrateShareMapper extends QBMapper
             ->andWhere($qb->expr()->eq('shared_with_user_id', $qb->createNamedParameter($sharedWithUserId)))
             ->andWhere($qb->expr()->eq('shareable_type', $qb->createNamedParameter($type)))
             ->andWhere($qb->expr()->eq('shareable_id', $shareableIdParam))
-            ->andWhere($qb->expr()->eq('shareable_category', $qb->createNamedParameter($shareableCategory)));
+            ->andWhere($qb->expr()->eq('shareable_category', $qb->createNamedParameter($shareableCategory)))
+            // Bounded like every other existence check here: findEntity throws
+            // MultipleObjectsReturnedException when a query it runs matches
+            // more than one row.
+            ->setMaxResults(1);
         try {
             $this->findEntity($qb);
             return true;

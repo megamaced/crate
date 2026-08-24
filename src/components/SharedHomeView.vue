@@ -157,7 +157,7 @@ import { NcButton } from '@nextcloud/vue'
 import { generateUrl } from '@nextcloud/router'
 import MediaCard from './MediaCard.vue'
 import { playlistCountLabel } from '../utils/categoryFormats.js'
-import { artworkStyleFor } from '../composables/useArtworkStyle.js'
+import { artworkStyleFor, artworkStyleForId } from '../composables/useArtworkStyle.js'
 import { useSharedContent } from '../composables/useSharedContent.js'
 
 defineEmits(['detail', 'playlist', 'open-category'])
@@ -194,15 +194,8 @@ function updateRowCount() {
 }
 
 function playlistCoverStyle(pl) {
-  if (pl.coverId) {
-    const url = generateUrl('/apps/crate/artwork/' + pl.coverId)
-    return { backgroundImage: `url(${url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-  }
-  const first = pl.items?.[0]
-  if (first) {
-    return artworkStyleFor(first)
-  }
-  return { background: 'linear-gradient(135deg, #374151, #6b7280)' }
+  if (pl.coverId) return artworkStyleForId(pl.coverId)
+  return artworkStyleFor(pl.items?.[0])
 }
 
 let _resizeObserver = null

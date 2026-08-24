@@ -4,19 +4,25 @@
  * Handles both local/remote artwork URLs and format-coloured gradient fallbacks.
  */
 import { computed } from 'vue'
-import { FORMAT_COLOURS } from '../utils/formatColours.js'
-import { artworkUrl } from '../utils/artworkUrl.js'
+import { formatColours } from '../utils/formatColours.js'
+import { artworkUrl, cssUrl } from '../utils/artworkUrl.js'
+
+function styleForUrl(url) {
+  return {
+    backgroundImage: cssUrl(url),
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+  }
+}
+
+function gradientFor(format) {
+  const colours = formatColours(format)
+  return { background: `linear-gradient(135deg, ${colours[0]}, ${colours[1]})` }
+}
 
 function styleForItem(item) {
-  if (item?.artworkPath) {
-    return {
-      backgroundImage: `url(${artworkUrl(item)})`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-    }
-  }
-  const colours = FORMAT_COLOURS[item?.format] ?? ['#374151', '#6b7280']
-  return { background: `linear-gradient(135deg, ${colours[0]}, ${colours[1]})` }
+  if (item?.artworkPath) return styleForUrl(artworkUrl(item))
+  return gradientFor(item?.format)
 }
 
 /**
@@ -39,4 +45,20 @@ export function useArtworkStyle(itemRef) {
  */
 export function artworkStyleFor(item) {
   return styleForItem(item)
+}
+
+/**
+ * Artwork style for a cover known only by media-item id.
+ *
+ * The playlist endpoints expose covers as bare media-item ids (`coverId`,
+ * `coverIds`) with no `updatedAt` alongside them, so these URLs carry no
+ * cache-buster and a replaced cover can show stale bytes until the HTTP cache
+ * expires. Pass the owning item to artworkStyleFor() wherever one is to hand.
+ *
+ * @param {number|null|undefined} mediaItemId
+ * @returns {Object} CSS style object.
+ */
+export function artworkStyleForId(mediaItemId) {
+  if (!mediaItemId) return gradientFor(null)
+  return styleForUrl(artworkUrl({ id: mediaItemId }))
 }

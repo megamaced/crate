@@ -102,13 +102,13 @@
       </section>
 
       <section
-        v-if="mostValuable.length > 0"
+        v-if="valuableItems.length > 0"
         class="crate-home-section"
       >
         <h3>Most Valuable</h3>
         <div class="crate-card-grid">
           <MediaCard
-            v-for="item in mostValuable"
+            v-for="item in valuableItems.slice(0, rowCount)"
             :key="'mv' + item.id"
             :item="item"
             @detail="$emit('detail', item)"
@@ -134,7 +134,7 @@
           <h3>{{ row.label }}</h3>
           <div class="crate-card-grid">
             <MediaCard
-              v-for="item in row.items"
+              v-for="item in row.items.slice(0, rowCount)"
               :key="item.id"
               :item="item"
               @detail="$emit('detail', item)"
@@ -189,13 +189,21 @@ const items = computed(() =>
 const homeEl = ref(null)
 const rowCount = ref(6)
 
+// ResizeObserver fires for every pixel of a window drag. Coalescing into one
+// frame and ignoring a measurement that yields the same column count keeps a
+// resize from re-rendering every row it can't change.
+let _rowCountFrame = null
 function updateRowCount() {
-  const el = homeEl.value?.$el ?? homeEl.value
-  if (!el) return
-  const width = el.clientWidth
-  // Cards: minmax(180px, 1fr) with 12px gap
-  const cols = Math.floor((width + 12) / (180 + 12))
-  rowCount.value = Math.max(cols, 2)
+  if (_rowCountFrame !== null) return
+  _rowCountFrame = requestAnimationFrame(() => {
+    _rowCountFrame = null
+    const el = homeEl.value?.$el ?? homeEl.value
+    if (!el) return
+    // Cards: minmax(180px, 1fr) with 12px gap
+    const cols = Math.floor((el.clientWidth + 12) / (180 + 12))
+    const next = Math.max(cols, 2)
+    if (next !== rowCount.value) rowCount.value = next
+  })
 }
 
 let _resizeObserver = null
@@ -242,62 +250,77 @@ function stringHash(s) {
   return Math.abs(h)
 }
 
+/**
+ * The collection bucketed by category, and within each category by format, in
+ * one pass. Both the heroes and the per-format rows read this: walking the
+ * whole list once per category per format meant ~75 full passes for a
+ * five-category collection, on every evaluation.
+ */
+const bucketed = computed(() => {
+  const byCategory = new Map()
+  for (const item of items.value) {
+    const cat = item.category ?? 'music'
+    let bucket = byCategory.get(cat)
+    if (!bucket) {
+      bucket = { items: [], byFormat: new Map() }
+      byCategory.set(cat, bucket)
+    }
+    bucket.items.push(item)
+    const fmt = item.format ?? ''
+    const pool = bucket.byFormat.get(fmt)
+    if (pool) pool.push(item)
+    else bucket.byFormat.set(fmt, [item])
+  }
+  return byCategory
+})
+
 // One hero item per populated category, picked by deterministic daily seed
 const heroItems = computed(() => {
   if (items.value.length === 0) return []
   const seed = dateSeed()
-  const byCategory = {}
-  for (const item of items.value) {
-    const cat = item.category ?? 'music'
-    if (!byCategory[cat]) byCategory[cat] = []
-    byCategory[cat].push(item)
-  }
   return CATEGORY_DISPLAY_ORDER
-    .filter(cat => byCategory[cat]?.length > 0)
+    .filter(cat => (bucketed.value.get(cat)?.items.length ?? 0) > 0)
     .map(cat => {
-      const pool = byCategory[cat]
-      const idx = (seed + stringHash(cat)) % pool.length
-      return pool[idx]
+      const pool = bucketed.value.get(cat).items
+      return pool[(seed + stringHash(cat)) % pool.length]
     })
 })
 
-// Category sections ordered by collection size, each with per-format rows
+/**
+ * Category sections ordered by collection size, each with per-format rows.
+ *
+ * Deliberately independent of `rowCount`: the shuffle is a daily-seeded
+ * ordering of the whole pool and the visible slice is taken at render time, so
+ * dragging the window narrower can't re-shuffle what the user is looking at.
+ */
 const categorySections = computed(() => {
   const seed = dateSeed()
-  const byCategory = {}
-  for (const item of items.value) {
-    const cat = item.category ?? 'music'
-    if (!byCategory[cat]) byCategory[cat] = []
-    byCategory[cat].push(item)
-  }
-  return Object.entries(byCategory)
-    .sort((a, b) => b[1].length - a[1].length)
-    .map(([cat, catItems]) => {
-      const formatList = FORMAT_LIST[cat] ?? []
-      const knownFmts = new Set(formatList)
+  return [...bucketed.value.entries()]
+    .sort((a, b) => b[1].items.length - a[1].items.length)
+    .map(([cat, bucket]) => {
+      const canonicalFormats = FORMAT_LIST[cat] ?? []
+      const known = new Set(canonicalFormats)
       const rows = []
+      const addRow = (fmt, pool) => rows.push({
+        format: fmt,
+        label: pluralLabel(fmt),
+        items: seededShuffle(pool, seed + stringHash(fmt + cat)),
+      })
 
-      for (const fmt of formatList) {
-        const pool = catItems.filter(i => i.format === fmt)
-        if (pool.length === 0) continue
-        const shuffled = seededShuffle(pool, seed + stringHash(fmt + cat))
-        rows.push({ format: fmt, label: pluralLabel(fmt), items: shuffled.slice(0, rowCount.value) })
+      for (const fmt of canonicalFormats) {
+        const pool = bucket.byFormat.get(fmt)
+        if (pool?.length) addRow(fmt, pool)
       }
-
-      // Formats in the data that aren't in the known list
-      const extraFmts = [...new Set(catItems
-        .filter(i => i.format && !knownFmts.has(i.format))
-        .map(i => i.format))]
-      for (const fmt of extraFmts) {
-        const pool = catItems.filter(i => i.format === fmt)
-        const shuffled = seededShuffle(pool, seed + stringHash(fmt + cat))
-        rows.push({ format: fmt, label: pluralLabel(fmt), items: shuffled.slice(0, rowCount.value) })
+      // Formats in the data that aren't in the known list, in first-seen order.
+      for (const [fmt, pool] of bucket.byFormat) {
+        if (!fmt || known.has(fmt)) continue
+        addRow(fmt, pool)
       }
 
       return {
         category: cat,
         label: CATEGORY_LABELS[cat] ?? cat,
-        count: catItems.length,
+        count: bucket.items.length,
         rows,
       }
     })
@@ -305,11 +328,11 @@ const categorySections = computed(() => {
 
 const recentItems = computed(() => items.value.slice(0, rowCount.value))
 
-const mostValuable = computed(() =>
-  [...items.value]
+// Sorted once — the row width only decides how many of these are shown.
+const valuableItems = computed(() =>
+  items.value
     .filter(i => i.marketValue)
-    .sort((a, b) => (b.marketValue ?? 0) - (a.marketValue ?? 0))
-    .slice(0, rowCount.value)
+    .sort((a, b) => (b.marketValue ?? 0) - (a.marketValue ?? 0)),
 )
 
 function pluralLabel(fmt) {
@@ -335,6 +358,8 @@ onMounted(() => {
 })
 onBeforeUnmount(() => {
   _resizeObserver?.disconnect()
+  if (_rowCountFrame !== null) cancelAnimationFrame(_rowCountFrame)
+  _rowCountFrame = null
 })
 defineExpose({ load })
 </script>

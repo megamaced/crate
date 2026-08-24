@@ -45,14 +45,21 @@ class Version0006Date20260622000000 extends SimpleMigrationStep
             ]);
         }
 
+        // Rebuild the unique key only when its columns are not already the
+        // ones wanted. Dropping and re-adding on the strength of the name alone
+        // means every later run of this migration spends a window with no
+        // uniqueness constraint on the table at all.
+        $columns = ['owner_user_id', 'shared_with_user_id', 'shareable_type', 'shareable_id', 'shareable_category'];
+        $rebuild = true;
         if ($shares->hasIndex('crate_share_unique')) {
-            $shares->dropIndex('crate_share_unique');
+            $existing = array_map('strtolower', $shares->getIndex('crate_share_unique')->getColumns());
+            $rebuild  = $existing !== $columns;
+            if ($rebuild) {
+                $shares->dropIndex('crate_share_unique');
+            }
         }
-        if (!$shares->hasIndex('crate_share_unique')) {
-            $shares->addUniqueIndex(
-                ['owner_user_id', 'shared_with_user_id', 'shareable_type', 'shareable_id', 'shareable_category'],
-                'crate_share_unique',
-            );
+        if ($rebuild) {
+            $shares->addUniqueIndex($columns, 'crate_share_unique');
         }
 
         return $schema;

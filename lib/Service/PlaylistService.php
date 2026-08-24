@@ -11,6 +11,7 @@ use OCA\Crate\Db\PlaylistItem;
 use OCA\Crate\Db\PlaylistItemMapper;
 use OCA\Crate\Db\PlaylistMapper;
 use OCP\AppFramework\Db\DoesNotExistException;
+use OCP\DB\Exception as DbException;
 use OCP\IDBConnection;
 
 class PlaylistService
@@ -87,7 +88,7 @@ class PlaylistService
     public function find(int $id, string $userId): array
     {
         $playlist = $this->playlistMapper->findByUser($id, $userId);
-        return $this->hydrateWithItems($playlist);
+        return $this->hydrateWithItems($playlist, $userId);
     }
 
     /**
@@ -100,7 +101,7 @@ class PlaylistService
             throw new DoesNotExistException('Playlist not shared with user');
         }
         $playlist = $this->playlistMapper->findById($id);
-        return $this->hydrateWithItems($playlist);
+        return $this->hydrateWithItems($playlist, $viewerUserId);
     }
 
     public function create(string $userId, string $name, ?string $description): array
@@ -148,7 +149,7 @@ class PlaylistService
         $playlist->setDescription($description);
         $playlist->setUpdatedAt((new \DateTime())->format('Y-m-d H:i:s'));
         $this->playlistMapper->update($playlist);
-        return $this->hydrateWithItems($playlist);
+        return $this->hydrateWithItems($playlist, $userId);
     }
 
     public function delete(int $id, string $userId): void
@@ -168,13 +169,22 @@ class PlaylistService
 
     // ── Playlist items ─────────────────────────────────────────────────────────
 
+    /**
+     * @throws DoesNotExistException if the caller may not write the playlist,
+     *   or the track is neither theirs nor the playlist owner's
+     */
     public function addItem(int $playlistId, string $userId, int $mediaItemId): array
     {
         // Owner or a read/write sharee may add tracks.
         $playlist = $this->resolveWritablePlaylist($playlistId, $userId);
-        // The track must be an item the caller can view (their own, or one
-        // shared with them) — not necessarily the playlist owner's.
-        $this->mediaItemMapper->findVisibleForUser($mediaItemId, $userId);
+        // The track must belong to the caller or to the playlist owner. Read
+        // access is not enough: a sharee could otherwise put an item they can
+        // merely see into their own playlist and share that playlist onwards,
+        // handing a third party an item its owner never shared with them.
+        $item = $this->mediaItemMapper->findById($mediaItemId);
+        if ($item->getUserId() !== $userId && $item->getUserId() !== $playlist->getUserId()) {
+            throw new DoesNotExistException('Media item not available to this playlist');
+        }
 
         if (!$this->playlistItemMapper->existsInPlaylist($playlistId, $mediaItemId)) {
             $now    = (new \DateTime())->format('Y-m-d H:i:s');
@@ -193,11 +203,19 @@ class PlaylistService
                 $this->db->commit();
             } catch (\Throwable $e) {
                 $this->db->rollBack();
-                throw $e;
+                // Two concurrent "add to playlist" clicks race past the
+                // existence check above; the loser hits crate_pli_unique and
+                // has nothing left to do, because the row it wanted is there.
+                if (
+                    !($e instanceof DbException)
+                    || $e->getReason() !== DbException::REASON_UNIQUE_CONSTRAINT_VIOLATION
+                ) {
+                    throw $e;
+                }
             }
         }
 
-        return $this->hydrateWithItems($playlist);
+        return $this->hydrateWithItems($playlist, $userId);
     }
 
     public function removeItem(int $playlistId, string $userId, int $mediaItemId): array
@@ -216,39 +234,52 @@ class PlaylistService
             throw $e;
         }
 
-        return $this->hydrateWithItems($playlist);
+        return $this->hydrateWithItems($playlist, $userId);
     }
 
     // ── Private helpers ────────────────────────────────────────────────────────
 
-    /** @return array<string, mixed> */
-    private function hydrateWithItems(Playlist $playlist): array
+    /**
+     * Serialise a playlist together with the tracks $viewerUserId is entitled
+     * to see. A track is included when the viewer owns it, or when it belongs
+     * to the playlist's owner (whose collection the playlist share exposes).
+     * A third contributor's own tracks stay hidden: the full record includes
+     * notes, purchase price and barcode, and no share grants a reader access
+     * to a stranger's items just because both appear in one playlist.
+     *
+     * @return array<string, mixed>
+     */
+    private function hydrateWithItems(Playlist $playlist, string $viewerUserId): array
     {
         $pItems = $this->playlistItemMapper->findByPlaylist($playlist->getId());
 
         // Bulk-fetch all referenced media items in one query, then reorder to
-        // match the playlist's position order. Tracks are included regardless of
-        // which user owns them: a read/write sharee may add their own items to a
-        // shared playlist, and every participant should see the full track list.
-        // Only authorised writers (owner or RW sharee) can create these rows.
+        // match the playlist's position order.
         $ids = array_map(fn($pi) => $pi->getMediaItemId(), $pItems);
         $byId = [];
         foreach ($this->mediaItemMapper->findByIds($ids) as $mi) {
             $byId[$mi->getId()] = $mi;
         }
 
-        $mediaItems = [];
+        $ownerUserId = $playlist->getUserId();
+        $mediaItems  = [];
         foreach ($pItems as $pi) {
             $mi = $byId[$pi->getMediaItemId()] ?? null;
-            if ($mi !== null) {
-                $mediaItems[] = $mi->jsonSerialize();
+            if ($mi === null) {
+                continue;
             }
+            if ($mi->getUserId() !== $viewerUserId && $mi->getUserId() !== $ownerUserId) {
+                continue;
+            }
+            $mediaItems[] = $mi->jsonSerialize();
         }
 
         $data = $playlist->jsonSerialize();
         $data['items']     = $mediaItems;
         $data['itemCount'] = count($mediaItems);
-        $data['coverId']   = count($pItems) > 0 ? $pItems[0]->getMediaItemId() : null;
+        // The cover comes from the visible tracks: an id the viewer cannot
+        // fetch artwork for would only render as a broken image.
+        $data['coverId']   = $mediaItems[0]['id'] ?? null;
         return $data;
     }
 }

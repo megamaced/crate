@@ -16,14 +16,26 @@ use Psr\Log\LoggerInterface;
  * the credential key used to retrieve the per-user API token or key.
  *
  * Error handling is deliberately permissive: network / parse errors are
- * logged (with query-string-stripped URLs, so tokens don't leak) and
- * surfaced as an empty array, so callers can treat "no data" the same
- * whether the upstream is down or the result set is empty.
+ * logged (with credentials stripped, so tokens don't leak) and surfaced as
+ * an empty array, so callers can treat "no data" the same whether the
+ * upstream is down or the result set is empty.
  */
 abstract class AbstractApiService
 {
     /** Default request timeout in seconds. */
     protected const DEFAULT_TIMEOUT = 10;
+
+    /**
+     * Query parameters that carry a per-user credential. RAWG (`key`),
+     * ComicVine (`api_key`) and PriceCharting (`token`) can only authenticate
+     * in the query string, and an HTTP client's exception message quotes the
+     * full effective request URI — so a mistyped key turns every 401 into a
+     * plaintext copy of that key in nextcloud.log. Discogs and TMDB use the
+     * Authorization header and never populate these.
+     *
+     * @var list<string>
+     */
+    private const CREDENTIAL_QUERY_PARAMS = ['key', 'api_key', 'token', 'access_token'];
 
     public function __construct(
         protected readonly IClientService $clientService,
@@ -83,13 +95,38 @@ abstract class AbstractApiService
         }
     }
 
-    /** Emit a standardised warning log entry for an API error. */
+    /**
+     * Emit a standardised warning log entry for an API error. The exception is
+     * described by class and code and its message is redacted; the exception
+     * object itself is not attached, because a logged stack trace would carry
+     * the request URI (and with it the credential) all over again.
+     */
     protected function logWarning(string $url, \Throwable $e): void
     {
-        $this->logger->warning($this->serviceName() . ' API error for {url}: {msg}', [
-            'url' => strtok($url, '?') ?: $url,
-            'msg' => $e->getMessage(),
-            'app' => 'crate',
+        $this->logger->warning($this->serviceName() . ' API error for {url}: {class} ({code}) {msg}', [
+            'url'   => strtok($url, '?') ?: $url,
+            'class' => get_class($e),
+            'code'  => $e->getCode(),
+            'msg'   => self::redactCredentials($e->getMessage()),
+            'app'   => 'crate',
         ]);
+    }
+
+    /**
+     * Replace the value of every credential-bearing query parameter in $text
+     * with a placeholder. Applied to anything derived from an upstream error
+     * before it reaches the log, which is readable in the admin UI, rotated
+     * to disk and swept up by backups.
+     */
+    public static function redactCredentials(string $text): string
+    {
+        foreach (self::CREDENTIAL_QUERY_PARAMS as $param) {
+            $text = (string) preg_replace(
+                '/([?&]' . preg_quote($param, '/') . '=)[^&\s\'"`<>]+/i',
+                '${1}REDACTED',
+                $text,
+            );
+        }
+        return $text;
     }
 }

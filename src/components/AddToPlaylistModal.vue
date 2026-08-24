@@ -34,7 +34,7 @@
         >
           <div
             class="atp-row-art"
-            :style="coverStyle(pl)"
+            :style="artworkStyleForId(pl.coverId)"
           />
           <div class="atp-row-info">
             <span class="atp-row-name">{{ pl.name }}</span>
@@ -80,7 +80,8 @@
 import { ref, watch } from 'vue'
 import { NcModal, NcButton } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
-import { generateUrl, generateOcsUrl } from '@nextcloud/router'
+import { generateOcsUrl } from '@nextcloud/router'
+import { artworkStyleForId } from '../composables/useArtworkStyle.js'
 import { showError } from '@nextcloud/dialogs'
 import { playlistCountLabel } from '../utils/categoryFormats.js'
 
@@ -96,14 +97,6 @@ const loading = ref(false)
 const addedIds = ref(new Set())
 const newName = ref('')
 const creating = ref(false)
-
-function coverStyle(pl) {
-  if (pl.coverId) {
-    const url = generateUrl('/apps/crate/artwork/' + pl.coverId)
-    return { backgroundImage: `url(${url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-  }
-  return { background: 'linear-gradient(135deg, #374151, #6b7280)' }
-}
 
 watch(() => props.show, async (open) => {
   if (!open) {

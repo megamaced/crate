@@ -19,12 +19,16 @@ class ImportController extends OCSController
     use UsesAuthenticatedUser;
 
     /**
-     * Canonical field names a column may be mapped to. Matches the values
-     * in ImportService::ALIASES.
+     * Canonical field names a column may be mapped to. This must cover every
+     * value in ImportService::ALIASES: /import/preview hands the frontend an
+     * auto-detected mapping built from those aliases and the frontend posts it
+     * back verbatim, so a field missing here rejects the entire commit rather
+     * than one column. ImportExportHeaderTest locks the two lists together.
      */
-    private const VALID_MAPPING_FIELDS = [
+    public const VALID_MAPPING_FIELDS = [
         'artist', 'title', 'format', 'year', 'notes',
         'status', 'discogsId', 'barcode', 'label', 'category',
+        'purchasePrice', 'purchasePriceCurrency',
     ];
 
     public function __construct(
@@ -130,14 +134,19 @@ class ImportController extends OCSController
         // read/write share covering that category (or the owner's whole library).
         $importUserId = $this->userId();
         $owner = (string) $this->request->getParam('owner', '');
+        $crossUser = false;
         if ($owner !== '' && $owner !== $importUserId) {
             if (!$this->shareMapper->hasWritableCollectionShare($importUserId, $owner, $category)) {
                 return new DataResponse(['error' => 'No write access to that collection'], Http::STATUS_FORBIDDEN);
             }
             $importUserId = $owner;
+            $crossUser = true;
         }
 
-        $result = $this->importService->import($mappedRows, $importUserId, $category);
+        // Write access above was authorised for $category only, so a mapped
+        // Category column must not be allowed to redirect rows into the
+        // owner's other collections.
+        $result = $this->importService->import($mappedRows, $importUserId, $category, !$crossUser);
 
         return new DataResponse($result);
     }

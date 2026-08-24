@@ -1,0 +1,21 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      nextcloud:
+        patterns: ['@nextcloud/*']
+
+  - package-ecosystem: composer
+    directory: /
+    schedule:
+      interval: weekly
+
+  # Also keeps the commit-SHA pins in .github/workflows up to date, which is
+  # what makes pinning to a SHA maintainable rather than a one-off.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

@@ -371,14 +371,16 @@ class ShareService
         return $this->shareMapper->hasWritableCollectionShare($callerUserId, $ownerUserId, $category);
     }
 
-    /** Verify the target user exists and is not the owner. */
+    /**
+     * Verify the target user exists and is not the owner.
+     *
+     * Both rejections carry the same message on purpose: telling the caller
+     * which one applied turns this into a probe for whether an account exists.
+     */
     private function validateTargetUser(string $targetUserId, string $ownerUserId): void
     {
-        if ($targetUserId === $ownerUserId) {
-            throw new \InvalidArgumentException('Cannot share with yourself.');
-        }
-        if ($this->userManager->get($targetUserId) === null) {
-            throw new \InvalidArgumentException('User does not exist.');
+        if ($targetUserId === $ownerUserId || $this->userManager->get($targetUserId) === null) {
+            throw new \InvalidArgumentException('Cannot share with that user.');
         }
     }
 
@@ -410,6 +412,12 @@ class ShareService
             $item = $itemsById[$share->getShareableId()] ?? null;
             if ($item === null) {
                 continue; // Shared item was deleted
+            }
+            if ($item->getUserId() !== $share->getOwnerUserId()) {
+                // The share no longer describes an item its granter owns —
+                // crate_shares has no FK to crate_media_items, so a stale row
+                // can end up pointing at a reused id belonging to someone else.
+                continue;
             }
             $data = $item->jsonSerialize();
             $data['shareId']      = $share->getId();

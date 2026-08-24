@@ -567,7 +567,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { NcAppSettingsDialog, NcAppSettingsSection, NcButton, NcCheckboxRadioSwitch, NcDialog } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
@@ -576,6 +576,7 @@ import { useEnrichQueue } from '../composables/useEnrichQueue.js'
 import { useMarketValueQueue } from '../composables/useMarketValueQueue.js'
 import { useSettings } from '../composables/useSettings.js'
 import { useTokenSetting } from '../composables/useTokenSetting.js'
+import { mediaRefreshAllMv } from '../api.js'
 
 defineProps({
   open: { type: Boolean, required: true },
@@ -626,6 +627,10 @@ const priceCharting = useTokenSetting({ endpoint: '/settings/pricecharting-token
 const confirmWipe = ref(false)
 const wiping = ref(false)
 const wipedMessage = ref('')
+// One handle, so a second wipe's message isn't cleared by the first wipe's
+// timer and nothing fires after the panel is gone.
+let wipedTimer = null
+onBeforeUnmount(() => clearTimeout(wipedTimer))
 
 const wipeScopes = [
   { value: 'music',     label: 'Music' },
@@ -724,6 +729,7 @@ async function wipeCollection() {
 
   confirmWipe.value = false
   wiping.value = true
+  clearTimeout(wipedTimer)
   wipedMessage.value = ''
   try {
     await axios.delete(generateOcsUrl('/apps/crate/api/v1/media'), {
@@ -734,7 +740,8 @@ async function wipeCollection() {
       ? 'Collection wiped.'
       : `Wiped: ${scopes.join(', ')}.`
     emit('collection-wiped')
-    setTimeout(() => { wipedMessage.value = '' }, 4000)
+    clearTimeout(wipedTimer)
+    wipedTimer = setTimeout(() => { wipedMessage.value = '' }, 4000)
   } catch (e) {
     console.error('Failed to wipe collection', e)
     showError('Failed to wipe collection')
@@ -747,19 +754,18 @@ async function wipeCollection() {
 async function refreshAllMarketRates() {
   if (marketQueue.running.value) return
   try {
-    const res = await axios.get(generateOcsUrl('/apps/crate/api/v1/media'))
-    const all = res.data.ocs?.data ?? []
-    // Music uses Discogs (needs discogsId); games/comics use PriceCharting (looked up by title).
-    // discogsId is shared across categories as a generic enrichment id — gate by category=music
-    // so TMDB / Open Library ids on films/books don't get treated as Discogs release ids.
-    const ids = all
-      .filter(i => (i.category === 'music' && i.discogsId) || i.category === 'game' || i.category === 'comic')
-      .map(i => i.id)
+    // The server already knows which items have a price source — music needs a
+    // Discogs id, games and comics are looked up by title — and returns just
+    // their ids, so the whole collection doesn't have to come down the wire to
+    // be filtered here.
+    const res = await axios.post(mediaRefreshAllMv())
+    const ids = res.data.ocs?.data?.itemIds ?? []
     if (ids.length > 0) {
       marketQueue.start(ids, marketCurrency.value)
     }
   } catch (e) {
     console.error('Failed to load items for market rate refresh', e)
+    showError('Failed to start market rate refresh')
   }
 }
 

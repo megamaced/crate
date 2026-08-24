@@ -52,6 +52,7 @@ import { NcButton } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { showError } from '@nextcloud/dialogs'
 import { photoGet } from '../api.js'
+import { cssUrl } from '../utils/artworkUrl.js'
 
 const props = defineProps({
   slotNum:    { type: Number,  required: true },
@@ -99,13 +100,13 @@ const hasPhoto = computed(() => {
 
 const previewStyle = computed(() => {
   if (previewUrl.value) {
-    return { backgroundImage: `url(${previewUrl.value})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    return { backgroundImage: cssUrl(previewUrl.value), backgroundSize: 'cover', backgroundPosition: 'center' }
   }
   if (props.existing && !props.remove && props.itemId) {
     // Cache-bust on item.updatedAt; null/undefined is fine, just no buster.
     const bust = props.updatedAt ? `?_=${encodeURIComponent(props.updatedAt)}` : ''
     return {
-      backgroundImage: `url(${photoGet(props.itemId, props.slotNum)}${bust})`,
+      backgroundImage: cssUrl(`${photoGet(props.itemId, props.slotNum)}${bust}`),
       backgroundSize:  'cover',
       backgroundPosition: 'center',
     }

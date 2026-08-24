@@ -66,36 +66,11 @@
             Change
           </NcButton>
         </p>
-        <template v-else>
-          <input
-            v-model="query"
-            type="text"
-            placeholder="Search users by name or username…"
-            class="sc-input"
-            autocomplete="off"
-            @input="onQueryInput"
-          >
-          <div
-            v-if="searchResults.length > 0"
-            class="sc-results"
-          >
-            <button
-              v-for="user in searchResults"
-              :key="user.uid"
-              class="sc-result-row"
-              @click="pickUser(user)"
-            >
-              <span class="sc-result-name">{{ user.displayName }}</span>
-              <span class="sc-result-uid">{{ user.uid }}</span>
-            </button>
-          </div>
-          <p
-            v-if="query.length >= 2 && searchResults.length === 0 && !searching"
-            class="sc-no-results"
-          >
-            No users found.
-          </p>
-        </template>
+        <UserSearchField
+          v-else
+          :active="show"
+          @select="pickUser"
+        />
       </div>
 
       <!-- Per-target results -->
@@ -137,7 +112,7 @@ import { ref, watch, computed } from 'vue'
 import { NcModal, NcButton, NcCheckboxRadioSwitch } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
-import { showError } from '@nextcloud/dialogs'
+import UserSearchField from './UserSearchField.vue'
 
 const props = defineProps({
   show: { type: Boolean, required: true },
@@ -159,40 +134,28 @@ const wholeLibrary = ref(false)
 const selectedCategories = ref([])
 const allowWrite = ref(false)
 
-const query = ref('')
-const searching = ref(false)
-const searchResults = ref([])
 const selectedUser = ref(null)
 
 const sharing = ref(false)
 const results = ref([])
-
-let searchTimeout = null
-let searchController = null
 
 const canShare = computed(() =>
   !!selectedUser.value && (wholeLibrary.value || selectedCategories.value.length > 0),
 )
 
 watch(() => props.show, (open) => {
-  if (open) {
-    // Reset and seed the passed-in category.
-    wholeLibrary.value = false
-    selectedCategories.value = props.category ? [props.category] : []
-    allowWrite.value = false
-    query.value = ''
-    searchResults.value = []
-    selectedUser.value = null
-    results.value = []
-  } else {
-    clearTimeout(searchTimeout)
-    searchTimeout = null
-    if (searchController) {
-      searchController.abort()
-      searchController = null
-    }
-  }
-})
+  if (!open) return
+  // Reset and seed the passed-in category. UserSearchField clears its own
+  // field, timer and in-flight request via :active.
+  wholeLibrary.value = false
+  selectedCategories.value = props.category ? [props.category] : []
+  allowWrite.value = false
+  selectedUser.value = null
+  results.value = []
+},
+// The modal is mounted only while open, so the first "open" is the mount
+// itself and never arrives as a change.
+{ immediate: true })
 
 function toggleCategory(value, checked) {
   if (checked) {
@@ -204,36 +167,8 @@ function toggleCategory(value, checked) {
   }
 }
 
-function onQueryInput() {
-  clearTimeout(searchTimeout)
-  searchResults.value = []
-  if (query.value.trim().length < 2) return
-  searchTimeout = setTimeout(doSearch, 300)
-}
-
-async function doSearch() {
-  if (searchController) searchController.abort()
-  searchController = new AbortController()
-  searching.value = true
-  try {
-    const res = await axios.get(generateOcsUrl('/apps/crate/api/v1/users/search'), {
-      params: { q: query.value.trim() },
-      signal: searchController.signal,
-    })
-    searchResults.value = res.data.ocs?.data ?? []
-  } catch (e) {
-    if (e.name === 'CanceledError' || e.code === 'ERR_CANCELED') return
-    console.error('User search failed', e)
-    showError('User search failed')
-  } finally {
-    searching.value = false
-  }
-}
-
 function pickUser(user) {
   selectedUser.value = user
-  query.value = ''
-  searchResults.value = []
 }
 
 function clearSelectedUser() {
@@ -314,69 +249,6 @@ async function doShare() {
   display: flex;
   flex-direction: column;
   gap: 2px;
-}
-
-.sc-input {
-  width: 100%;
-  box-sizing: border-box;
-  border: 2px solid var(--color-border-dark);
-  border-radius: var(--border-radius);
-  background: var(--color-background-dark);
-  color: var(--color-main-text);
-  padding: 8px 12px;
-  font-size: 0.9em;
-  font-family: inherit;
-}
-
-.sc-input:focus {
-  border-color: var(--color-primary-element);
-  outline: none;
-  background: var(--color-main-background);
-}
-
-.sc-results {
-  border: 1px solid var(--color-border);
-  border-radius: var(--border-radius);
-  overflow: hidden;
-}
-
-.sc-result-row {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  width: 100%;
-  padding: 10px 14px;
-  border: none;
-  background: none;
-  cursor: pointer;
-  text-align: left;
-  transition: background 0.1s;
-  color: var(--color-main-text);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.sc-result-row:last-child {
-  border-bottom: none;
-}
-
-.sc-result-row:hover {
-  background: var(--color-background-hover);
-}
-
-.sc-result-name {
-  font-weight: 500;
-  font-size: 0.875em;
-}
-
-.sc-result-uid {
-  font-size: 0.78em;
-  color: var(--color-text-maxcontrast);
-}
-
-.sc-no-results {
-  font-size: 0.875em;
-  color: var(--color-text-maxcontrast);
-  margin: 0;
 }
 
 .sc-selected-user {

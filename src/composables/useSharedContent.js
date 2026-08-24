@@ -167,22 +167,37 @@ function collectionOwnersForCategory(category) {
   return owners
 }
 
-async function load() {
+/**
+ * In-flight request, shared by every re-entrant caller. `load()` is reached
+ * from around eight places — a nav switch, a view's own mount, and after each
+ * shared add/import — often two of them in the same tick. Without this the
+ * first response to land would clear `loading` while the second was still
+ * running, and a stale response could overwrite a fresher one, dropping a
+ * just-added item back out of the list.
+ */
+let inFlight = null
+
+function load() {
+  if (inFlight) return inFlight
   loading.value = true
   error.value = null
-  try {
-    const res = await axios.get(generateOcsUrl('/apps/crate/api/v1/share/with-me'))
-    const data = res.data.ocs?.data ?? {}
-    albums.value     = data.albums     ?? []
-    playlists.value  = data.playlists  ?? []
-    libraries.value  = data.libraries  ?? []
-    categories.value = data.categories ?? []
-  } catch (e) {
-    console.error('Failed to load shared items', e)
-    error.value = e
-  } finally {
-    loading.value = false
-  }
+  inFlight = axios.get(generateOcsUrl('/apps/crate/api/v1/share/with-me'))
+    .then(res => {
+      const data = res.data.ocs?.data ?? {}
+      albums.value     = data.albums     ?? []
+      playlists.value  = data.playlists  ?? []
+      libraries.value  = data.libraries  ?? []
+      categories.value = data.categories ?? []
+    })
+    .catch(e => {
+      console.error('Failed to load shared items', e)
+      error.value = e
+    })
+    .finally(() => {
+      loading.value = false
+      inFlight = null
+    })
+  return inFlight
 }
 
 export function useSharedContent() {

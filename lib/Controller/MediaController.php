@@ -63,6 +63,13 @@ class MediaController extends OCSController
         $offset = max(0, min($offset, self::MAX_OFFSET));
         $limit  = max(1, min($limit, self::MAX_LIMIT));
 
+        if ($updatedSince !== null) {
+            $updatedSince = self::normaliseUpdatedSince($updatedSince);
+            if ($updatedSince === null) {
+                return new DataResponse(['error' => 'Invalid updatedSince'], Http::STATUS_BAD_REQUEST);
+            }
+        }
+
         if ($isPaginated) {
             $result = $this->mediaService->findPaginated(
                 $this->userId(),
@@ -89,7 +96,11 @@ class MediaController extends OCSController
     {
         // Read-path: owner OR sharee (via per-album / library / category / playlist share).
         $userId = $this->userId();
-        $item   = $this->mediaService->findVisible($id, $userId);
+        try {
+            $item = $this->mediaService->findVisible($id, $userId);
+        } catch (DoesNotExistException) {
+            return new DataResponse(['error' => 'Not found'], Http::STATUS_NOT_FOUND);
+        }
         // Make a single-item fetch self-describing about its shared status, so
         // clients that re-fetch one item (Android detail, web hash-navigation /
         // refresh) keep gating writes correctly instead of treating it as owned.
@@ -153,7 +164,10 @@ class MediaController extends OCSController
         try {
             return new DataResponse($this->mediaService->create($this->userId(), $data, $owner));
         } catch (\InvalidArgumentException $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_FORBIDDEN);
+            $status = $e->getMessage() === 'Invalid artworkPath.'
+                ? Http::STATUS_BAD_REQUEST
+                : Http::STATUS_FORBIDDEN;
+            return new DataResponse(['error' => $e->getMessage()], $status);
         }
     }
 
@@ -201,7 +215,49 @@ class MediaController extends OCSController
             $priceResult['price'],
             $priceResult['currency'],
         );
-        return new DataResponse($this->mediaService->update($id, $this->userId(), $data));
+        try {
+            return new DataResponse($this->mediaService->update($id, $this->userId(), $data));
+        } catch (DoesNotExistException) {
+            return new DataResponse(['error' => 'Not found'], Http::STATUS_NOT_FOUND);
+        } catch (\InvalidArgumentException $e) {
+            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+        }
+    }
+
+    /**
+     * Validate a client-supplied delta-sync cursor and normalise it to the
+     * format the `updated_at` column stores.
+     *
+     * The value goes straight into a timestamp comparison, where PostgreSQL
+     * rejects the whole query on anything it cannot parse — so an unparseable
+     * cursor has to be answered with a 400 rather than handed to the database.
+     * Accepted: 'Y-m-d', 'Y-m-d H:i:s', and ISO-8601 with or without a zone.
+     * A zone-bearing value is converted to the server's own timezone, which is
+     * the one the stored timestamps were written in.
+     *
+     * Returns null when the value cannot be used.
+     */
+    public static function normaliseUpdatedSince(string $value): ?string
+    {
+        $value = trim($value);
+        $shape = '/^(\d{4})-(\d{2})-(\d{2})'
+            . '([ T]\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:?\d{2})?)?$/';
+        if (preg_match($shape, $value, $parts) !== 1) {
+            return null;
+        }
+        // Reject a date that does not exist: DateTimeImmutable would roll it
+        // forward, turning a client's typo into a silently different cursor.
+        if (!checkdate((int) $parts[2], (int) $parts[3], (int) $parts[1])) {
+            return null;
+        }
+        try {
+            $parsed = new \DateTimeImmutable($value);
+        } catch (\Exception) {
+            return null;
+        }
+        return $parsed
+            ->setTimezone(new \DateTimeZone(date_default_timezone_get()))
+            ->format('Y-m-d H:i:s');
     }
 
     /**
@@ -236,7 +292,11 @@ class MediaController extends OCSController
     #[NoAdminRequired]
     public function destroy(int $id): DataResponse
     {
-        $this->mediaService->delete($id, $this->userId());
+        try {
+            $this->mediaService->delete($id, $this->userId());
+        } catch (DoesNotExistException) {
+            return new DataResponse(['error' => 'Not found'], Http::STATUS_NOT_FOUND);
+        }
         return new DataResponse([]);
     }
 
@@ -357,6 +417,8 @@ class MediaController extends OCSController
                 );
             }
             return new DataResponse($updated);
+        } catch (DoesNotExistException) {
+            return new DataResponse(['error' => 'Not found'], Http::STATUS_NOT_FOUND);
         } catch (\OCA\Crate\Exception\DiscogsRateLimitException) {
             return new DataResponse(
                 ['error' => 'Discogs rate limit exceeded. Try again shortly.'],
@@ -374,7 +436,11 @@ class MediaController extends OCSController
     #[NoAdminRequired]
     public function stripEnrich(int $id): DataResponse
     {
-        $updated = $this->mediaService->stripEnrichment($id, $this->userId());
+        try {
+            $updated = $this->mediaService->stripEnrichment($id, $this->userId());
+        } catch (DoesNotExistException) {
+            return new DataResponse(['error' => 'Not found'], Http::STATUS_NOT_FOUND);
+        }
         return new DataResponse($updated);
     }
 }

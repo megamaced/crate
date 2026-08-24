@@ -12,71 +12,176 @@ use Psr\Log\LoggerInterface;
 
 class ImportService
 {
-    /** Recognised physical formats across all categories (lowercase for matching) */
+    /**
+     * Recognised physical formats: lowercase match key => canonical spelling.
+     * Downstream consumers (format filter chips, colour gradients,
+     * EnrichmentService's format-aware release matching) compare format strings
+     * exactly, so an imported value is stored in the canonical spelling rather
+     * than whatever casing the spreadsheet used. The canonical spellings must
+     * stay in step with FORMAT_GROUPS in src/utils/categoryFormats.js.
+     */
     private const VALID_FORMATS = [
         // Music — Vinyl
-        'vinyl', '7" single', '10"', '12" single', 'picture disc',
-        'flexi-disc', 'shellac', 'lathe cut',
+        'vinyl'                 => 'Vinyl',
+        '7" single'             => '7" Single',
+        '10"'                   => '10"',
+        '12" single'            => '12" Single',
+        'picture disc'          => 'Picture Disc',
+        'flexi-disc'            => 'Flexi-disc',
+        'shellac'               => 'Shellac',
+        'lathe cut'             => 'Lathe Cut',
         // Music — Tape
-        'cassette', '8-track', 'reel-to-reel', 'dat', 'dcc',
-        '4-track cartridge', 'microcassette',
+        'cassette'              => 'Cassette',
+        '8-track'               => '8-Track',
+        'reel-to-reel'          => 'Reel-to-Reel',
+        'dat'                   => 'DAT',
+        'dcc'                   => 'DCC',
+        '4-track cartridge'     => '4-Track Cartridge',
+        'microcassette'         => 'Microcassette',
         // Music — Disc
-        'cd', 'sacd', 'cd-r', 'shm-cd', 'hdcd', 'cdv',
-        'blu-ray audio', 'dvd-audio', 'laserdisc', 'minidisc',
+        'cd'                    => 'CD',
+        'sacd'                  => 'SACD',
+        'cd-r'                  => 'CD-R',
+        'shm-cd'                => 'SHM-CD',
+        'hdcd'                  => 'HDCD',
+        'cdv'                   => 'CDV',
+        'blu-ray audio'         => 'Blu-ray Audio',
+        'dvd-audio'             => 'DVD-Audio',
+        'laserdisc'             => 'LaserDisc',
+        'minidisc'              => 'MiniDisc',
         // Films
-        'blu-ray', '4k uhd', '3d blu-ray', 'dvd', 'hd dvd', 'vhs', 'vcd', 'betamax',
+        'blu-ray'               => 'Blu-ray',
+        '4k uhd'                => '4K UHD',
+        '3d blu-ray'            => '3D Blu-ray',
+        'dvd'                   => 'DVD',
+        'hd dvd'                => 'HD DVD',
+        'vhs'                   => 'VHS',
+        'vcd'                   => 'VCD',
+        'betamax'               => 'Betamax',
         // Books
-        'hardcover', 'paperback', 'mass market paperback', 'trade paperback',
-        'graphic novel', 'comic', 'audiobook cd', 'audiobook cassette',
+        'hardcover'             => 'Hardcover',
+        'paperback'             => 'Paperback',
+        'mass market paperback' => 'Mass Market Paperback',
+        'trade paperback'       => 'Trade Paperback',
+        'graphic novel'         => 'Graphic Novel',
+        'comic'                 => 'Comic',
+        'audiobook cd'          => 'Audiobook CD',
+        'audiobook cassette'    => 'Audiobook Cassette',
         // Games — Sony
-        'ps5', 'ps4', 'ps3', 'ps2', 'ps1', 'ps vita', 'psp',
+        'ps5'                   => 'PS5',
+        'ps4'                   => 'PS4',
+        'ps3'                   => 'PS3',
+        'ps2'                   => 'PS2',
+        'ps1'                   => 'PS1',
+        'ps vita'               => 'PS Vita',
+        'psp'                   => 'PSP',
         // Games — Microsoft
-        'xbox series x|s', 'xbox one', 'xbox 360', 'xbox',
+        'xbox series x|s'       => 'Xbox Series X|S',
+        'xbox one'              => 'Xbox One',
+        'xbox 360'              => 'Xbox 360',
+        'xbox'                  => 'Xbox',
         // Games — Nintendo
-        'switch 2', 'switch', 'wii u', 'wii', 'gamecube', 'n64', 'snes', 'nes',
-        '3ds', 'ds', 'game boy advance', 'game boy color', 'game boy', 'virtual boy',
+        'switch 2'              => 'Switch 2',
+        'switch'                => 'Switch',
+        'wii u'                 => 'Wii U',
+        'wii'                   => 'Wii',
+        'gamecube'              => 'GameCube',
+        'n64'                   => 'N64',
+        'snes'                  => 'SNES',
+        'nes'                   => 'NES',
+        '3ds'                   => '3DS',
+        'ds'                    => 'DS',
+        'game boy advance'      => 'Game Boy Advance',
+        'game boy color'        => 'Game Boy Color',
+        'game boy'              => 'Game Boy',
+        'virtual boy'           => 'Virtual Boy',
         // Games — Sega
-        'dreamcast', 'saturn', 'mega drive / genesis', 'master system',
-        'game gear', 'sega cd', 'sega 32x',
+        'dreamcast'             => 'Dreamcast',
+        'saturn'                => 'Saturn',
+        'mega drive / genesis'  => 'Mega Drive / Genesis',
+        'master system'         => 'Master System',
+        'game gear'             => 'Game Gear',
+        'sega cd'               => 'Sega CD',
+        'sega 32x'              => 'Sega 32X',
         // Games — Atari
-        'atari 2600', 'atari 5200', 'atari 7800', 'atari lynx', 'jaguar',
+        'atari 2600'            => 'Atari 2600',
+        'atari 5200'            => 'Atari 5200',
+        'atari 7800'            => 'Atari 7800',
+        'atari lynx'            => 'Atari Lynx',
+        'jaguar'                => 'Jaguar',
         // Games — SNK
-        'neo geo mvs', 'neo geo aes', 'neo geo cd', 'neo geo pocket color',
+        'neo geo mvs'           => 'Neo Geo MVS',
+        'neo geo aes'           => 'Neo Geo AES',
+        'neo geo cd'            => 'Neo Geo CD',
+        'neo geo pocket color'  => 'Neo Geo Pocket Color',
         // Comics — Single Issues
-        'single issue', 'annual', 'special', 'one-shot', 'mini-series', 'limited series',
+        'single issue'          => 'Single Issue',
+        'annual'                => 'Annual',
+        'special'               => 'Special',
+        'one-shot'              => 'One-Shot',
+        'mini-series'           => 'Mini-Series',
+        'limited series'        => 'Limited Series',
         // Comics — Collected
-        'omnibus', 'compendium',
+        'omnibus'               => 'Omnibus',
+        'compendium'            => 'Compendium',
     ];
 
     /**
-     * Column length caps that mirror the DB schema; rows exceeding any of
-     * these are skipped rather than being silently truncated by the DB.
+     * Length caps in CHARACTERS for the bounded varchar columns, matching the
+     * widths declared in Version0001Date20260421000000. A row exceeding any of
+     * them is skipped with a clear error instead of overflowing the column at
+     * insert time. Only bounded columns belong here — `notes` is TEXT and has
+     * no width to overflow.
      */
-    // Must match the DB column widths in Version0001Date20260421000000 — the
-    // up-front length check below relies on these being accurate so an
-    // over-length cell is skipped with a clear error instead of overflowing
-    // the column at insert time.
     private const MAX_LEN = [
         'artist'    => 500,
         'title'     => 500,
         'format'    => 50,
-        'notes'     => 2000,
         'barcode'   => 50,
         'label'     => 500,
         'discogsId' => 50,
     ];
 
+    /**
+     * Inflated-size budget for a single XLSX part. The compressed upload cap
+     * says nothing about what the parts expand to, and an inflated part is
+     * held whole in memory: without this a 10 MB archive can exhaust
+     * memory_limit, which is a fatal error that takes the php-fpm worker with
+     * it. Paired with MAX_XLSX_RATIO so a highly compressible part is rejected
+     * on its expansion factor as well as its absolute size.
+     */
+    private const MAX_XLSX_MEMBER_BYTES = 32 * 1024 * 1024;
+
+    /** Highest uncompressed:compressed ratio accepted for an XLSX part. */
+    private const MAX_XLSX_RATIO = 100;
+
+    /** Inflated size above which the compression ratio is also checked. */
+    private const MIN_XLSX_RATIO_CHECK_BYTES = 1024 * 1024;
+
+    /** Hard cap on rows accepted in one import. */
+    private const MAX_IMPORT_ROWS = 20000;
+
     /** Column name aliases → canonical field name */
-    private const ALIASES = [
+    public const ALIASES = [
         // Artist-equivalent across categories
         'artist'          => 'artist',
         'author'          => 'artist',
         'director'        => 'artist',
         'developer'       => 'artist',
         'writer'          => 'artist',
-        // Title
+        // Title — including the per-category headers ExportService emits
+        // and the per-category field labels the UI shows
         'album'           => 'title',
         'title'           => 'title',
+        'album / title'   => 'title',
+        'album/title'     => 'title',
+        'film title'      => 'title',
+        'game title'      => 'title',
+        'book title'      => 'title',
+        'series / volume' => 'title',
+        'series/volume'   => 'title',
+        'series / volume title' => 'title',
+        'series/volume title'   => 'title',
         // Format / platform
         'format'          => 'format',
         'platform'        => 'format',
@@ -308,26 +413,23 @@ class ImportService
             throw new \RuntimeException('Could not open spreadsheet file');
         }
 
-        // Load shared strings (text cells are stored by index)
+        try {
+            $ssXml    = $this->readZipMember($zip, 'xl/sharedStrings.xml');
+            $sheetXml = $this->readZipMember($zip, 'xl/worksheets/sheet1.xml');
+        } finally {
+            $zip->close();
+        }
+
+        // Shared strings (text cells are stored by index)
         $sharedStrings = [];
-        $ssXml = $zip->getFromName('xl/sharedStrings.xml');
         if ($ssXml !== false) {
             $ss = $this->parseXmlSafe($ssXml);
             if ($ss !== null) {
                 foreach ($ss->si as $si) {
-                    // Concatenate all <t> elements (handles rich text runs)
-                    $text = '';
-                    foreach ($si->xpath('.//t') as $t) {
-                        $text .= (string)$t;
-                    }
-                    $sharedStrings[] = $text;
+                    $sharedStrings[] = $this->sharedStringText($si);
                 }
             }
         }
-
-        // Load first worksheet
-        $sheetXml = $zip->getFromName('xl/worksheets/sheet1.xml');
-        $zip->close();
 
         if ($sheetXml === false) {
             throw new \RuntimeException('Could not read worksheet from spreadsheet');
@@ -346,14 +448,17 @@ class ImportService
 
         foreach ($sheetRows as $row) {
             $rowData = [];
-            $maxCol = 0;
 
             foreach ($row->c as $cell) {
-                // Parse column index from cell reference (e.g. "C5" → col 2)
+                // Parse column index from cell reference (e.g. "C5" → col 2).
+                // The `r` attribute is optional in OOXML (LibreOffice omits it
+                // for dense rows), in which case the cell belongs in the next
+                // free column.
                 $ref = (string)($cell['r'] ?? '');
                 preg_match('/^([A-Z]+)/', $ref, $m);
-                $colIdx = $m[1] ? $this->colLetterToIndex($m[1]) : $maxCol;
-                $maxCol = max($maxCol, $colIdx);
+                $colIdx = isset($m[1])
+                    ? $this->colLetterToIndex($m[1])
+                    : count($rowData);
 
                 $type = (string)($cell['t'] ?? '');
                 $val  = isset($cell->v) ? (string)$cell->v : null;
@@ -372,13 +477,65 @@ class ImportService
             }
 
             if (empty($headers)) {
-                $headers = array_map('strval', array_map('trim', $rowData));
+                // strval first: a sparse row legitimately holds nulls, and
+                // trim(null) is deprecated.
+                $headers = array_map('trim', array_map('strval', $rowData));
             } else {
                 $rows[] = $rowData;
             }
         }
 
         return ['headers' => $headers, 'rows' => $rows];
+    }
+
+    /**
+     * Flatten one <si> entry of the shared-string table. A plain string holds a
+     * single <t>; a formatted one is split into <r> runs each with their own
+     * <t>. Element access is used rather than XPath because the part declares a
+     * default namespace, which an unprefixed XPath step never matches.
+     */
+    private function sharedStringText(\SimpleXMLElement $si): string
+    {
+        $text = '';
+        foreach ($si->t as $t) {
+            $text .= (string)$t;
+        }
+        foreach ($si->r as $run) {
+            foreach ($run->t as $t) {
+                $text .= (string)$t;
+            }
+        }
+        return $text;
+    }
+
+    /**
+     * Read one member of an already-open XLSX archive, refusing to inflate a
+     * part that declares an implausible uncompressed size or compression
+     * ratio. Returns false when the member is absent.
+     *
+     * @throws \RuntimeException when the member exceeds the inflation budget
+     */
+    private function readZipMember(\ZipArchive $zip, string $name): string|false
+    {
+        $stat = $zip->statName($name);
+        if ($stat === false) {
+            return false;
+        }
+        $declared   = (int)($stat['size'] ?? 0);
+        $compressed = (int)($stat['comp_size'] ?? 0);
+        if ($declared > self::MAX_XLSX_MEMBER_BYTES) {
+            throw new \RuntimeException('Spreadsheet contents too large to process');
+        }
+        // Only worth ratio-checking a part big enough to matter once inflated:
+        // a small part cannot exhaust memory however well it compressed.
+        if (
+            $declared > self::MIN_XLSX_RATIO_CHECK_BYTES
+            && $compressed > 0
+            && $declared > $compressed * self::MAX_XLSX_RATIO
+        ) {
+            throw new \RuntimeException('Spreadsheet rejected: implausible compression ratio');
+        }
+        return $zip->getFromName($name);
     }
 
     /**
@@ -451,17 +608,40 @@ class ImportService
     /**
      * Validate and import rows for a user. Returns a summary.
      *
+     * $allowRowCategoryOverride must be false whenever write access was
+     * authorised for $batchCategory alone — a caller holding a read/write
+     * share of one category of someone else's library could otherwise map a
+     * Category column and place rows in the owner's other collections.
+     *
      * @param  array<array<string, string|null>> $mappedRows
      * @param  string                            $userId
      * @return array{created: int, duplicates: int, skipped: int, errors: string[], itemIds: int[]}
      */
-    public function import(array $mappedRows, string $userId, string $batchCategory = CrateCategories::MUSIC): array
-    {
+    public function import(
+        array $mappedRows,
+        string $userId,
+        string $batchCategory = CrateCategories::MUSIC,
+        bool $allowRowCategoryOverride = true,
+    ): array {
         $created    = 0;
         $duplicates = 0;
         $skipped    = 0;
         $errors     = [];
         $itemIds    = [];
+
+        $rowCount = count($mappedRows);
+        if ($rowCount > self::MAX_IMPORT_ROWS) {
+            return [
+                'created'    => 0,
+                'duplicates' => 0,
+                'skipped'    => $rowCount,
+                'errors'     => [
+                    "Too many rows ({$rowCount}) — the limit is "
+                        . self::MAX_IMPORT_ROWS . ' rows per import',
+                ],
+                'itemIds'    => [],
+            ];
+        }
 
         // Load existing items once for duplicate detection
         $existing = $this->mapper->findAll($userId);
@@ -484,8 +664,13 @@ class ImportService
             $rowNum = $i + 2; // 1-indexed + header row
 
             // Per-row category override (e.g. from a re-imported export with Category column)
-            $rowCategoryRaw = strtolower(trim((string)($row['category'] ?? '')));
-            $category       = CrateCategories::isCategory($rowCategoryRaw) ? $rowCategoryRaw : $batchCategory;
+            $category = $batchCategory;
+            if ($allowRowCategoryOverride) {
+                $rowCategoryRaw = strtolower(trim((string)($row['category'] ?? '')));
+                if (CrateCategories::isCategory($rowCategoryRaw)) {
+                    $category = $rowCategoryRaw;
+                }
+            }
 
             $artist = $row['artist'] ?? '';
             $title  = $row['title']  ?? '';
@@ -504,19 +689,22 @@ class ImportService
                 continue;
             }
 
-            // Validate format value
-            if (!in_array(strtolower($format), self::VALID_FORMATS, true)) {
+            // Validate format value, then adopt the canonical spelling
+            $formatKey = strtolower(trim($format));
+            if (!isset(self::VALID_FORMATS[$formatKey])) {
                 $skipped++;
                 $errors[] = "Row {$rowNum}: unrecognised format \"{$format}\" - skipped";
                 continue;
             }
+            $format = self::VALID_FORMATS[$formatKey];
 
             // Length validation — the DB truncates silently, so reject up-front
-            // to make the user aware of the data loss.
+            // to make the user aware of the data loss. The caps are column
+            // widths in characters, so measure characters and not bytes.
             $overLen = null;
             foreach (self::MAX_LEN as $field => $max) {
                 $value = (string)($row[$field] ?? '');
-                if (strlen($value) > $max) {
+                if (mb_strlen($value, 'UTF-8') > $max) {
                     $overLen = "{$field} exceeds {$max} chars";
                     break;
                 }
@@ -536,7 +724,19 @@ class ImportService
             }
 
             // Parse optional fields
-            $year      = isset($row['year']) && $row['year'] !== '' ? (int)$row['year'] : null;
+            $year      = null;
+            $yearRaw   = trim((string)($row['year'] ?? ''));
+            if ($yearRaw !== '') {
+                // Only a plausible 4-digit year is stored: casting free text
+                // ("unknown", "c. 1985", "?") yields year 0, which renders as
+                // "0" and adds a bogus decade to the filter list.
+                $maxYear = (int)date('Y') + 1;
+                if (ctype_digit($yearRaw) && (int)$yearRaw >= 1000 && (int)$yearRaw <= $maxYear) {
+                    $year = (int)$yearRaw;
+                } else {
+                    $errors[] = "Row {$rowNum}: unrecognised year \"{$yearRaw}\" — imported without a year";
+                }
+            }
             $notes     = $row['notes']     ?? null;
             $status    = strtolower(trim((string)($row['status'] ?? 'owned')));
             $discogsId = $row['discogsId'] ?? null;

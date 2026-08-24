@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Crate\Controller;
 
+use OCA\Crate\CrateImageHosts;
 use OCA\Crate\Db\MediaItemMapper;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
@@ -25,20 +26,6 @@ class ArtworkController extends Controller
 {
     use GdImageTrait;
 
-    /** Hosts permitted for remote-artwork fetch. Matches the enrichment sources. */
-    private const REMOTE_IMAGE_HOSTS = [
-        // Discogs
-        'i.discogs.com', 'img.discogs.com', 'st.discogs.com',
-        // TMDB
-        'image.tmdb.org',
-        // RAWG
-        'media.rawg.io',
-        // ComicVine
-        'comicvine.gamespot.com', 'static.comicvine.com',
-        // Open Library
-        'covers.openlibrary.org',
-    ];
-
     /** Content-Type values accepted for remote artwork and uploads. */
     private const ALLOWED_IMAGE_MIMES = [
         'image/jpeg', 'image/png', 'image/webp', 'image/gif',
@@ -46,6 +33,9 @@ class ArtworkController extends Controller
 
     /** File extensions considered when locating / clearing cached artwork. */
     private const ARTWORK_EXTENSIONS = ['.jpg', '.png', '.webp', '.gif'];
+
+    /** Byte cap for a remote artwork fetch and for an upload. */
+    private const MAX_REMOTE_IMAGE_BYTES = 10 * 1024 * 1024;
 
     public function __construct(
         string $appName,
@@ -60,8 +50,14 @@ class ArtworkController extends Controller
         parent::__construct($appName, $request);
     }
 
+    /**
+     * A generous ceiling: one uncached grid render asks for one image per tile,
+     * so the limit sits well above any real page load while still bounding
+     * repeated `?size=thumb` requests, each of which is a fresh GD decode.
+     */
     #[NoAdminRequired]
     #[NoCSRFRequired]
+    #[UserRateLimit(limit: 1200, period: 60)]
     public function get(int $itemId, string $size = 'full'): Response
     {
         $user = $this->userSession->getUser();
@@ -105,7 +101,7 @@ class ArtworkController extends Controller
                     }
                     $response = new FileDisplayResponse($file, Http::STATUS_OK, ['Content-Type' => $mime]);
                     $response->cacheFor(3600);
-                    return $response;
+                    return $this->hardenImageResponse($response);
                 } catch (NotFoundException) {
                 }
             }
@@ -113,13 +109,16 @@ class ArtworkController extends Controller
         }
 
         // ── Discogs / remote URL ──────────────────────────────────────────────
-        if (!str_starts_with($artworkPath, 'http')) {
+        // https only, for the first hop as well as the redirects below: every
+        // enrichment CDN serves TLS, and a cleartext fetch is a cache-poisoning
+        // opportunity for anything on the path.
+        if (parse_url($artworkPath, PHP_URL_SCHEME) !== 'https') {
             return new Response(Http::STATUS_NOT_FOUND);
         }
 
         // SSRF mitigation: only allow image hosts we actually enrich from.
         $host = parse_url($artworkPath, PHP_URL_HOST) ?? '';
-        if (!in_array($host, self::REMOTE_IMAGE_HOSTS, true)) {
+        if (!in_array($host, CrateImageHosts::ALL, true)) {
             return new Response(Http::STATUS_FORBIDDEN);
         }
 
@@ -159,7 +158,7 @@ class ArtworkController extends Controller
                     $next      = $this->resolveRedirect($url, $location);
                     $nextHost  = parse_url($next, PHP_URL_HOST) ?? '';
                     $nextSchme = parse_url($next, PHP_URL_SCHEME);
-                    if ($nextSchme !== 'https' || !in_array($nextHost, self::REMOTE_IMAGE_HOSTS, true)) {
+                    if ($nextSchme !== 'https' || !in_array($nextHost, CrateImageHosts::ALL, true)) {
                         return new Response(Http::STATUS_FORBIDDEN);
                     }
                     $url = $next;
@@ -167,9 +166,6 @@ class ArtworkController extends Controller
                         // Too many redirects.
                         return new Response(Http::STATUS_BAD_GATEWAY);
                     }
-                }
-                if ($download === null) {
-                    return new Response(Http::STATUS_BAD_GATEWAY);
                 }
                 // Reject non-image responses to prevent cache-poisoning via
                 // compromised upstream or MITM returning HTML / scripts.
@@ -180,9 +176,15 @@ class ArtworkController extends Controller
                 if (!in_array($contentType, self::ALLOWED_IMAGE_MIMES, true)) {
                     return new Response(Http::STATUS_BAD_GATEWAY);
                 }
+                // Cap remote artwork size to 10 MB. Check the declared length
+                // first: getBody() buffers the whole response into a string, so
+                // a cap applied afterwards has already paid for it.
+                $declaredLength = (int) ($download->getHeader('Content-Length') ?: 0);
+                if ($declaredLength > self::MAX_REMOTE_IMAGE_BYTES) {
+                    return new Response(Http::STATUS_BAD_GATEWAY);
+                }
                 $imageData = $download->getBody();
-                // Cap remote artwork size to 10 MB.
-                if (is_string($imageData) && strlen($imageData) > 10 * 1024 * 1024) {
+                if (is_string($imageData) && strlen($imageData) > self::MAX_REMOTE_IMAGE_BYTES) {
                     return new Response(Http::STATUS_BAD_GATEWAY);
                 }
             } catch (\Exception) {
@@ -207,14 +209,8 @@ class ArtworkController extends Controller
         }
         $response = new FileDisplayResponse($file, Http::STATUS_OK, ['Content-Type' => $mime]);
         $response->cacheFor(86400);
-        return $response;
+        return $this->hardenImageResponse($response);
     }
-
-    /**
-     * Resize image bytes to a 200×200-bounded thumbnail using GD.
-     * Falls back to the original data if GD is unavailable or the image
-     * cannot be decoded. Errors are logged rather than swallowed by `@`.
-     */
 
     /**
      * Upload a user-provided image as artwork for a media item.
@@ -243,7 +239,7 @@ class ArtworkController extends Controller
 
         // Cap artwork upload at 10 MB. Defence-in-depth alongside the
         // per-user rate limit and PHP's upload_max_filesize.
-        if (($uploadedFile['size'] ?? 0) > 10 * 1024 * 1024) {
+        if (($uploadedFile['size'] ?? 0) > self::MAX_REMOTE_IMAGE_BYTES) {
             return new DataResponse(['error' => 'File too large (max 10 MB)'], 413);
         }
 
@@ -261,6 +257,18 @@ class ArtworkController extends Controller
             'image/gif'  => '.gif',
             default      => '.jpg',
         };
+
+        // Read and re-encode the bytes before the transaction opens. The pixel
+        // budget has to be settled out here: a decode that exhausts
+        // memory_limit is a fatal error, and inside the transaction below that
+        // would leave neither a commit nor a rollback.
+        $bytes = (string) file_get_contents($uploadedFile['tmp_name']);
+        if (!$this->gdDimensionsWithinBudget($bytes)) {
+            return new DataResponse(['error' => 'Image dimensions too large'], 413);
+        }
+        // Strip EXIF/IPTC/XMP before persisting — phone-gallery uploads
+        // commonly carry GPS, timestamps, camera serials. See GdImageTrait.
+        $bytes = $this->stripImageMetadata($bytes, $mime);
 
         $appData = $this->appDataFactory->get('crate');
         try {
@@ -285,11 +293,7 @@ class ArtworkController extends Controller
                 }
             }
 
-            $bytes = (string) file_get_contents($uploadedFile['tmp_name']);
-            // Strip EXIF/IPTC/XMP before persisting — phone-gallery uploads
-            // commonly carry GPS, timestamps, camera serials. See GdImageTrait.
-            $bytes = $this->stripImageMetadata($bytes, $mime);
-            $file  = $folder->newFile('artwork_' . $itemId . $ext);
+            $file = $folder->newFile('artwork_' . $itemId . $ext);
             $file->putContent($bytes);
 
             $item->setArtworkPath('local');

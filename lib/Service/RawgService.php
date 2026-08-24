@@ -156,6 +156,8 @@ class RawgService extends AbstractApiService
      * @param array<int, mixed>          $results
      * @param array<string, bool>        $seen
      * @param array<int, array<string, mixed>> $out
+     *
+     * @param-out array<int, array<string, mixed>> $out
      */
     private function collect(array $results, array &$seen, array &$out, int $limit): void
     {
@@ -237,7 +239,11 @@ class RawgService extends AbstractApiService
         return $this->normaliseGame($body);
     }
 
-    /** @param array<string, mixed> $r */
+    /**
+     * @param array<string, mixed> $r
+     *
+     * @return array<string, mixed>
+     */
     private function normaliseResult(array $r): array
     {
         $year = null;

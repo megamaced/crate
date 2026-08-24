@@ -164,7 +164,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { NcModal, NcButton } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateUrl, generateOcsUrl } from '@nextcloud/router'
@@ -254,6 +254,13 @@ const marketHint = computed(() => MARKET_HINTS[selectedCategory.value] ?? '')
 
 let abortController = null
 
+/**
+ * Guards against a count from a superseded selection landing last. Flicking the
+ * category select fires one request per change and they can complete in any
+ * order; only the newest may write `itemCount`.
+ */
+let countToken = 0
+
 watch(() => props.show, (open) => {
   if (open) {
     selectedCategory.value = props.category
@@ -271,6 +278,14 @@ watch(() => props.show, (open) => {
     abortController.abort()
     abortController = null
   }
+},
+// The modal is mounted only while open, so the first "open" is the mount
+// itself and never arrives as a change.
+{ immediate: true })
+
+onBeforeUnmount(() => {
+  abortController?.abort()
+  abortController = null
 })
 
 // Refresh the count whenever the selection that drives it changes.
@@ -290,6 +305,7 @@ watch(selectedScope, refreshCount)
  */
 async function refreshCount() {
   if (!props.show) return
+  const token = ++countToken
   // In shared mode the count would come from the caller's own /media list
   // (which has no owner filter), so it wouldn't reflect the owner's items —
   // skip the preview count rather than show a misleading number.
@@ -306,8 +322,10 @@ async function refreshCount() {
       params,
       __silent: true,
     })
+    if (token !== countToken) return
     itemCount.value = res.data?.ocs?.data?.total ?? 0
   } catch {
+    if (token !== countToken) return
     // Treat as unknown rather than zero so we don't falsely warn the user.
     itemCount.value = null
   }

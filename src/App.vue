@@ -63,6 +63,7 @@
     </NcAppNavigation>
 
     <SettingsPanel
+      v-if="settingsOpen"
       v-model:open="settingsOpen"
       @token-changed="v => hasDiscogsToken = v"
       @tmdb-token-changed="v => hasTmdbToken = v"
@@ -112,7 +113,6 @@
       <!-- Shared with me — landing -->
       <SharedHomeView
         v-else-if="view === 'shared'"
-        ref="sharedHome"
         @detail="showDetail"
         @playlist="showPlaylistDetail"
         @open-category="openSharedCategory"
@@ -181,6 +181,7 @@
     </NcAppContent>
 
     <ImportModal
+      v-if="importOpen"
       :show="importOpen"
       :category="importCategory"
       :owner="importOwner"
@@ -194,6 +195,7 @@
     />
 
     <OwnerPickerModal
+      v-if="ownerPickerOpen"
       :show="ownerPickerOpen"
       :owners="ownerPickerOwners"
       :title="ownerPickerTitle"
@@ -202,6 +204,8 @@
     />
 
     <AddEditModal
+      v-if="modalOpen"
+      ref="addEditModal"
       :show="modalOpen"
       :item="editingItem"
       :default-status="modalDefaultStatus"
@@ -239,12 +243,14 @@
     </NcDialog>
 
     <AddToPlaylistModal
+      v-if="showAddToPlaylist"
       :show="showAddToPlaylist"
       :item="addToPlaylistItem"
       @close="showAddToPlaylist = false"
     />
 
     <ShareModal
+      v-if="showShareModal"
       :show="showShareModal"
       :target="shareTarget"
       @close="showShareModal = false"
@@ -276,7 +282,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, defineAsyncComponent, onMounted, onUnmounted, nextTick } from 'vue'
 import {
   NcContent, NcAppContent, NcAppNavigation, NcAppNavigationItem,
   NcAppNavigationSettings, NcButton, NcDialog,
@@ -284,17 +290,11 @@ import {
 import axios from '@nextcloud/axios'
 import { generateOcsUrl, generateUrl } from '@nextcloud/router'
 import { showError } from '@nextcloud/dialogs'
-import AddEditModal from './components/AddEditModal.vue'
-import AddToPlaylistModal from './components/AddToPlaylistModal.vue'
 import CollectionView from './components/CollectionView.vue'
 import HomeView from './components/HomeView.vue'
-import ImportModal from './components/ImportModal.vue'
 import ItemDetailView from './components/ItemDetailView.vue'
-import OwnerPickerModal from './components/OwnerPickerModal.vue'
 import PlaylistDetailView from './components/PlaylistDetailView.vue'
 import PlaylistsView from './components/PlaylistsView.vue'
-import SettingsPanel from './components/SettingsPanel.vue'
-import ShareModal from './components/ShareModal.vue'
 import SharedHomeView from './components/SharedHomeView.vue'
 import SharedPlaylistsView from './components/SharedPlaylistsView.vue'
 import SharedByMeView from './components/SharedByMeView.vue'
@@ -303,6 +303,17 @@ import { useMarketValueQueue } from './composables/useMarketValueQueue.js'
 import { useSettings } from './composables/useSettings.js'
 import { useHashRouter } from './composables/useHashRouter.js'
 import { useSharedContent } from './composables/useSharedContent.js'
+
+// None of these is reachable from a first paint — each needs a deliberate click
+// (Settings, Add, Import, Share) — and together they pull in the whole modal
+// surface. Loaded on demand, and paired with `v-if` in the template so they are
+// mounted only while open rather than sitting behind a `:show` prop.
+const SettingsPanel = defineAsyncComponent(() => import('./components/SettingsPanel.vue'))
+const AddEditModal = defineAsyncComponent(() => import('./components/AddEditModal.vue'))
+const ImportModal = defineAsyncComponent(() => import('./components/ImportModal.vue'))
+const ShareModal = defineAsyncComponent(() => import('./components/ShareModal.vue'))
+const AddToPlaylistModal = defineAsyncComponent(() => import('./components/AddToPlaylistModal.vue'))
+const OwnerPickerModal = defineAsyncComponent(() => import('./components/OwnerPickerModal.vue'))
 
 const COLLECTION_VIEWS = ['music', 'films', 'books', 'comics', 'games']
 const VIEW_TO_CATEGORY = { music: 'music', films: 'film', books: 'book', comics: 'comic', games: 'game' }
@@ -419,6 +430,7 @@ const homeView = ref(null)
 const collectionViewRef = ref(null)
 
 const modalOpen = ref(false)
+const addEditModal = ref(null)
 const editingItem = ref(null)
 // When adding into a read/write shared library/category, the new item must be
 // created in the owner's collection: `addOwner` becomes the `owner` field on
@@ -455,10 +467,20 @@ const hasRawgKey = ref(false)
 const hasComicVineKey = ref(false)
 const hasPriceChartingToken = ref(false)
 
+// Each provider's credential is checked independently: these flags gate the
+// Enrich / Search / market-value buttons across the whole app, so one endpoint
+// failing must not make the other four features disappear.
+const CREDENTIAL_CHECKS = [
+  { path: '/apps/crate/api/v1/settings/discogs-token',       flag: hasDiscogsToken,       key: 'hasToken' },
+  { path: '/apps/crate/api/v1/settings/tmdb-token',          flag: hasTmdbToken,          key: 'hasToken' },
+  { path: '/apps/crate/api/v1/settings/rawg-key',            flag: hasRawgKey,            key: 'hasKey'   },
+  { path: '/apps/crate/api/v1/settings/comicvine-key',       flag: hasComicVineKey,       key: 'hasKey'   },
+  { path: '/apps/crate/api/v1/settings/pricecharting-token', flag: hasPriceChartingToken, key: 'hasToken' },
+]
+
 // playlist + sharing state
 const selectedPlaylist = ref(null)
 const playlistsView = ref(null)
-const sharedHome = ref(null)
 const sharedCategory = ref(null)
 const sharedPlaylistsView = ref(null)
 const sharedByMeView = ref(null)
@@ -469,20 +491,17 @@ const showShareModal = ref(false)
 
 // ── init ──────────────────────────────────────────────────────────────────────
 onMounted(async () => {
-  try {
-    const [discogsRes, tmdbRes, rawgRes, cvRes, pcRes] = await Promise.all([
-      axios.get(generateOcsUrl('/apps/crate/api/v1/settings/discogs-token')),
-      axios.get(generateOcsUrl('/apps/crate/api/v1/settings/tmdb-token')),
-      axios.get(generateOcsUrl('/apps/crate/api/v1/settings/rawg-key')),
-      axios.get(generateOcsUrl('/apps/crate/api/v1/settings/comicvine-key')),
-      axios.get(generateOcsUrl('/apps/crate/api/v1/settings/pricecharting-token')),
-    ])
-    hasDiscogsToken.value       = discogsRes.data.ocs?.data?.hasToken ?? false
-    hasTmdbToken.value          = tmdbRes.data.ocs?.data?.hasToken    ?? false
-    hasRawgKey.value            = rawgRes.data.ocs?.data?.hasKey      ?? false
-    hasComicVineKey.value       = cvRes.data.ocs?.data?.hasKey        ?? false
-    hasPriceChartingToken.value = pcRes.data.ocs?.data?.hasToken      ?? false
-  } catch { /* ignore */ }
+  const settled = await Promise.allSettled(
+    CREDENTIAL_CHECKS.map(check => axios.get(generateOcsUrl(check.path))),
+  )
+  settled.forEach((result, i) => {
+    const check = CREDENTIAL_CHECKS[i]
+    if (result.status === 'fulfilled') {
+      check.flag.value = result.value.data.ocs?.data?.[check.key] ?? false
+    } else {
+      console.warn(`Couldn't check ${check.path}`, result.reason)
+    }
+  })
 
   // Load the shared-content store up front so the "Shared with me" nav group
   // can render its category/playlist children without first visiting the view.
@@ -514,16 +533,7 @@ async function restoreFromHash() {
       }
     } catch { /* fall through to home */ }
   } else if (v === 'playlist-detail' && playlistId) {
-    try {
-      const res = await axios.get(generateOcsUrl(`/apps/crate/api/v1/playlists/${playlistId}`))
-      const playlist = res.data.ocs?.data
-      if (playlist) {
-        selectedPlaylist.value = playlist
-        previousView.value = 'playlists'
-        view.value = 'playlist-detail'
-        return
-      }
-    } catch { /* fall through to home */ }
+    if (await openPlaylistById(playlistId)) return
   } else if (COLLECTION_VIEWS.includes(v)) {
     activeCollectionCategory.value = VIEW_TO_CATEGORY[v]
     view.value = v
@@ -565,10 +575,7 @@ async function handleHashChange() {
     } catch { /* item no longer exists — stay on current view */ }
   } else if (v === 'playlist-detail' && playlistId) {
     if (view.value === 'playlist-detail' && selectedPlaylist.value?.id === playlistId) return
-    // selectedPlaylist should still be in memory from navigation
-    if (selectedPlaylist.value?.id === playlistId) {
-      view.value = 'playlist-detail'
-    }
+    await openPlaylistById(playlistId)
   } else if (v !== view.value || (v === 'shared-cat' && category !== activeSharedCategory.value)) {
     if (COLLECTION_VIEWS.includes(v)) {
       activeCollectionCategory.value = VIEW_TO_CATEGORY[v]
@@ -584,6 +591,32 @@ async function handleHashChange() {
     selectedItem.value = null
     selectedPlaylist.value = null
   }
+}
+
+/**
+ * Show a playlist's detail view, fetching the playlist unless it's already the
+ * one in memory. Shared by the initial hash restore and by browser
+ * back/forward: switchView() clears selectedPlaylist on every nav click, so
+ * going back to #/playlists/{id} can't assume it's still there.
+ *
+ * @param {number} playlistId
+ * @returns {Promise<boolean>} whether the view was switched
+ */
+async function openPlaylistById(playlistId) {
+  if (selectedPlaylist.value?.id !== playlistId) {
+    try {
+      const res = await axios.get(generateOcsUrl(`/apps/crate/api/v1/playlists/${playlistId}`))
+      const playlist = res.data.ocs?.data
+      if (!playlist) return false
+      selectedPlaylist.value = playlist
+    } catch {
+      // Playlist deleted or unreadable — the caller decides where to go.
+      return false
+    }
+  }
+  previousView.value = 'playlists'
+  view.value = 'playlist-detail'
+  return true
 }
 
 function handleBeforeUnload(e) {
@@ -635,8 +668,6 @@ function switchView(newView) {
   }
   if (newView === 'playlists') {
     nextTick(() => playlistsView.value?.load())
-  } else if (newView === 'shared') {
-    nextTick(() => sharedHome.value?.load())
   } else if (newView === 'shared-cat') {
     // CollectionView (shared mode) exposes reload(); the store was refreshed
     // above via loadSharedContent() and the view's sharedItems watcher tracks
@@ -718,8 +749,13 @@ async function triggerEnrich(id) {
       }
       if (view.value === 'home') homeView.value?.load()
     }
-  } catch {
-    // Aborted, no token, or upstream unavailable — silently skip
+  } catch (err) {
+    // A navigation away aborts this on purpose; anything else is worth a line
+    // in the console, since the button that triggered it looks identical
+    // whether the provider is unreachable or the feature is simply off.
+    if (err.code !== 'ERR_CANCELED') {
+      console.warn('Auto-enrich failed', err)
+    }
   } finally {
     if (pendingEnrichController === controller) pendingEnrichController = null
   }
@@ -1083,6 +1119,8 @@ async function saveItem(payload) {
   } catch (e) {
     console.error('Failed to save item', e)
     showError('Failed to save item')
+    // The modal is still open with the user's input — let it accept a retry.
+    addEditModal.value?.resetSaving()
   }
 }
 
@@ -1136,11 +1174,16 @@ async function deleteItem() {
 }
 
 // ── enrich ────────────────────────────────────────────────────────────────────
+// Covers all three paths that emit `enriched`: enrich, strip-enrich and a
+// market-value fetch. None of their responses echoes the shared-status flags
+// (see preserveSharedFlags), so carrying them over is what stops a read/write
+// sharee's view sprouting the owner-only Delete and Share actions.
 function handleEnriched(updated) {
-  selectedItem.value = updated
+  const merged = preserveSharedFlags(updated, selectedItem.value)
+  selectedItem.value = merged
   // Patch the kept-alive collection view so navigating back doesn't show
   // the pre-enrichment row. Same for new market-value fetches.
-  collectionViewRef.value?.update?.(updated)
+  collectionViewRef.value?.update?.(merged)
 }
 </script>
 

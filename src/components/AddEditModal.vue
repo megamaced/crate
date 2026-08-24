@@ -10,30 +10,12 @@
         {{ modalTitle }}
       </h2>
 
-      <!-- Enrichment search — component varies by category -->
-      <DiscogsSearch
-        v-if="form.category === 'music'"
-        :has-token="hasToken"
-        @select="applyDiscogs"
-      />
-      <TMDBSearch
-        v-else-if="form.category === 'film'"
-        :has-token="hasTmdbToken"
-        @select="applyTmdb"
-      />
-      <OpenLibrarySearch
-        v-else-if="form.category === 'book'"
-        @select="applyOpenLibrary"
-      />
-      <RAWGSearch
-        v-else-if="form.category === 'game'"
-        :has-key="hasRawgKey"
-        @select="applyRawg"
-      />
-      <ComicVineSearch
-        v-else-if="form.category === 'comic'"
-        :has-key="hasComicVineKey"
-        @select="applyComicVine"
+      <!-- Enrichment search — the provider descriptor varies by category -->
+      <EnrichmentSearch
+        :key="form.category"
+        :provider="provider"
+        :has-credential="hasProviderCredential"
+        @select="applyEnrichment"
       />
 
       <form @submit.prevent="submit">
@@ -346,18 +328,16 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onBeforeUnmount } from 'vue'
 import { NcModal, NcButton } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateUrl, generateOcsUrl } from '@nextcloud/router'
 import { showError } from '@nextcloud/dialogs'
-import ComicVineSearch from './ComicVineSearch.vue'
-import DiscogsSearch from './DiscogsSearch.vue'
-import TMDBSearch from './TMDBSearch.vue'
-import OpenLibrarySearch from './OpenLibrarySearch.vue'
-import RAWGSearch from './RAWGSearch.vue'
+import EnrichmentSearch from './EnrichmentSearch.vue'
 import PhotoSlot from './PhotoSlot.vue'
 import { FORMAT_GROUPS, FIELD_CONFIG } from '../utils/categoryFormats.js'
+import { ENRICHMENT_ID_KEY, providerFor } from '../utils/enrichmentProviders.js'
+import { cssUrl } from '../utils/artworkUrl.js'
 import { useSettings } from '../composables/useSettings.js'
 
 const props = defineProps({
@@ -400,17 +380,17 @@ const hasArtwork = computed(() => {
 
 const previewStyle = computed(() => {
   if (artworkPreviewUrl.value) {
-    return { backgroundImage: `url(${artworkPreviewUrl.value})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    return { backgroundImage: cssUrl(artworkPreviewUrl.value), backgroundSize: 'cover', backgroundPosition: 'center' }
   }
   if (enrichPreviewUrl.value) {
-    return { backgroundImage: `url(${enrichPreviewUrl.value})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    return { backgroundImage: cssUrl(enrichPreviewUrl.value), backgroundSize: 'cover', backgroundPosition: 'center' }
   }
   if (props.item?.id && props.item?.artworkPath && !removeArtworkFlag.value) {
     // Cache-bust on item.updatedAt so the URL is stable across renders
     // (Date.now() inside a computed defeats memoisation).
     const v = encodeURIComponent(props.item.updatedAt ?? '')
     const url = generateUrl('/apps/crate/artwork/' + props.item.id) + (v ? `?v=${v}` : '')
-    return { backgroundImage: `url(${url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    return { backgroundImage: cssUrl(url), backgroundSize: 'cover', backgroundPosition: 'center' }
   }
   return {}
 })
@@ -471,6 +451,13 @@ function doRemoveArtwork() {
     artworkPreviewUrl.value = null
   }
 }
+
+// The picked-image blob must be released on unmount as well: resetArtworkState
+// runs when the modal OPENS, so a Cancel on its own would leave the last
+// preview resident until the next open.
+onBeforeUnmount(() => {
+  if (artworkPreviewUrl.value) URL.revokeObjectURL(artworkPreviewUrl.value)
+})
 
 function resetArtworkState() {
   artworkFile.value = null
@@ -556,36 +543,45 @@ const visibleCurrencyOptions = computed(() => {
 watch(
   () => props.show,
   (open) => {
-    if (open) {
+    if (!open) {
+      // Closing: drop the in-flight guard so a reopen can submit, and release
+      // the preview blob a Cancel would otherwise leave behind.
+      saving.value = false
       resetArtworkState()
       resetPhotoState()
-      form.value = props.item
-        ? {
-            title:      props.item.title,
-            artist:     props.item.artist,
-            format:     props.item.format,
-            year:       props.item.year ?? null,
-            notes:      props.item.notes ?? '',
-            status:     props.item.status ?? props.defaultStatus,
-            discogsId:  props.item.discogsId ?? null,
-            artworkPath: props.item.artworkPath ?? null,
-            label:      props.item.label ?? null,
-            barcode:    props.item.barcode ?? null,
-            category:   props.item.category ?? props.category,
-            purchasePrice:         props.item.purchasePrice ?? null,
-            purchasePriceCurrency: props.item.purchasePriceCurrency ?? marketCurrency.value,
-          }
-        : blankForm()
+      return
+    }
+    resetArtworkState()
+    resetPhotoState()
+    form.value = props.item
+      ? {
+          title:      props.item.title,
+          artist:     props.item.artist,
+          format:     props.item.format,
+          year:       props.item.year ?? null,
+          notes:      props.item.notes ?? '',
+          status:     props.item.status ?? props.defaultStatus,
+          discogsId:  props.item.discogsId ?? null,
+          artworkPath: props.item.artworkPath ?? null,
+          label:      props.item.label ?? null,
+          barcode:    props.item.barcode ?? null,
+          category:   props.item.category ?? props.category,
+          purchasePrice:         props.item.purchasePrice ?? null,
+          purchasePriceCurrency: props.item.purchasePriceCurrency ?? marketCurrency.value,
+        }
+      : blankForm()
 
-      // Applied after the form is seeded, so the enrichment result wins over
-      // the blank defaults.
-      if (!props.item && props.prefill) {
-        form.value.category = props.category
-        applyEnrichment(props.prefill)
-        form.value.status = props.defaultStatus
-      }
+    // Applied after the form is seeded, so the enrichment result wins over
+    // the blank defaults.
+    if (!props.item && props.prefill) {
+      form.value.category = props.category
+      applyEnrichment(props.prefill)
+      form.value.status = props.defaultStatus
     }
   },
+  // The modal is mounted only while open, so the first "open" is the mount
+  // itself and never arrives as a change.
+  { immediate: true },
 )
 
 // Reset format when category changes (format lists are incompatible across categories)
@@ -597,6 +593,21 @@ watch(() => form.value.category, (newCat, oldCat) => {
 })
 
 // ── Per-category computed ──────────────────────────────────────────────────────
+const provider = computed(() => providerFor(form.value.category))
+
+// Which of the five credential props the active category's provider needs.
+// Books (Open Library) need none, so the value is irrelevant there — the
+// provider descriptor has no credential hint to show.
+const hasProviderCredential = computed(() => {
+  switch (form.value.category) {
+    case 'film':  return props.hasTmdbToken
+    case 'game':  return props.hasRawgKey
+    case 'comic': return props.hasComicVineKey
+    case 'book':  return true
+    default:      return props.hasToken
+  }
+})
+
 const fieldConfig = computed(() => FIELD_CONFIG[form.value.category] ?? FIELD_CONFIG.music)
 const formatGroups = computed(() => FORMAT_GROUPS[form.value.category] ?? FORMAT_GROUPS.music)
 
@@ -636,16 +647,8 @@ const barcodePlaceholder = computed(() => {
 
 // ── Enrichment apply (all sources) ─────────────────────────────────────────────
 // Each enrichment source emits a normalised result; this helper merges it
-// into the form. `idKey` is the source-specific id field. Per-category keys
-// (format, barcode) are only copied when present in the result.
-const ENRICH_ID_KEY = {
-  music: 'discogsId',
-  film:  'tmdbId',
-  book:  'workKey',
-  game:  'rawgId',
-  comic: 'comicVineId',
-}
-
+// into the form. Per-category keys (format, barcode) are only copied when
+// present in the result.
 function applyEnrichment(result) {
   if (result.artist) form.value.artist = result.artist
   if (result.title) form.value.title = result.title
@@ -654,7 +657,7 @@ function applyEnrichment(result) {
   if (result.label) form.value.label = result.label
   if (result.barcode) form.value.barcode = result.barcode
 
-  const idKey = ENRICH_ID_KEY[form.value.category]
+  const idKey = ENRICHMENT_ID_KEY[form.value.category]
   form.value.discogsId = (idKey && result[idKey]) || null
 
   const previewUrl = result.thumb || result.artworkUrl
@@ -673,13 +676,6 @@ function applyEnrichment(result) {
   }
 }
 
-// Source-specific wrappers retained as named handlers so the templates can
-// stay declarative (@select="applyDiscogs" etc.).
-const applyDiscogs     = applyEnrichment
-const applyTmdb        = applyEnrichment
-const applyOpenLibrary = applyEnrichment
-const applyRawg        = applyEnrichment
-
 // ── ISBN lookup (books) ────────────────────────────────────────────────────────
 const isbnLooking = ref(false)
 
@@ -692,7 +688,7 @@ async function lookupIsbn() {
     )
     const data = res.data.ocs?.data
     if (data && data.title) {
-      applyOpenLibrary(data)
+      applyEnrichment(data)
     } else {
       showError('ISBN not found in Open Library')
     }
@@ -703,41 +699,52 @@ async function lookupIsbn() {
   }
 }
 
-const applyComicVine = applyEnrichment
-
 // ── Submit ─────────────────────────────────────────────────────────────────────
-async function submit() {
+/**
+ * The save runs in the parent (App.saveItem) and the modal stays open for its
+ * whole duration, so `saving` has to survive past this function returning —
+ * the close branch of the `show` watcher clears it. Emitting twice would
+ * create two items: MediaController::create has no duplicate check.
+ */
+function submit() {
+  if (saving.value) return
   saving.value = true
-  try {
-    // Normalise the purchase price. The backend treats null + null as "clear",
-    // and rejects a non-null price without a currency. An invalid number from
-    // the input (e.g. "1.2.3") parses to NaN; coerce that to null so v-model
-    // doesn't send an unexpected non-number through the API.
-    const rawPrice = form.value.purchasePrice
-    const price = (rawPrice === null || rawPrice === '' || Number.isNaN(rawPrice))
-      ? null
-      : Number(rawPrice)
-    const payload = {
-      ...form.value,
-      year:                  form.value.year || null,
-      notes:                 form.value.notes || null,
-      label:                 form.value.label || null,
-      barcode:               form.value.barcode || null,
-      purchasePrice:         price,
-      purchasePriceCurrency: price !== null ? (form.value.purchasePriceCurrency || marketCurrency.value) : null,
-      _artworkFile:          artworkFile.value,
-      _removeArtwork:        removeArtworkFlag.value,
-      _replaceArtwork:       replaceArtworkFlag.value,
-      _photo1File:           photo1File.value,
-      _photo2File:           photo2File.value,
-      _photo1Remove:         photo1Remove.value,
-      _photo2Remove:         photo2Remove.value,
-    }
-    emit('save', payload)
-  } finally {
-    saving.value = false
+  // Normalise the purchase price. The backend treats null + null as "clear",
+  // and rejects a non-null price without a currency. An invalid number from
+  // the input (e.g. "1.2.3") parses to NaN; coerce that to null so v-model
+  // doesn't send an unexpected non-number through the API.
+  const rawPrice = form.value.purchasePrice
+  const price = (rawPrice === null || rawPrice === '' || Number.isNaN(rawPrice))
+    ? null
+    : Number(rawPrice)
+  const payload = {
+    ...form.value,
+    year:                  form.value.year || null,
+    notes:                 form.value.notes || null,
+    label:                 form.value.label || null,
+    barcode:               form.value.barcode || null,
+    purchasePrice:         price,
+    purchasePriceCurrency: price !== null ? (form.value.purchasePriceCurrency || marketCurrency.value) : null,
+    _artworkFile:          artworkFile.value,
+    _removeArtwork:        removeArtworkFlag.value,
+    _replaceArtwork:       replaceArtworkFlag.value,
+    _photo1File:           photo1File.value,
+    _photo2File:           photo2File.value,
+    _photo1Remove:         photo1Remove.value,
+    _photo2Remove:         photo2Remove.value,
   }
+  emit('save', payload)
 }
+
+/**
+ * The parent calls this when the save it took over failed and left the modal
+ * open, so the form is submittable again without a close-and-reopen.
+ */
+function resetSaving() {
+  saving.value = false
+}
+
+defineExpose({ resetSaving })
 </script>
 
 <style scoped>

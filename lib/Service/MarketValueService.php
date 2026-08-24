@@ -89,7 +89,9 @@ class MarketValueService
             return null;
         }
 
-        $prices = $this->priceChartingService->searchAndFetchPrices($userId, $query);
+        // The format is what tells one platform's release from another's: the
+        // title alone matches a dozen products at unrelated prices.
+        $prices = $this->priceChartingService->searchAndFetchPrices($userId, $query, $item->getFormat());
         if ($prices === null) {
             return null;
         }

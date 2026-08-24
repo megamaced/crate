@@ -9,7 +9,9 @@
 	"require-dev": {
 		"nextcloud/ocp": "^33",
 		"phpunit/phpunit": "^13",
-		"squizlabs/php_codesniffer": "^4"
+		"squizlabs/php_codesniffer": "^4.0.2",
+		"phpstan/phpstan": "^2.2",
+		"doctrine/dbal": "^3.10.4"
 	},
 	"autoload": {
 		"psr-4": {

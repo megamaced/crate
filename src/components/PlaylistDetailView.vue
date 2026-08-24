@@ -42,17 +42,17 @@
     <div class="pd-header">
       <div
         class="pd-cover"
-        :style="coverArtIds.length <= 1 ? coverStyle : {}"
+        :style="coverArtItems.length <= 1 ? coverStyle : {}"
       >
         <div
-          v-if="coverArtIds.length > 1"
+          v-if="coverArtItems.length > 1"
           class="pd-art-grid"
         >
           <div
-            v-for="cid in coverArtIds"
-            :key="cid"
+            v-for="art in coverArtItems"
+            :key="art.id"
             class="pd-art-cell"
-            :style="artCellStyle(cid)"
+            :style="artworkStyleFor(art)"
           />
         </div>
       </div>
@@ -203,7 +203,8 @@
 import { ref, computed } from 'vue'
 import { NcButton, NcDialog } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
-import { generateUrl, generateOcsUrl } from '@nextcloud/router'
+import { generateOcsUrl } from '@nextcloud/router'
+import { artworkStyleFor } from '../composables/useArtworkStyle.js'
 import { showError } from '@nextcloud/dialogs'
 import MediaThumb from './MediaThumb.vue'
 import { CATEGORY_LABELS, playlistCountLabel } from '../utils/categoryFormats.js'
@@ -270,32 +271,22 @@ async function doEdit() {
   }
 }
 
-const coverStyle = computed(() => {
-  const first = props.playlist.items?.[0]
-  if (first?.artworkPath) {
-    const url = generateUrl('/apps/crate/artwork/' + first.id)
-    return { backgroundImage: `url(${url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-  }
-  return { background: 'linear-gradient(135deg, #374151, #6b7280)' }
-})
+const coverStyle = computed(() => artworkStyleFor(props.playlist.items?.[0]))
 
-const coverArtIds = computed(() => {
-  const items = props.playlist.items ?? []
-  const ids = []
+// Up to four distinct items with artwork, for the mosaic cover. The items
+// themselves rather than their ids, so each cell's URL carries the item's
+// `updatedAt` and a replaced cover invalidates.
+const coverArtItems = computed(() => {
+  const picked = []
   const seen = new Set()
-  for (const item of items) {
+  for (const item of props.playlist.items ?? []) {
     if (!item.artworkPath || seen.has(item.id)) continue
     seen.add(item.id)
-    ids.push(item.id)
-    if (ids.length >= 4) break
+    picked.push(item)
+    if (picked.length >= 4) break
   }
-  return ids
+  return picked
 })
-
-function artCellStyle(mediaItemId) {
-  const url = generateUrl('/apps/crate/artwork/' + mediaItemId)
-  return { backgroundImage: `url(${url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-}
 
 
 async function removeItem(item) {

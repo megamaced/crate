@@ -8,9 +8,12 @@ use OCA\Crate\CrateCategories;
 use OCA\Crate\Db\CrateShareMapper;
 use OCA\Crate\Service\ExportService;
 use OCP\AppFramework\Controller;
+use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\DataDownloadResponse;
+use OCP\AppFramework\Http\DataResponse;
+use OCP\AppFramework\Http\Response;
 use OCP\IRequest;
 use OCP\IUserSession;
 
@@ -47,10 +50,10 @@ class ExportController extends Controller
         int $includeMarket = 0,
         int $includePrice = 0,
         ?string $owner = null,
-    ): DataDownloadResponse {
+    ): Response {
         $user = $this->userSession->getUser();
         if ($user === null) {
-            return new DataDownloadResponse('', 'error.txt', 'text/plain');
+            return new DataResponse(['error' => 'Not logged in'], Http::STATUS_UNAUTHORIZED);
         }
         $userId = $user->getUID();
 
@@ -61,8 +64,11 @@ class ExportController extends Controller
         // that category (or the owner's whole library).
         $exportUserId = $userId;
         if ($owner !== null && $owner !== '' && $owner !== $userId) {
-            if ($cat === null || !$this->shareMapper->hasReadableCollectionShare($userId, $owner, $cat)) {
-                return new DataDownloadResponse('', 'error.txt', 'text/plain');
+            if (!$this->canReadForExport($userId, $owner, $cat)) {
+                return new DataResponse(
+                    ['error' => 'No read access to that collection'],
+                    Http::STATUS_FORBIDDEN,
+                );
             }
             $exportUserId = $owner;
         }
@@ -78,5 +84,24 @@ class ExportController extends Controller
         );
 
         return new DataDownloadResponse($content, $filename, $mimeType);
+    }
+
+    /**
+     * Read authorisation for an export of $owner's items. A null category
+     * exports the owner's whole library, which requires read access to every
+     * category — a whole-library share satisfies all five, a single-category
+     * share does not.
+     */
+    private function canReadForExport(string $userId, string $owner, ?string $category): bool
+    {
+        if ($category !== null) {
+            return $this->shareMapper->hasReadableCollectionShare($userId, $owner, $category);
+        }
+        foreach (CrateCategories::ALL as $candidate) {
+            if (!$this->shareMapper->hasReadableCollectionShare($userId, $owner, $candidate)) {
+                return false;
+            }
+        }
+        return true;
     }
 }

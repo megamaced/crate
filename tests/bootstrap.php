@@ -26,3 +26,45 @@ spl_autoload_register(static function (string $class): void {
         require $path;
     }
 });
+
+// The OCP stubs define IQueryBuilder's PARAM_* constants in terms of
+// doctrine/dbal's, but nextcloud/ocp does not depend on doctrine/dbal — so
+// loading IQueryBuilder (which mocking IDBConnection does) fails on a class
+// that is not there. Supply the handful of constant holders it reaches for,
+// with doctrine's own values, unless a real doctrine/dbal is installed.
+spl_autoload_register(static function (string $class): void {
+    switch ($class) {
+        case 'Doctrine\\DBAL\\ParameterType':
+            eval('namespace Doctrine\\DBAL; class ParameterType {
+                public const NULL = 0;
+                public const INTEGER = 1;
+                public const STRING = 2;
+                public const LARGE_OBJECT = 3;
+                public const BOOLEAN = 5;
+                public const BINARY = 16;
+                public const ASCII = 17;
+            }');
+            break;
+        case 'Doctrine\\DBAL\\ArrayParameterType':
+            eval('namespace Doctrine\\DBAL; class ArrayParameterType {
+                public const INTEGER = 101;
+                public const STRING = 102;
+                public const BINARY = 116;
+                public const ASCII = 117;
+            }');
+            break;
+        case 'Doctrine\\DBAL\\Types\\Types':
+            eval('namespace Doctrine\\DBAL\\Types; class Types {
+                public const BOOLEAN = "boolean";
+                public const DATE_MUTABLE = "date";
+                public const DATE_IMMUTABLE = "date_immutable";
+                public const DATETIME_MUTABLE = "datetime";
+                public const DATETIME_IMMUTABLE = "datetime_immutable";
+                public const DATETIMETZ_MUTABLE = "datetimetz";
+                public const DATETIMETZ_IMMUTABLE = "datetimetz_immutable";
+                public const TIME_MUTABLE = "time";
+                public const TIME_IMMUTABLE = "time_immutable";
+            }');
+            break;
+    }
+});

@@ -68,7 +68,10 @@ class PlaylistItemMapper extends QBMapper
         $qb->select('id')
             ->from($this->getTableName())
             ->where($qb->expr()->eq('playlist_id', $playlistIdParam))
-            ->andWhere($qb->expr()->eq('media_item_id', $mediaItemIdParam));
+            ->andWhere($qb->expr()->eq('media_item_id', $mediaItemIdParam))
+            // findEntity throws MultipleObjectsReturnedException on more than
+            // one match, which this only ever needs to know the existence of.
+            ->setMaxResults(1);
         try {
             $this->findEntity($qb);
             return true;

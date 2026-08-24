@@ -218,10 +218,10 @@
           <NcButton
             type="button"
             variant="primary"
-            :disabled="!mappingValid"
+            :disabled="!mappingValid || importing"
             @click="doImport"
           >
-            Import {{ totalRows }} rows
+            {{ importing ? 'Importing…' : `Import ${totalRows} rows` }}
           </NcButton>
         </div>
       </template>
@@ -366,7 +366,13 @@ const { autoEnrichOnImport, autoFetchMarketRates, marketCurrency } = useSettings
 const step = ref('pick')
 const selectedCategory = ref(props.category)
 const selectedFile = ref(null)
+const dragging = ref(false)
+const pickingFromNc = ref(false)
 const parsing = ref(false)
+// A commit can run for minutes. Without this the button stays live and a second
+// click starts a second /import/commit that races the first past the server's
+// duplicate check.
+const importing = ref(false)
 const parseError = ref('')
 const mappingError = ref('')
 
@@ -392,6 +398,11 @@ const mappableFields = computed(() => {
     { value: 'barcode',   label: cfg.barcode },
     { value: 'label',     label: cfg.label },
     { value: 'category',  label: 'Category' },
+    // /import/preview auto-detects these two and the modal posts its mapping
+    // back verbatim, so without matching options a Crate export of its own
+    // price-bearing data is rejected wholesale.
+    { value: 'purchasePrice',         label: 'Purchase price' },
+    { value: 'purchasePriceCurrency', label: 'Purchase currency' },
   ]
 })
 
@@ -469,15 +480,19 @@ const marketTokenAvailable = computed(() => {
 })
 
 // ── reset on open ─────────────────────────────────────────────────────────────
+// The modal is mounted only while open, so the first "open" is the mount itself
+// and never arrives as a change.
 watch(() => props.show, (open) => {
   if (open) reset()
-})
+}, { immediate: true })
 
 function reset() {
   step.value = 'pick'
   selectedCategory.value = props.category
   selectedFile.value = null
   parsing.value = false
+  importing.value = false
+  dragging.value = false
   pickingFromNc.value = false
   parseError.value = ''
   mappingError.value = ''
@@ -491,9 +506,6 @@ function reset() {
 }
 
 // ── file selection ────────────────────────────────────────────────────────────
-const dragging = ref(false)
-const pickingFromNc = ref(false)
-
 function onFileChange(e) {
   const f = e.target.files[0]
   if (f) selectedFile.value = f
@@ -563,6 +575,8 @@ async function doParse() {
 
 // ── step 2 → 3: commit import ─────────────────────────────────────────────────
 async function doImport() {
+  if (importing.value) return
+  importing.value = true
   mappingError.value = ''
   try {
     const fd = new FormData()
@@ -596,6 +610,8 @@ async function doImport() {
     }
   } catch (e) {
     mappingError.value = e.response?.data?.ocs?.data?.error ?? 'Import failed.'
+  } finally {
+    importing.value = false
   }
 }
 

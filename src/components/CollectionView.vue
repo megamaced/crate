@@ -203,7 +203,7 @@
             :class="['cv-chip', { active: filterFormat === fmt }]"
             @click="filterFormat = fmt"
           >
-            {{ fmt }} ({{ formatCount(fmt) }})
+            {{ fmt }} ({{ formatCounts.get(fmt) ?? 0 }})
           </button>
         </template>
 
@@ -251,17 +251,19 @@
       </template>
     </div>
 
-    <!-- Grouped card / list content -->
+    <!-- Grouped card / list content. Only `visibleGroups` is rendered; the
+         sentinel below grows the window a page at a time as it scrolls into
+         view, so a 5,000-item collection doesn't mount 5,000 components. -->
     <template v-else>
       <div
-        v-for="group in groupedItems"
+        v-for="group in visibleGroups"
         :key="group.header"
         :ref="el => registerGroupEl(group.header, el)"
         class="cv-group"
       >
         <div class="cv-group-header">
           <span class="cv-group-label">{{ group.header }}</span>
-          <span class="cv-group-count">{{ group.items.length }}</span>
+          <span class="cv-group-count">{{ group.total }}</span>
         </div>
 
         <!-- Card grid -->
@@ -287,53 +289,60 @@
           <div
             v-for="(item, idx) in group.items"
             :key="item.id"
-            class="cv-list-row"
-            @click="$emit('detail', item)"
+            class="cv-list-item"
           >
-            <MediaThumb
-              :item="item"
-              class="cv-list-thumb"
-            />
-            <div class="cv-list-info">
-              <!-- Artist sort leads with the artist and prints it once per run;
-                   every other sort keeps the title as the headline. -->
-              <span
-                v-if="leadsWithArtist(item) && !isArtistRepeat(item, group.items[idx - 1])"
-                class="cv-list-primary"
-              >{{ item.artist }}</span>
-              <span :class="leadsWithArtist(item) ? 'cv-list-secondary' : 'cv-list-primary'">{{ item.title }}</span>
-              <span
-                v-if="!leadsWithArtist(item) && item.artist"
-                class="cv-list-secondary"
-              >{{ item.artist }}</span>
-              <span class="cv-list-meta">
-                <span class="cv-badge">{{ item.format }}</span>
-                <template v-if="item.year">&thinsp;{{ item.year }}</template>
+            <!-- The row itself is the primary way into an item, so it has to be
+                 a real button: focusable, Enter/Space-activated and named. The
+                 per-item actions are siblings — interactive content cannot be
+                 nested inside a button. -->
+            <button
+              type="button"
+              class="cv-list-row"
+              :aria-label="'Open ' + itemLabel(item)"
+              @click="$emit('detail', item)"
+            >
+              <MediaThumb
+                :item="item"
+                class="cv-list-thumb"
+              />
+              <div class="cv-list-info">
+                <!-- Artist sort leads with the artist and prints it once per run;
+                     every other sort keeps the title as the headline. -->
                 <span
-                  v-if="item.status === 'wanted'"
-                  class="cv-badge cv-badge--wanted"
-                >Wanted</span>
-                <template v-if="item.label">&ensp;·&ensp;{{ item.label }}</template>
+                  v-if="leadsWithArtist(item) && !isArtistRepeat(item, group.items[idx - 1])"
+                  class="cv-list-primary"
+                >{{ item.artist }}</span>
+                <span :class="leadsWithArtist(item) ? 'cv-list-secondary' : 'cv-list-primary'">{{ item.title }}</span>
                 <span
-                  v-if="multiOwner"
-                  class="cv-shared-by-row"
-                >&ensp;·&ensp;Shared by {{ item.sharedByUser }}</span>
+                  v-if="!leadsWithArtist(item) && item.artist"
+                  class="cv-list-secondary"
+                >{{ item.artist }}</span>
+                <span class="cv-list-meta">
+                  <span class="cv-badge">{{ item.format }}</span>
+                  <template v-if="item.year">&thinsp;{{ item.year }}</template>
+                  <span
+                    v-if="item.status === 'wanted'"
+                    class="cv-badge cv-badge--wanted"
+                  >Wanted</span>
+                  <template v-if="item.label">&ensp;·&ensp;{{ item.label }}</template>
+                  <span
+                    v-if="multiOwner"
+                    class="cv-shared-by-row"
+                  >&ensp;·&ensp;Shared by {{ item.sharedByUser }}</span>
+                </span>
+              </div>
+              <span
+                v-if="item.marketValue"
+                class="cv-list-market"
+              >
+                {{ formatMarketValue(item) }}
               </span>
-            </div>
-            <div
-              v-if="item.marketValue"
-              class="cv-list-market"
-            >
-              {{ formatMarketValue(item) }}
-            </div>
-            <div
-              class="cv-list-actions"
-              @click.stop
-            >
+            </button>
+            <div class="cv-list-actions">
               <NcButton
                 v-if="!sharedMode || sharedCanWrite"
                 variant="tertiary"
-                :aria-label="'Edit ' + item.title"
+                :aria-label="'Edit ' + itemLabel(item)"
                 @click="$emit('edit', item)"
               >
                 Edit
@@ -341,7 +350,7 @@
               <NcButton
                 v-if="!sharedMode"
                 variant="tertiary"
-                :aria-label="'Delete ' + item.title"
+                :aria-label="'Delete ' + itemLabel(item)"
                 @click="$emit('delete', item)"
               >
                 Delete
@@ -350,6 +359,13 @@
           </div>
         </div>
       </div>
+
+      <div
+        v-if="hasMore"
+        ref="sentinelEl"
+        class="cv-sentinel"
+        aria-hidden="true"
+      />
     </template>
 
     <!-- Quick-nav index strip -->
@@ -370,6 +386,7 @@
     </nav>
 
     <ExportModal
+      v-if="exportOpen"
       :show="exportOpen"
       :scope="statusFilter"
       :category="props.category"
@@ -380,6 +397,7 @@
     />
 
     <ShareCollectionModal
+      v-if="shareOpen"
       :show="shareOpen"
       :category="props.category"
       @close="shareOpen = false"
@@ -388,19 +406,23 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, defineAsyncComponent, nextTick, watch, onMounted, onBeforeUnmount } from 'vue'
 import { NcButton } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
 import { showError } from '@nextcloud/dialogs'
 import { decadeBuckets, decadeOf, genreBuckets, hasGenre } from '../utils/genres.js'
-import { compareItems, stripArticle } from '../utils/sortItems.js'
+import { sortItems, stripArticle } from '../utils/sortItems.js'
 import MediaCard from './MediaCard.vue'
 import MediaThumb from './MediaThumb.vue'
-import ExportModal from './ExportModal.vue'
-import ShareCollectionModal from './ShareCollectionModal.vue'
 import { formatMarketValue } from '../utils/formatMarketValue.js'
 import { CATEGORY_LABELS, FORMAT_LIST } from '../utils/categoryFormats.js'
+import { readString, safeSet } from '../utils/localStore.js'
+
+// Both open from a toolbar button and neither is needed to render the
+// collection, so they load on first use rather than riding in the entry bundle.
+const ExportModal = defineAsyncComponent(() => import('./ExportModal.vue'))
+const ShareCollectionModal = defineAsyncComponent(() => import('./ShareCollectionModal.vue'))
 
 /**
  * Per-category sort config.
@@ -476,18 +498,20 @@ function onAddClick() {
   }
 }
 
+const KEY_VIEW_MODE = 'crate_viewMode'
+
 const items = ref([])
 const loading = ref(false)
 const statusFilter = ref('owned') // 'owned' | 'wanted'
 const exportOpen = ref(false)
 const shareOpen = ref(false)
-const viewMode = ref(localStorage.getItem('crate_viewMode') ?? 'card')
+const viewMode = ref(readString(KEY_VIEW_MODE, 'card'))
 const sortKey = ref('artist-asc')
 const filterFormat = ref('')
 const filterDecade = ref('')
 const filterGenre = ref('')
 
-watch(viewMode, v => localStorage.setItem('crate_viewMode', v))
+watch(viewMode, v => safeSet(KEY_VIEW_MODE, v))
 
 function clearFilters() {
   filterFormat.value = ''
@@ -602,9 +626,16 @@ const presentFormats = computed(() => {
   return [...ordered, ...unknown]
 })
 
-function formatCount(fmt) {
-  return filteredByStatus.value.filter(i => i.format === fmt).length
-}
+// One pass for every chip. Called per chip from the template, and the template
+// re-renders on every activeGroup change, so a filter() per chip meant an O(n)
+// scan per format per scroll frame.
+const formatCounts = computed(() => {
+  const counts = new Map()
+  for (const item of filteredByStatus.value) {
+    if (item.format) counts.set(item.format, (counts.get(item.format) ?? 0) + 1)
+  }
+  return counts
+})
 
 // Decade / genre options are computed over the status-filtered list rather than
 // the fully-filtered one, so picking a genre doesn't reshuffle every other
@@ -647,15 +678,18 @@ const filteredSorted = computed(() => {
 
   // Ordering (including how ties break) lives in utils/sortItems.js, which
   // crate-android's CollectionGrouping.kt mirrors.
-  list.sort((a, b) => compareItems(a, b, field, dir))
-
-  return list
+  return sortItems(list, field, dir)
 })
 
 // The artist axis is the one people scan by name, so it leads the row/card with
 // the artist instead of the title. Mirrored in crate-android's MediaCard /
 // CollectionListRow so both clients read the same way.
 const artistFirst = computed(() => sortKey.value.startsWith('artist-'))
+
+/** Names one item for a control's accessible label. */
+function itemLabel(item) {
+  return [item.title, item.artist].filter(Boolean).join(' — ')
+}
 
 // An item with no artist keeps the title as its headline either way.
 function leadsWithArtist(item) {
@@ -716,7 +750,9 @@ function getGroupKey(item, field) {
   return ''
 }
 
-// Produce an ordered array of { header, items } groups, preserving sort order
+// Produce an ordered array of { header, items, total } groups, preserving sort
+// order. `total` is the group's full size; `items` is what the render window
+// currently allows (see visibleGroups).
 const groupedItems = computed(() => {
   const [field] = sortKey.value.split('-')
   const groups = []
@@ -725,14 +761,73 @@ const groupedItems = computed(() => {
   for (const item of filteredSorted.value) {
     const key = getGroupKey(item, field)
     if (!seen.has(key)) {
-      const g = { header: key, items: [] }
+      const g = { header: key, items: [], total: 0 }
       seen.set(key, g)
       groups.push(g)
     }
-    seen.get(key).items.push(item)
+    const g = seen.get(key)
+    g.items.push(item)
+    g.total++
   }
 
   return groups
+})
+
+// ── render window ────────────────────────────────────────────────────────────
+// Every filter and sort stays client-side over the whole collection; only the
+// DOM is windowed. Groups are the natural chunk boundary, so a page is filled
+// group by group and the last group in the window may be cut short.
+const RENDER_PAGE = 120
+const renderLimit = ref(RENDER_PAGE)
+const sentinelEl = ref(null)
+let renderObserver = null
+
+const hasMore = computed(() => filteredSorted.value.length > renderLimit.value)
+
+const visibleGroups = computed(() => {
+  const limit = renderLimit.value
+  const out = []
+  let rendered = 0
+  for (const group of groupedItems.value) {
+    if (rendered >= limit) break
+    const room = limit - rendered
+    out.push(room >= group.items.length
+      ? group
+      : { header: group.header, items: group.items.slice(0, room), total: group.total })
+    rendered += group.items.length
+  }
+  return out
+})
+
+function growRenderWindow() {
+  if (!hasMore.value) return
+  renderLimit.value += RENDER_PAGE
+  // The sentinel may still be on screen after the new page renders, and
+  // IntersectionObserver stays silent while an element's state doesn't change.
+  // Re-observing forces a fresh callback with the current state.
+  nextTick(rearmRenderObserver)
+}
+
+function rearmRenderObserver() {
+  const el = sentinelEl.value
+  if (!renderObserver || !el) return
+  renderObserver.unobserve(el)
+  renderObserver.observe(el)
+}
+
+// A different filter, sort or category is a different list — start it at one
+// page rather than inheriting however far the previous one had been scrolled.
+watch(
+  [() => props.category, sortKey, statusFilter, filterFormat, filterDecade, filterGenre],
+  () => {
+    renderLimit.value = RENDER_PAGE
+    nextTick(rearmRenderObserver)
+  },
+)
+
+watch(sentinelEl, (el, previous) => {
+  if (previous) renderObserver?.unobserve(previous)
+  if (el) renderObserver?.observe(el)
 })
 
 // ── index / quick-nav ────────────────────────────────────────────────────────
@@ -746,7 +841,7 @@ function registerGroupEl(header, el) {
 }
 
 function updateActiveGroup() {
-  const groups = groupedItems.value
+  const groups = visibleGroups.value
   if (!groups.length) return
   let active = groups[0].header
   // Use a threshold of ~140px from top to account for the sticky toolbar
@@ -764,37 +859,55 @@ function updateActiveGroup() {
   activeGroup.value = active
 }
 
-let _scrollTargets = []
-let _scrollHandler = null
+// getBoundingClientRect() per group forces a synchronous layout, and scroll
+// fires at input frequency, so the measurement is coalesced into one frame —
+// and writing activeGroup re-renders the whole list, which must not happen
+// more than once per frame either.
+let _activeGroupFrame = null
+function scheduleActiveGroup() {
+  if (_activeGroupFrame !== null) return
+  _activeGroupFrame = requestAnimationFrame(() => {
+    _activeGroupFrame = null
+    updateActiveGroup()
+  })
+}
+
+/** The element the collection actually scrolls in — also the observer root. */
+function resolveScrollRoot() {
+  return props.scrollContainer?.$el
+    ?? document.querySelector('.app-content-vue')
+    ?? document.querySelector('.app-content')
+    ?? null
+}
+
+let _scrollTarget = null
 onMounted(() => {
-  _scrollHandler = updateActiveGroup
-  // Use the scroll container prop if provided, otherwise fall back to known selectors
-  const containerEl = props.scrollContainer?.$el
-  if (containerEl) {
-    _scrollTargets = [containerEl]
-  } else {
-    const SELECTORS = [
-      () => document.querySelector('.app-content-vue'),
-      () => document.querySelector('.app-content'),
-    ]
-    _scrollTargets = SELECTORS.map(s => s()).filter(Boolean)
-  }
-  _scrollTargets.forEach(el => el.addEventListener('scroll', _scrollHandler, { passive: true }))
-  window.addEventListener('scroll', _scrollHandler, { passive: true })
+  // `.app-content-vue` is the scroller: the window never scrolls, so a window
+  // listener only ever added a second registration that could not fire.
+  _scrollTarget = resolveScrollRoot()
+  _scrollTarget?.addEventListener('scroll', scheduleActiveGroup, { passive: true })
+
+  renderObserver = new IntersectionObserver(
+    entries => { if (entries.some(e => e.isIntersecting)) growRenderWindow() },
+    // A page ahead of the viewport, so the next chunk is mounted before the
+    // user reaches the end of the current one.
+    { root: _scrollTarget, rootMargin: '800px 0px' },
+  )
+  if (sentinelEl.value) renderObserver.observe(sentinelEl.value)
+
   updateActiveGroup()
 })
-let _activeGroupTimer = null
+
 onBeforeUnmount(() => {
-  if (_scrollHandler) {
-    _scrollTargets.forEach(el => el.removeEventListener('scroll', _scrollHandler))
-    window.removeEventListener('scroll', _scrollHandler)
-  }
-  if (_activeGroupTimer) clearTimeout(_activeGroupTimer)
+  _scrollTarget?.removeEventListener('scroll', scheduleActiveGroup)
+  _scrollTarget = null
+  if (_activeGroupFrame !== null) cancelAnimationFrame(_activeGroupFrame)
+  _activeGroupFrame = null
+  renderObserver?.disconnect()
+  renderObserver = null
 })
-watch(groupedItems, () => {
-  if (_activeGroupTimer) clearTimeout(_activeGroupTimer)
-  _activeGroupTimer = setTimeout(updateActiveGroup, 50)
-})
+
+watch(visibleGroups, scheduleActiveGroup)
 
 function shortLabel(header) {
   if (header.length <= 3) return header
@@ -810,8 +923,25 @@ function shortLabel(header) {
   return header.slice(0, 3)
 }
 
-function scrollToGroup(header) {
+/** Items up to and including `header`, i.e. the window width needed to show it. */
+function itemsThroughGroup(header) {
+  let count = 0
+  for (const group of groupedItems.value) {
+    count += group.total
+    if (group.header === header) break
+  }
+  return count
+}
+
+async function scrollToGroup(header) {
   activeGroup.value = header
+  // The strip lists every group, including ones the render window hasn't
+  // reached — widen it so the target exists before scrolling to it.
+  const needed = itemsThroughGroup(header)
+  if (needed > renderLimit.value) {
+    renderLimit.value = Math.ceil(needed / RENDER_PAGE) * RENDER_PAGE
+    await nextTick()
+  }
   const el = groupEls.get(header)
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
@@ -1140,22 +1270,40 @@ function scrollToGroup(header) {
   flex-direction: column;
 }
 
-.cv-list-row {
+/* Row wrapper: owns the hover surface and lays the button out alongside the
+   per-item actions, which cannot live inside it. */
+.cv-list-item {
   display: flex;
   align-items: center;
   gap: 14px;
   padding: 8px 12px;
   border-radius: var(--border-radius-large);
-  cursor: pointer;
   transition: background 0.1s;
 }
 
-.cv-list-row:hover {
+.cv-list-item:hover {
   background: var(--color-background-hover);
 }
 
-.cv-list-row:hover .cv-list-actions {
+.cv-list-item:hover .cv-list-actions,
+.cv-list-item:focus-within .cv-list-actions {
   opacity: 1;
+}
+
+/* Reset the button chrome so the row reads exactly as it did as a div. */
+.cv-list-row {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .cv-list-thumb {
@@ -1230,6 +1378,11 @@ function scrollToGroup(header) {
     width: 100%;
     justify-content: flex-end;
   }
+}
+
+/* Growth trigger for the render window. Needs height to be observable. */
+.cv-sentinel {
+  height: 1px;
 }
 
 /* Quick-nav index */

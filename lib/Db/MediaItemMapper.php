@@ -9,17 +9,14 @@ use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Db\QBMapper;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
-use Psr\Log\LoggerInterface;
 
 /**
  * @extends QBMapper<MediaItem>
  */
 class MediaItemMapper extends QBMapper
 {
-    public function __construct(
-        IDBConnection $db,
-        private readonly LoggerInterface $logger,
-    ) {
+    public function __construct(IDBConnection $db)
+    {
         parent::__construct($db, 'crate_media_items', MediaItem::class);
     }
 
@@ -88,18 +85,13 @@ class MediaItemMapper extends QBMapper
 
         $this->applyFilters($qb, $status, $category, $updatedSince);
 
-        try {
-            $result = $qb->executeQuery();
-            $val = $result->fetchOne();
-            $result->closeCursor();
-            return (int) ($val ?? 0);
-        } catch (\Throwable $e) {
-            $this->logger->warning('MediaItemMapper::countAll failed: {msg}', [
-                'msg' => $e->getMessage(),
-                'app' => 'crate',
-            ]);
-            return 0;
-        }
+        // Errors propagate, as they do from findPaginated(): the two run the
+        // same filters over the same table, so swallowing a failure here would
+        // pair a full page of rows with a total of 0.
+        $result = $qb->executeQuery();
+        $val = $result->fetchOne();
+        $result->closeCursor();
+        return (int) ($val ?? 0);
     }
 
     /**
@@ -180,6 +172,10 @@ class MediaItemMapper extends QBMapper
                         $qb->expr()->andX(
                             $qb->expr()->eq('cs.shareable_type', $qb->createNamedParameter(CrateShare::TYPE_ALBUM)),
                             $qb->expr()->eq('cs.shareable_id', $idParam),
+                            // crate_shares has no FK to crate_media_items, so an
+                            // orphaned share row over a recycled autoincrement id
+                            // would otherwise grant access to an unrelated item.
+                            $qb->expr()->eq('cs.owner_user_id', 'mi.user_id'),
                         ),
                         $qb->expr()->andX(
                             $qb->expr()->eq('cs.shareable_type', $qb->createNamedParameter(CrateShare::TYPE_LIBRARY)),
@@ -211,6 +207,16 @@ class MediaItemMapper extends QBMapper
                     $qb->expr()->eq('csp.shared_with_user_id', $viewerParam),
                     $qb->expr()->eq('csp.shareable_type', $qb->createNamedParameter(CrateShare::TYPE_PLAYLIST)),
                     $qb->expr()->eq('csp.shareable_id', 'pi.playlist_id'),
+                    // A playlist share exposes the sharer's own tracks, plus
+                    // whatever the viewer contributed themselves. Only the
+                    // playlist's owner can create a share of it, so the share's
+                    // owner_user_id is the owner this item has to belong to —
+                    // otherwise a sharee could relay a third user's item onward
+                    // by adding it to a playlist and sharing that.
+                    $qb->expr()->orX(
+                        $qb->expr()->eq('csp.owner_user_id', 'mi.user_id'),
+                        $qb->expr()->eq('mi.user_id', $viewerParam),
+                    ),
                 ),
             )
             ->where($qb->expr()->eq('mi.id', $idParam))
@@ -262,6 +268,9 @@ class MediaItemMapper extends QBMapper
                         $qb->expr()->andX(
                             $qb->expr()->eq('cs.shareable_type', $qb->createNamedParameter(CrateShare::TYPE_ALBUM)),
                             $qb->expr()->eq('cs.shareable_id', $idParam),
+                            // As in findVisibleForUser: the share only counts
+                            // while its owner still owns the item.
+                            $qb->expr()->eq('cs.owner_user_id', 'mi.user_id'),
                         ),
                         $qb->expr()->andX(
                             $qb->expr()->eq('cs.shareable_type', $qb->createNamedParameter(CrateShare::TYPE_LIBRARY)),

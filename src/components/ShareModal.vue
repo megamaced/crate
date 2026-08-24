@@ -34,39 +34,12 @@
       </div>
 
       <!-- User search -->
-      <div class="share-search">
-        <input
-          v-model="query"
-          type="text"
-          placeholder="Search users by name or username…"
-          class="share-input"
-          autocomplete="off"
-          @input="onQueryInput"
-        >
-      </div>
-
-      <!-- Search results -->
-      <div
-        v-if="searchResults.length > 0"
-        class="share-results"
-      >
-        <button
-          v-for="user in searchResults"
-          :key="user.uid"
-          class="share-result-row"
-          @click="shareWith(user)"
-        >
-          <span class="share-result-name">{{ user.displayName }}</span>
-          <span class="share-result-uid">{{ user.uid }}</span>
-        </button>
-      </div>
-
-      <p
-        v-if="query.length >= 2 && searchResults.length === 0 && !searching"
-        class="share-no-results"
-      >
-        No users found.
-      </p>
+      <UserSearchField
+        ref="userSearch"
+        class="share-user-search"
+        :active="show"
+        @select="shareWith"
+      />
 
       <!-- Current shares -->
       <div
@@ -111,11 +84,12 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onBeforeUnmount } from 'vue'
 import { NcModal, NcButton, NcCheckboxRadioSwitch } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
 import { showError } from '@nextcloud/dialogs'
+import UserSearchField from './UserSearchField.vue'
 
 const props = defineProps({
   show: { type: Boolean, required: true },
@@ -134,15 +108,22 @@ defineEmits(['close'])
 
 const CATEGORY_LABELS = { music: 'Music', film: 'Films', book: 'Books', game: 'Games', comic: 'Comics' }
 
-const query = ref('')
-const searching = ref(false)
-const searchResults = ref([])
+const userSearch = ref(null)
 const currentShares = ref([])
 const allowWrite = ref(false)
 const statusMessage = ref('')
 const statusError = ref(false)
-let searchTimeout = null
-let searchController = null
+
+// One handle for the transient status line: a second share must not have the
+// first one's timer clear its message, and the timer must not outlive the modal.
+let statusTimer = null
+function flashStatus(text, isError, ms) {
+  clearTimeout(statusTimer)
+  statusError.value = isError
+  statusMessage.value = text
+  statusTimer = setTimeout(() => { statusMessage.value = '' }, ms)
+}
+onBeforeUnmount(() => clearTimeout(statusTimer))
 
 const displayName = computed(() => {
   if (!props.target) return ''
@@ -172,14 +153,8 @@ const subscopeHint = computed(() => {
 
 watch(() => props.show, async (open) => {
   if (!open) {
-    clearTimeout(searchTimeout)
-    searchTimeout = null
-    if (searchController) {
-      searchController.abort()
-      searchController = null
-    }
-    query.value = ''
-    searchResults.value = []
+    // UserSearchField drops its own timer and in-flight request via :active.
+    clearTimeout(statusTimer)
     statusMessage.value = ''
     allowWrite.value = false
     return
@@ -187,7 +162,10 @@ watch(() => props.show, async (open) => {
   if (props.target) {
     await loadCurrentShares()
   }
-})
+},
+// The modal is mounted only while open, so the first "open" is the mount
+// itself and never arrives as a change.
+{ immediate: true })
 
 // Reload shares when the parent reuses an open modal but switches target.
 watch(
@@ -226,48 +204,18 @@ async function loadCurrentShares() {
   }
 }
 
-function onQueryInput() {
-  clearTimeout(searchTimeout)
-  searchResults.value = []
-  if (query.value.trim().length < 2) return
-  searchTimeout = setTimeout(doSearch, 300)
-}
-
-async function doSearch() {
-  if (searchController) searchController.abort()
-  searchController = new AbortController()
-  searching.value = true
-  try {
-    const res = await axios.get(generateOcsUrl('/apps/crate/api/v1/users/search'), {
-      params: { q: query.value.trim() },
-      signal: searchController.signal,
-    })
-    searchResults.value = res.data.ocs?.data ?? []
-  } catch (e) {
-    if (e.name === 'CanceledError' || e.code === 'ERR_CANCELED') return
-    console.error('User search failed', e)
-    showError('User search failed')
-  } finally {
-    searching.value = false
-  }
-}
-
 async function shareWith(user) {
   const url = urlForCreate()
   if (!url) return
+  clearTimeout(statusTimer)
   statusMessage.value = ''
   try {
     await axios.post(url, { userId: user.uid, permission: allowWrite.value ? 'readwrite' : 'read' })
-    query.value = ''
-    searchResults.value = []
-    statusError.value = false
-    statusMessage.value = `Shared with ${user.displayName}.`
-    setTimeout(() => { statusMessage.value = '' }, 3000)
+    userSearch.value?.reset()
+    flashStatus(`Shared with ${user.displayName}.`, false, 3000)
     await loadCurrentShares()
   } catch (e) {
-    statusError.value = true
-    statusMessage.value = e.response?.data?.ocs?.data?.error ?? 'Failed to share.'
-    setTimeout(() => { statusMessage.value = '' }, 4000)
+    flashStatus(e.response?.data?.ocs?.data?.error ?? 'Failed to share.', true, 4000)
   }
 }
 
@@ -306,72 +254,8 @@ async function unshare(share) {
   color: var(--color-text-maxcontrast);
 }
 
-.share-search {
-  margin-bottom: 8px;
-}
-
-.share-input {
-  width: 100%;
-  box-sizing: border-box;
-  border: 2px solid var(--color-border-dark);
-  border-radius: var(--border-radius);
-  background: var(--color-background-dark);
-  color: var(--color-main-text);
-  padding: 8px 12px;
-  font-size: 0.9em;
-  font-family: inherit;
-}
-
-.share-input:focus {
-  border-color: var(--color-primary-element);
-  outline: none;
-  background: var(--color-main-background);
-}
-
-.share-results {
-  border: 1px solid var(--color-border);
-  border-radius: var(--border-radius);
-  overflow: hidden;
+.share-user-search {
   margin-bottom: 16px;
-}
-
-.share-result-row {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  width: 100%;
-  padding: 10px 14px;
-  border: none;
-  background: none;
-  cursor: pointer;
-  text-align: left;
-  transition: background 0.1s;
-  color: var(--color-main-text);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.share-result-row:last-child {
-  border-bottom: none;
-}
-
-.share-result-row:hover {
-  background: var(--color-background-hover);
-}
-
-.share-result-name {
-  font-weight: 500;
-  font-size: 0.875em;
-}
-
-.share-result-uid {
-  font-size: 0.78em;
-  color: var(--color-text-maxcontrast);
-}
-
-.share-no-results {
-  font-size: 0.875em;
-  color: var(--color-text-maxcontrast);
-  margin: 0 0 16px;
 }
 
 /* Current shares */

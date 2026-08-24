@@ -7,6 +7,7 @@ import { ref, watch } from 'vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
 import { settingsOnlineRecs } from '../api.js'
+import { readBool, readString, safeSet } from '../utils/localStore.js'
 
 const KEY_ENRICH_ON_CLICK  = 'crate_auto_enrich_click'
 const KEY_ENRICH_ON_IMPORT = 'crate_auto_enrich_import'
@@ -18,39 +19,13 @@ const KEY_ONLINE_RECS      = 'crate_online_recommendations'
 const ALL_CATEGORIES = ['music', 'film', 'book', 'game', 'comic']
 
 function readStringList(key) {
+  const raw = readString(key)
+  if (!raw) return []
   try {
-    const raw = localStorage.getItem(key)
-    if (!raw) return []
     const parsed = JSON.parse(raw)
     return Array.isArray(parsed) ? parsed.filter(v => ALL_CATEGORIES.includes(v)) : []
   } catch {
     return []
-  }
-}
-
-function readBool(key, defaultValue) {
-  try {
-    const val = localStorage.getItem(key)
-    if (val === null) return defaultValue
-    return val === 'true'
-  } catch {
-    return defaultValue
-  }
-}
-
-function readString(key, defaultValue) {
-  try {
-    return localStorage.getItem(key) ?? defaultValue
-  } catch {
-    return defaultValue
-  }
-}
-
-function safeSet(key, value) {
-  try {
-    localStorage.setItem(key, value)
-  } catch {
-    // Private-mode Safari, quota exceeded, sandboxed iframe — ignore
   }
 }
 
@@ -67,34 +42,50 @@ const onlineRecommendations  = ref(readBool(KEY_ONLINE_RECS, false))
 // fetched once per page load (cached for the rest of the session).
 const currencyOptions        = ref([])
 
-/** Whether the server settings have been loaded yet. */
-let serverLoaded = false
-/** Whether the currency allowlist has been fetched yet. */
-let currenciesLoaded = false
-/** Whether the hidden_categories list has been loaded from /api/v1/me yet. */
-let hiddenLoaded = false
 // Suppress watcher-driven server writes while we're applying values from
 // the server. Without this every page load echoes the just-loaded values
 // back to the server.
 let suppressPersist = false
 
-async function loadFromServer() {
-  if (serverLoaded) return
+/**
+ * Apply server-supplied values without echoing them straight back. The flag
+ * is cleared a microtask later so the watchers below have already seen (and
+ * skipped) the new values.
+ */
+function withoutPersisting(apply) {
+  suppressPersist = true
   try {
-    const res = await axios.get(generateOcsUrl('/apps/crate/api/v1/settings/market'))
-    const data = res.data.ocs?.data ?? {}
-    suppressPersist = true
-    if (data.autoEnrichOnClick !== undefined) autoEnrichOnClick.value = !!data.autoEnrichOnClick
-    if (data.autoEnrichOnImport !== undefined) autoEnrichOnImport.value = !!data.autoEnrichOnImport
-    if (data.autoFetchMarketRates !== undefined) autoFetchMarketRates.value = !!data.autoFetchMarketRates
-    if (data.marketCurrency) marketCurrency.value = data.marketCurrency
-    serverLoaded = true
-  } catch {
-    // Fall back to localStorage values — non-critical
+    apply()
   } finally {
-    // Wait one tick so the watchers see the new values then re-enable.
     queueMicrotask(() => { suppressPersist = false })
   }
+}
+
+/**
+ * Each loader memoises its in-flight *promise*, not a "loaded" boolean. Five
+ * components call useSettings() in the same tick on first paint, and a boolean
+ * that is only set after the await lets all five fire the same request. The
+ * promise is dropped again on failure so a later mount can retry.
+ */
+let marketPromise = null
+function loadFromServer() {
+  if (!marketPromise) {
+    marketPromise = axios.get(generateOcsUrl('/apps/crate/api/v1/settings/market'))
+      .then(res => {
+        const data = res.data.ocs?.data ?? {}
+        withoutPersisting(() => {
+          if (data.autoEnrichOnClick !== undefined) autoEnrichOnClick.value = !!data.autoEnrichOnClick
+          if (data.autoEnrichOnImport !== undefined) autoEnrichOnImport.value = !!data.autoEnrichOnImport
+          if (data.autoFetchMarketRates !== undefined) autoFetchMarketRates.value = !!data.autoFetchMarketRates
+          if (data.marketCurrency) marketCurrency.value = data.marketCurrency
+        })
+      })
+      .catch(() => {
+        // Fall back to localStorage values — non-critical.
+        marketPromise = null
+      })
+  }
+  return marketPromise
 }
 
 let saveTimer = null
@@ -164,37 +155,47 @@ function persistHiddenCategories() {
   }, 500)
 }
 
-async function loadHiddenCategoriesFromMe() {
-  if (hiddenLoaded) return
-  try {
-    const res = await axios.get(generateOcsUrl('/apps/crate/api/v1/me'))
-    const data = res.data.ocs?.data ?? {}
-    if (Array.isArray(data.hiddenCategories)) {
-      suppressPersist = true
-      hiddenCategories.value = data.hiddenCategories.filter(v => ALL_CATEGORIES.includes(v))
-      if (typeof data.onlineRecommendations === 'boolean') {
-        onlineRecommendations.value = data.onlineRecommendations
-      }
-      hiddenLoaded = true
-      queueMicrotask(() => { suppressPersist = false })
-    }
-  } catch {
-    // Stay on local value
+let hiddenPromise = null
+function loadHiddenCategoriesFromMe() {
+  if (!hiddenPromise) {
+    hiddenPromise = axios.get(generateOcsUrl('/apps/crate/api/v1/me'))
+      .then(res => {
+        const data = res.data.ocs?.data ?? {}
+        // A server without these keys is a successful answer, not a reason to
+        // ask again on every subsequent mount — the local values stand.
+        withoutPersisting(() => {
+          if (Array.isArray(data.hiddenCategories)) {
+            hiddenCategories.value = data.hiddenCategories.filter(v => ALL_CATEGORIES.includes(v))
+          }
+          if (typeof data.onlineRecommendations === 'boolean') {
+            onlineRecommendations.value = data.onlineRecommendations
+          }
+        })
+      })
+      .catch(() => {
+        // Stay on local value.
+        hiddenPromise = null
+      })
   }
+  return hiddenPromise
 }
 
-async function loadCurrencies() {
-  if (currenciesLoaded) return
-  try {
-    const res = await axios.get(generateOcsUrl('/apps/crate/api/v1/settings/currencies'))
-    const list = res.data.ocs?.data
-    if (Array.isArray(list) && list.length > 0) {
-      currencyOptions.value = list
-      currenciesLoaded = true
-    }
-  } catch {
-    // Caller falls back to whatever the marketCurrency is — non-critical
+let currenciesPromise = null
+function loadCurrencies() {
+  if (!currenciesPromise) {
+    currenciesPromise = axios.get(generateOcsUrl('/apps/crate/api/v1/settings/currencies'))
+      .then(res => {
+        const list = res.data.ocs?.data
+        if (Array.isArray(list) && list.length > 0) {
+          currencyOptions.value = list
+        }
+      })
+      .catch(() => {
+        // Caller falls back to whatever the marketCurrency is — non-critical.
+        currenciesPromise = null
+      })
   }
+  return currenciesPromise
 }
 
 export function useSettings() {

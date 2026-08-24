@@ -123,11 +123,42 @@ export function compareItems(a, b, field, dir) {
 /**
  * Sort a copy of `items` by the given axis and direction.
  *
+ * Decorates each item with its key tuple once, sorts on the tuples, then
+ * undecorates. The accessors are the expensive part — artistKey runs a regex
+ * plus a trim and a lowercase — and calling them per comparison means running
+ * each one ~2·n·log(n) times instead of once.
+ *
+ * Ordering is identical to a plain sort on compareItems(): the tuple is that
+ * comparator's primary key followed by its tiebreak chain, compared in the
+ * same order, with only the primary honouring `dir`.
+ *
  * @param {Array<object>} items items to order
  * @param {string} field primary axis — a key of KEYS
  * @param {string} dir 'asc' or 'desc'
  * @return {Array<object>} a new, ordered array
  */
 export function sortItems(items, field, dir) {
-	return [...items].sort((a, b) => compareItems(a, b, field, dir))
+	const primary = KEYS[field] ?? null
+	const tiebreaks = (TIEBREAKS[field] ?? ['id']).map(f => KEYS[f]).filter(Boolean)
+	// Only the primary axis honours the direction, matching compareItems().
+	const sign = dir === 'desc' ? -1 : 1
+
+	const decorated = items.map(item => ({
+		item,
+		// An unrecognised axis compares equal for every item, as compareOn() does,
+		// leaving the tiebreak chain to decide the order.
+		keys: [primary ? primary(item) : 0, ...tiebreaks.map(key => key(item))],
+	}))
+
+	decorated.sort((a, b) => {
+		if (a.keys[0] < b.keys[0]) return -sign
+		if (a.keys[0] > b.keys[0]) return sign
+		for (let i = 1; i < a.keys.length; i++) {
+			if (a.keys[i] < b.keys[i]) return -1
+			if (a.keys[i] > b.keys[i]) return 1
+		}
+		return 0
+	})
+
+	return decorated.map(d => d.item)
 }

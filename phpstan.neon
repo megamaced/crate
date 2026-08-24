@@ -1,0 +1,9 @@
+parameters:
+    level: 5
+    paths:
+        - lib
+    # OCP interfaces are supplied by nextcloud/ocp as stubs; the app itself is
+    # autoloaded by the server at runtime, so they are never a real dependency.
+    scanDirectories:
+        - vendor/nextcloud/ocp
+    treatPhpDocTypesAsCertain: false

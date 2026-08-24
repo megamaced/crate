@@ -275,7 +275,7 @@ class SettingsController extends OCSController
 
         if (!empty($rejected)) {
             return new DataResponse(
-                ['error' => 'Unknown categories in request.', 'rejected' => array_values($rejected)],
+                ['error' => 'Unknown categories in request.', 'rejected' => $rejected],
                 Http::STATUS_BAD_REQUEST,
             );
         }

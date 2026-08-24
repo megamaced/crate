@@ -1,6 +1,12 @@
 <template>
-  <div
+  <!--
+    The card is the primary way into an item, so it has to be a real button:
+    focusable, activated by Enter/Space, and named for a screen reader.
+  -->
+  <button
+    type="button"
     class="media-card"
+    :aria-label="'Open ' + itemLabel"
     @click="$emit('detail', item)"
   >
     <MediaThumb
@@ -27,14 +33,15 @@
         class="media-card-owner"
       >Shared by {{ ownerLabel }}</span>
     </div>
-  </div>
+  </button>
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { formatMarketValue } from '../utils/formatMarketValue.js'
 import MediaThumb from './MediaThumb.vue'
 
-defineProps({
+const props = defineProps({
   item: { type: Object, required: true },
   // Optional "Shared by {uid}" caption — only supplied by the shared-category
   // view when the same category is shared by more than one owner.
@@ -45,10 +52,22 @@ defineProps({
 })
 
 defineEmits(['detail'])
+
+const itemLabel = computed(() =>
+  [props.item.title, props.item.artist].filter(Boolean).join(' — '),
+)
 </script>
 
 <style scoped>
+/* Button chrome reset, so the card renders exactly as it did as a div. */
 .media-card {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  text-align: left;
+  font: inherit;
+  color: inherit;
   border-radius: var(--border-radius-large);
   overflow: hidden;
   background: var(--color-background-dark);

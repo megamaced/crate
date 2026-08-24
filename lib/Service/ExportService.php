@@ -349,10 +349,11 @@ class ExportService
     }
 
     /**
-     * Prevent CSV/spreadsheet formula injection: cells whose first character
-     * is =, +, -, @, TAB or CR can trigger formula evaluation when opened in
+     * Prevent CSV formula injection: cells whose first character is =, +, -,
+     * @, TAB or CR can trigger formula evaluation when the CSV is opened in
      * Excel / LibreOffice / Google Sheets. Prefix with a single quote so the
-     * content is treated as text.
+     * content is treated as text. CSV only — an XLSX inline string is never
+     * evaluated, so prefixing there would corrupt the value.
      */
     private function sanitizeForSpreadsheet(mixed $value): string
     {
@@ -502,7 +503,9 @@ class ExportService
             $xml   .= '<row r="' . $rowNum . '">';
             foreach ($row as $ci => $value) {
                 $ref  = $this->cellRef($ci, $rowNum);
-                $text = htmlspecialchars($this->sanitizeForSpreadsheet($value), ENT_XML1 | ENT_QUOTES, 'UTF-8');
+                // No formula guard here: only a <f> element is evaluated, so an
+                // inline string is text by construction.
+                $text = htmlspecialchars((string) $value, ENT_XML1 | ENT_QUOTES, 'UTF-8');
                 $xml .= '<c r="' . $ref . '" t="inlineStr"><is><t>' . $text . '</t></is></c>';
             }
             $xml .= '</row>';

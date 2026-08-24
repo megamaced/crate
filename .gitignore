@@ -2,3 +2,7 @@ node_modules/
 vendor/
 js/
 .phpunit.cache/
+
+# Release archive produced by the packaging step
+*.tar.gz
+coverage.xml

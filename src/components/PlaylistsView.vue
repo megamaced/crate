@@ -48,7 +48,7 @@
       >
         <div
           class="pv-card-art"
-          :style="(pl.coverIds?.length ?? 0) <= 1 ? coverStyle(pl) : {}"
+          :style="(pl.coverIds?.length ?? 0) <= 1 ? artworkStyleForId(pl.coverId) : {}"
         >
           <div
             v-if="(pl.coverIds?.length ?? 0) > 1"
@@ -58,7 +58,7 @@
               v-for="cid in pl.coverIds.slice(0, 4)"
               :key="cid"
               class="pv-art-cell"
-              :style="artCellStyle(cid)"
+              :style="artworkStyleForId(cid)"
             />
           </div>
           <span class="pv-card-count">{{ playlistCountLabel(pl.itemCount, pl.categories) }}</span>
@@ -218,7 +218,8 @@
 import { ref, onMounted } from 'vue'
 import { NcButton, NcDialog } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
-import { generateUrl, generateOcsUrl } from '@nextcloud/router'
+import { generateOcsUrl } from '@nextcloud/router'
+import { artworkStyleForId } from '../composables/useArtworkStyle.js'
 import { showError } from '@nextcloud/dialogs'
 import { playlistCountLabel } from '../utils/categoryFormats.js'
 
@@ -238,19 +239,6 @@ const renameDesc = ref('')
 const renaming = ref(false)
 
 const deletingPlaylist = ref(null)
-
-function coverStyle(pl) {
-  if (pl.coverId) {
-    const url = generateUrl('/apps/crate/artwork/' + pl.coverId)
-    return { backgroundImage: `url(${url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-  }
-  return { background: 'linear-gradient(135deg, #374151, #6b7280)' }
-}
-
-function artCellStyle(mediaItemId) {
-  const url = generateUrl('/apps/crate/artwork/' + mediaItemId)
-  return { backgroundImage: `url(${url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-}
 
 async function load() {
   loading.value = true

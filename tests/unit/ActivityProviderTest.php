@@ -27,7 +27,11 @@ class ActivityProviderTest extends TestCase
 
     public function testItemCreatedLinksToTheItemDetailView(): void
     {
-        $this->parseEvent('item_created', 42, ['title' => 'OK Computer', 'artist' => 'Radiohead', 'category' => 'music']);
+        $this->parseEvent(
+            'item_created',
+            42,
+            ['title' => 'OK Computer', 'artist' => 'Radiohead', 'category' => 'music'],
+        );
 
         self::assertSame('highlight', $this->richParameters['item']['type']);
         self::assertSame('Radiohead – OK Computer', $this->richParameters['item']['name']);

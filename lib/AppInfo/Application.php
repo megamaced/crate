@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace OCA\Crate\AppInfo;
 
-use OCA\Crate\Listener\ContentSecurityPolicyListener;
+use OCA\Crate\Listener\UserDeletedListener;
 use OCP\AppFramework\App;
 use OCP\AppFramework\Bootstrap\IBootContext;
 use OCP\AppFramework\Bootstrap\IBootstrap;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
-use OCP\Security\CSP\AddContentSecurityPolicyEvent;
+use OCP\User\Events\UserDeletedEvent;
 
 class Application extends App implements IBootstrap
 {
@@ -23,7 +23,7 @@ class Application extends App implements IBootstrap
     public function register(IRegistrationContext $context): void
     {
         $context->registerSearchProvider(\OCA\Crate\Search\Provider::class);
-        $context->registerEventListener(AddContentSecurityPolicyEvent::class, ContentSecurityPolicyListener::class);
+        $context->registerEventListener(UserDeletedEvent::class, UserDeletedListener::class);
     }
 
     public function boot(IBootContext $context): void

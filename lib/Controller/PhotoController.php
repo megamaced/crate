@@ -73,6 +73,7 @@ class PhotoController extends Controller
      */
     #[NoAdminRequired]
     #[NoCSRFRequired]
+    #[UserRateLimit(limit: 1200, period: 60)]
     public function get(int $itemId, int $slot, string $size = 'full'): Response
     {
         $user = $this->userSession->getUser();
@@ -110,7 +111,7 @@ class PhotoController extends Controller
                 }
                 $response = new FileDisplayResponse($file, Http::STATUS_OK, ['Content-Type' => $mime]);
                 $response->cacheFor(3600);
-                return $response;
+                return $this->hardenImageResponse($response);
             } catch (NotFoundException) {
             }
         }
@@ -166,6 +167,19 @@ class PhotoController extends Controller
             default      => '.jpg',
         };
 
+        // Read and re-encode the bytes before the transaction opens. The pixel
+        // budget has to be settled out here: a decode that exhausts
+        // memory_limit is a fatal error, and inside the transaction below that
+        // would leave neither a commit nor a rollback.
+        $bytes = (string) file_get_contents($uploadedFile['tmp_name']);
+        if (!$this->gdDimensionsWithinBudget($bytes)) {
+            return new DataResponse(['error' => 'Image dimensions too large'], 413);
+        }
+        // Strip EXIF/IPTC/XMP before persisting. Photos are the "receipts
+        // and personal photos" slot — phone-gallery uploads commonly
+        // carry GPS, timestamps, camera serials. See GdImageTrait.
+        $bytes = $this->stripImageMetadata($bytes, (string) $mime);
+
         $appData = $this->appDataFactory->get('crate');
         try {
             $folder = $appData->getFolder('photos');
@@ -188,12 +202,7 @@ class PhotoController extends Controller
                 }
             }
 
-            $bytes = (string) file_get_contents($uploadedFile['tmp_name']);
-            // Strip EXIF/IPTC/XMP before persisting. Photos are the "receipts
-            // and personal photos" slot — phone-gallery uploads commonly
-            // carry GPS, timestamps, camera serials. See GdImageTrait.
-            $bytes = $this->stripImageMetadata($bytes, (string) $mime);
-            $file  = $folder->newFile($this->fileName($itemId, $slot, $ext));
+            $file = $folder->newFile($this->fileName($itemId, $slot, $ext));
             $file->putContent($bytes);
 
             if ($slot === 1) {

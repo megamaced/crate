@@ -21,12 +21,21 @@ export function createApiQueue(urlFn, payloadFn = () => ({}), opts = {}) {
   const failed = ref(0)
   const finished = ref(true)
   let cancelRequested = false
-  /** Live args — updated via `updateArgs()` and read fresh per item. */
-  let liveArgs = []
-  /** Pending ids awaiting processing. Appended to by subsequent start() calls. */
+  /**
+   * Pending `{ id, args }` entries. Each entry carries the arguments its own
+   * start() call supplied, so a batch appended to a running drain is sent with
+   * its own arguments — a second start() at a different currency must not price
+   * its items in the running batch's currency.
+   */
   const pending = []
   /** Promise resolvers waiting for the current drain to complete. */
   const finishWaiters = []
+  /**
+   * Bumped by reset(). A drain loop captures it on entry and re-checks after
+   * every await, so a reset mid-item abandons the old loop instead of letting
+   * its in-flight item write counters that the reset has already zeroed.
+   */
+  let epoch = 0
 
   const progress = computed(() =>
     total.value === 0 ? 100 : Math.round((done.value / total.value) * 100),
@@ -49,11 +58,10 @@ export function createApiQueue(urlFn, payloadFn = () => ({}), opts = {}) {
     if (!itemIds?.length) return
 
     const waiter = new Promise(resolve => finishWaiters.push(resolve))
+    const entries = itemIds.map(id => ({ id, args }))
 
     if (!finished.value) {
-      // Already running: append and extend the progress bar. `liveArgs`
-      // isn't overwritten — the in-flight call owns them — but callers
-      // can still mutate via updateArgs() if needed (e.g. currency).
+      // Already running: append and extend the progress bar.
       //
       // A cancel may have just been requested while the loop is still
       // finishing its in-flight item (finished is not yet true). If we
@@ -67,7 +75,7 @@ export function createApiQueue(urlFn, payloadFn = () => ({}), opts = {}) {
       } else {
         total.value += itemIds.length
       }
-      pending.push(...itemIds)
+      pending.push(...entries)
       return waiter
     }
 
@@ -77,22 +85,25 @@ export function createApiQueue(urlFn, payloadFn = () => ({}), opts = {}) {
     failed.value = 0
     finished.value = false
     cancelRequested = false
-    liveArgs = args
-    pending.push(...itemIds)
+    pending.push(...entries)
 
     // Fire the drain loop without awaiting here — callers await via `waiter`.
-    drainLoop()
+    drainLoop(epoch)
     return waiter
   }
 
-  async function drainLoop() {
+  async function drainLoop(myEpoch) {
     while (pending.length > 0) {
       if (cancelRequested) break
-      const id = pending.shift()
-      const ok = await processWithRetry(id)
+      const entry = pending.shift()
+      const ok = await processWithRetry(entry)
+      // A reset() during that request owns the counters now; leave them alone
+      // and let the run that reset started (if any) report progress.
+      if (myEpoch !== epoch) return
       if (!ok) failed.value++
       done.value++
       if (!cancelRequested && pending.length > 0) await sleep(delay)
+      if (myEpoch !== epoch) return
     }
     finished.value = true
     // Resolve every caller waiting on this drain in one pass, then clear
@@ -101,19 +112,11 @@ export function createApiQueue(urlFn, payloadFn = () => ({}), opts = {}) {
     for (const r of resolvers) r()
   }
 
-  /**
-   * Update the extra arguments passed to `payloadFn` for subsequent items.
-   * Allows mid-run changes (e.g. currency switch) without restarting.
-   */
-  function updateArgs(...args) {
-    liveArgs = args
-  }
-
   /** @returns {boolean} true if the item succeeded */
-  async function processWithRetry(id) {
+  async function processWithRetry(entry) {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       if (cancelRequested) return false
-      const result = await processOne(id)
+      const result = await processOne(entry)
       if (result === 'ok') return true
       if (result === 'rate-limited' && attempt < maxRetries) {
         // Exponential backoff: retryDelay * 2^attempt
@@ -126,11 +129,11 @@ export function createApiQueue(urlFn, payloadFn = () => ({}), opts = {}) {
   }
 
   /** @returns {'ok' | 'rate-limited' | 'error'} */
-  async function processOne(id) {
+  async function processOne(entry) {
     try {
       // __silent: the queue surfaces its own progress / failed counters,
       // so the global axios interceptor must not toast per-item 429s.
-      await axios.post(urlFn(id), payloadFn(id, ...liveArgs), { __silent: true })
+      await axios.post(urlFn(entry.id), payloadFn(entry.id, ...entry.args), { __silent: true })
       return 'ok'
     } catch (err) {
       if (err.response?.status === 429) return 'rate-limited'
@@ -146,12 +149,12 @@ export function createApiQueue(urlFn, payloadFn = () => ({}), opts = {}) {
   }
 
   function reset() {
+    epoch++
     total.value = 0
     done.value = 0
     failed.value = 0
     finished.value = true
     cancelRequested = false
-    liveArgs = []
     pending.length = 0
     // Any orphaned waiters (cancelled drain) resolve so awaiters don't hang.
     const resolvers = finishWaiters.splice(0)
@@ -162,5 +165,5 @@ export function createApiQueue(urlFn, payloadFn = () => ({}), opts = {}) {
     return new Promise(resolve => setTimeout(resolve, ms))
   }
 
-  return { total, done, failed, finished, progress, running, start, cancel, reset, updateArgs }
+  return { total, done, failed, finished, progress, running, start, cancel, reset }
 }

@@ -316,11 +316,13 @@
 
     <div
       v-if="lightboxSlot !== null"
+      ref="lightboxEl"
       class="detail-photo-lightbox"
       role="dialog"
       aria-modal="true"
+      tabindex="-1"
+      :aria-label="`Photo ${lightboxSlot}`"
       @click="closeLightbox"
-      @keydown.esc="closeLightbox"
     >
       <img
         class="detail-photo-lightbox-img"
@@ -342,7 +344,7 @@
 
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 
 import { NcButton } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
@@ -353,6 +355,8 @@ import { formatMarketValue } from '../utils/formatMarketValue.js'
 import { genreTokens } from '../utils/genres.js'
 import { useArtworkStyle } from '../composables/useArtworkStyle.js'
 import { mediaRecommendations, photoGet } from '../api.js'
+import { ENRICHMENT_ID_KEY } from '../utils/enrichmentProviders.js'
+import { cssUrl } from '../utils/artworkUrl.js'
 import RecommendationRail from './RecommendationRail.vue'
 
 const props = defineProps({
@@ -476,10 +480,12 @@ async function fetchMarketValue() {
 function formatPrice(value, currency) {
   if (value == null) return ''
   const c = currency ?? 'USD'
+  // The API may serialise a decimal column as a JSON string.
+  const n = Number(value)
   try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency: c }).format(value)
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency: c }).format(n)
   } catch {
-    return `${c} ${value.toFixed(2)}`
+    return `${c} ${Number.isFinite(n) ? n.toFixed(2) : value}`
   }
 }
 
@@ -499,19 +505,51 @@ function photoUrl(slot, size = 'full') {
 
 function photoStyle(slot) {
   return {
-    backgroundImage: `url(${photoUrl(slot, 'thumb')})`,
+    backgroundImage: cssUrl(photoUrl(slot, 'thumb')),
     backgroundSize: 'cover',
     backgroundPosition: 'center',
   }
 }
 
+// The overlay is a plain div, so Esc has to come from a window listener: a
+// @keydown on the div only fires once the div holds focus, and focus has to be
+// moved there deliberately. Focus returns to the thumbnail that opened it, and
+// the body is locked so the page behind doesn't scroll under the overlay.
+const lightboxEl = ref(null)
+let lightboxOpener = null
+let bodyOverflowBeforeLightbox = ''
+
+function onLightboxKeydown(e) {
+  if (e.key === 'Escape') {
+    e.stopPropagation()
+    closeLightbox()
+  }
+}
+
 function openLightbox(slot) {
+  if (lightboxSlot.value !== null) return
+  lightboxOpener = document.activeElement
+  bodyOverflowBeforeLightbox = document.body.style.overflow
+  document.body.style.overflow = 'hidden'
+  window.addEventListener('keydown', onLightboxKeydown)
   lightboxSlot.value = slot
+  nextTick(() => lightboxEl.value?.focus())
 }
 
 function closeLightbox() {
+  if (lightboxSlot.value === null) return
   lightboxSlot.value = null
+  releaseLightbox()
+  lightboxOpener?.focus?.()
+  lightboxOpener = null
 }
+
+function releaseLightbox() {
+  window.removeEventListener('keydown', onLightboxKeydown)
+  document.body.style.overflow = bodyOverflowBeforeLightbox
+}
+
+onBeforeUnmount(releaseLightbox)
 
 /**
  * Compares purchase price against current market value. Returns null when
@@ -567,16 +605,6 @@ const localSuggestions  = ref([])
 const onlineSuggestions = ref([])
 const onlineSource      = ref('')
 
-// The provider-specific id key for each category, matching the shape each
-// provider's search results already use.
-const SUGGESTION_ID_KEY = {
-  music: 'discogsId',
-  film:  'tmdbId',
-  book:  'workKey',
-  game:  'rawgId',
-  comic: 'comicVineId',
-}
-
 const localRail = computed(() => localSuggestions.value.map(item => ({
   key:      `local-${item.id}`,
   title:    item.title,
@@ -586,22 +614,28 @@ const localRail = computed(() => localSuggestions.value.map(item => ({
 })))
 
 const onlineRail = computed(() => {
-  const idKey = SUGGESTION_ID_KEY[props.item.category] ?? 'discogsId'
+  const idKey = ENRICHMENT_ID_KEY[props.item.category] ?? 'discogsId'
   return onlineSuggestions.value.map((result, i) => ({
     key:      `online-${result[idKey] ?? i}`,
     title:    result.title,
     subtitle: [result.artist, result.year].filter(Boolean).join(' · '),
     tooltip:  `Add ${result.title} to your wishlist`,
     thumb:    result.thumb ?? result.artworkUrl ?? null,
+    result,
   }))
 })
 
 async function loadRecommendations() {
+  // Clicking through the rail re-enters this for a new item while the previous
+  // request is still out; without the id check a late response would paint the
+  // previous item's suggestions under the new item's header.
+  const requestedId = props.item.id
   localSuggestions.value = []
   onlineSuggestions.value = []
   onlineSource.value = ''
   try {
-    const res = await axios.get(mediaRecommendations(props.item.id))
+    const res = await axios.get(mediaRecommendations(requestedId))
+    if (props.item.id !== requestedId) return
     const data = res.data.ocs?.data ?? {}
     localSuggestions.value  = Array.isArray(data.local) ? data.local : []
     onlineSuggestions.value = Array.isArray(data.online) ? data.online : []
@@ -611,16 +645,17 @@ async function loadRecommendations() {
   }
 }
 
-function onLocalPick({ index }) {
-  const item = localSuggestions.value[index]
-  if (item) emit('open-item', item)
+// The rail emits the entry it actually rendered. Re-reading the source array by
+// index would open whichever item a response that landed between paint and
+// click had swapped into that position.
+function onLocalPick({ entry }) {
+  if (entry?.item) emit('open-item', entry.item)
 }
 
 // Online suggestions are things the user doesn't own, so picking one opens the
 // add form pre-filled and defaulted to the wishlist.
-function onOnlinePick({ index }) {
-  const result = onlineSuggestions.value[index]
-  if (result) emit('add-suggestion', { category: props.item.category, result })
+function onOnlinePick({ entry }) {
+  if (entry?.result) emit('add-suggestion', { category: props.item.category, result: entry.result })
 }
 
 onMounted(() => {

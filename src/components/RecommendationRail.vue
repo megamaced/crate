@@ -38,8 +38,9 @@
           <!--
             Online suggestions come straight from the provider's CDN. Those
             hosts are already allow-listed for search-result thumbnails
-            (ContentSecurityPolicyListener), which is why reusing the search
-            result shape here needs no CSP change.
+            (CrateImageHosts, applied to the page in PageController::index),
+            which is why reusing the search result shape here needs no CSP
+            change.
           -->
           <div
             v-else

@@ -7,8 +7,10 @@ on:
   pull_request:
     branches: [main]
 
+# Read-only by default. Only the release job is granted contents: write, so the
+# jobs that run composer/npm install scripts never hold a token that can push.
 permissions:
-  contents: write   # needed to upload release assets on tag pushes
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -20,36 +22,57 @@ env:
 jobs:
   php:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        # composer.json requires php ^8.2, so the floor is linted too — the app
+        # is installable on Nextcloud versions that ship 8.2 and 8.3.
+        php: ['8.2', '8.3', '8.4']
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: shivammathur/setup-php@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          # 8.4 to satisfy PHPUnit 13's dev-time requirement; the app's
-          # runtime requirement (composer.json) is still PHP 8.2+.
-          php-version: '8.4'
+          persist-credentials: false
+
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+        with:
+          php-version: ${{ matrix.php }}
           tools: composer:v2
           coverage: none
 
       - name: Cache Composer
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.composer/cache
-          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
-          restore-keys: ${{ runner.os }}-composer-
+          key: ${{ runner.os }}-php${{ matrix.php }}-composer-${{ hashFiles('composer.lock') }}
+          restore-keys: ${{ runner.os }}-php${{ matrix.php }}-composer-
 
       - run: composer install --no-interaction --no-progress
 
-      - run: vendor/bin/phpcs --standard=PSR12 lib/
+      - run: vendor/bin/phpcs --standard=PSR12 lib/ tests/
 
-      - run: vendor/bin/phpunit --testsuite unit
+      # Level 5 with no baseline. doctrine/dbal is a dev dependency pinned to
+      # the major Nextcloud ships (^3.10), so migration signatures are analysed
+      # against the DBAL the app actually runs on.
+      - run: vendor/bin/phpstan analyse --no-progress --memory-limit=1G
+
+      # PHPUnit 13 itself requires 8.4, so the suite runs on that leg only; the
+      # 8.2 and 8.3 legs still lint and syntax-check every file.
+      - if: matrix.php == '8.4'
+        run: vendor/bin/phpunit --testsuite unit
+
+      - if: matrix.php != '8.4'
+        run: find lib tests -name '*.php' -print0 | xargs -0 -n1 php -l
 
   js:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '24'
           cache: npm
@@ -61,7 +84,7 @@ jobs:
       - run: npm run build
 
       - name: Upload built JS bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: crate-js-${{ github.sha }}
           path: js/
@@ -72,17 +95,21 @@ jobs:
     needs: [php, js]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          node-version: '24'
-          cache: npm
+          persist-credentials: false
 
-      - run: npm ci
-
-      - run: npm run build
+      # Package the exact bundle the js job linted and built, rather than a
+      # second independent webpack run over the same inputs.
+      - name: Download built JS bundle
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: crate-js-${{ github.sha }}
+          path: js/
 
       - name: Build release archive
         env:
@@ -94,7 +121,7 @@ jobs:
           cp -r appinfo img lib templates js LICENSE README.md "$STAGE/crate/"
           tar -C "$STAGE" -czf "crate-${VERSION}.tar.gz" crate
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           files: crate-*.tar.gz
           generate_release_notes: true

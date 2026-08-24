@@ -23,7 +23,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { FORMAT_COLOURS } from '../utils/formatColours.js'
+import { formatColours } from '../utils/formatColours.js'
 import { artworkUrl } from '../utils/artworkUrl.js'
 
 const props = defineProps({
@@ -32,7 +32,7 @@ const props = defineProps({
 
 const artUrl = computed(() => (props.item ? artworkUrl(props.item) : ''))
 const fallbackStyle = computed(() => {
-  const colours = FORMAT_COLOURS[props.item?.format] ?? ['#374151', '#6b7280']
+  const colours = formatColours(props.item?.format)
   return { background: `linear-gradient(135deg, ${colours[0]}, ${colours[1]})` }
 })
 </script>

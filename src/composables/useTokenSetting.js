@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { onBeforeUnmount, ref } from 'vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
 import { showError } from '@nextcloud/dialogs'
@@ -20,6 +20,17 @@ export function useTokenSetting({ endpoint, payloadKey = 'token', responseKey = 
 
 	const url = () => generateOcsUrl(`/apps/crate/api/v1${endpoint}`)
 
+	// One handle for the transient "Saved!" / "removed." message. A second save
+	// must not have the first save's timer wipe its message, and the timer must
+	// not outlive the component.
+	let messageTimer = null
+	function flashMessage(text, ms = 3000) {
+		clearTimeout(messageTimer)
+		message.value = text
+		messageTimer = setTimeout(() => { message.value = '' }, ms)
+	}
+	onBeforeUnmount(() => clearTimeout(messageTimer))
+
 	async function load() {
 		try {
 			const res = await axios.get(url())
@@ -31,15 +42,16 @@ export function useTokenSetting({ endpoint, payloadKey = 'token', responseKey = 
 
 	async function save() {
 		saving.value = true
+		clearTimeout(messageTimer)
 		message.value = ''
 		try {
 			await axios.post(url(), { [payloadKey]: input.value })
 			hasValue.value = input.value !== ''
-			message.value = 'Saved!'
-			setTimeout(() => { message.value = '' }, 3000)
+			flashMessage('Saved!')
 		} catch (e) {
 			console.error(`Failed to save ${label}`, e?.response?.status)
 			showError(`Failed to save ${label}`)
+			clearTimeout(messageTimer)
 			message.value = 'Failed to save.'
 		} finally {
 			saving.value = false
@@ -52,8 +64,7 @@ export function useTokenSetting({ endpoint, payloadKey = 'token', responseKey = 
 			await axios.post(url(), { [payloadKey]: '' })
 			hasValue.value = false
 			input.value = ''
-			message.value = `${label} removed.`
-			setTimeout(() => { message.value = '' }, 3000)
+			flashMessage(`${label} removed.`)
 		} catch (e) {
 			console.error(`Failed to clear ${label}`, e?.response?.status)
 			showError(`Failed to clear ${label}`)

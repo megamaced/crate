@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Crate\Service;
 
 use OCA\Crate\CrateCategories;
+use OCA\Crate\CrateImageHosts;
 use OCA\Crate\Db\CrateShareMapper;
 use OCA\Crate\Db\MediaItem;
 use OCA\Crate\Db\MediaItemMapper;
@@ -165,7 +166,7 @@ class MediaService
         $item->setNotes($data->notes);
         $item->setStatus($data->status);
         $item->setDiscogsId($data->discogsId);
-        $item->setArtworkPath($data->artworkPath);
+        $item->setArtworkPath($this->validateArtworkPath($data->artworkPath));
         $item->setLabel($data->label);
         $item->setCountry($data->country);
         $item->setPurchasePrice($data->purchasePrice);
@@ -186,6 +187,7 @@ class MediaService
     ): MediaItem {
         // Owner or a read/write sharee may edit. (Delete stays owner-only.)
         $item = $this->mapper->findWritableForUser($id, $userId);
+        $previousArtworkPath = $item->getArtworkPath();
         $item->setTitle($data->title);
         $item->setArtist($data->artist);
         $item->setFormat($data->format);
@@ -198,7 +200,7 @@ class MediaService
         // so that enriched data is not wiped when the user edits notes or other basic fields.
         // null = don't change; empty string = clear to null; non-empty = set value.
         if ($data->artworkPath !== null) {
-            $item->setArtworkPath($data->artworkPath !== '' ? $data->artworkPath : null);
+            $item->setArtworkPath($this->validateArtworkPath($data->artworkPath, $previousArtworkPath));
         }
         if ($data->label !== null) {
             $item->setLabel($data->label !== '' ? $data->label : null);
@@ -217,8 +219,51 @@ class MediaService
         }
         $item->setUpdatedAt((new \DateTime())->format('Y-m-d H:i:s'));
         $item = $this->mapper->update($item);
+        $this->purgeStaleArtworkCache($id, $previousArtworkPath, $item->getArtworkPath());
         $this->activityService->itemUpdated($item, $userId);
         return $item;
+    }
+
+    /**
+     * Accept only artwork paths the artwork endpoint can actually serve: the
+     * 'local' marker, an https URL on an enrichment host, or nothing at all.
+     * The column is a free-form string a writer supplies directly, and its
+     * value ends up in clients as an image source.
+     *
+     * A value identical to what is already stored passes untouched: the edit
+     * form sends the item's current artwork back with every save, and a row
+     * predating this rule must stay editable.
+     *
+     * @throws \InvalidArgumentException if the value is neither
+     */
+    private function validateArtworkPath(?string $artworkPath, ?string $storedPath = null): ?string
+    {
+        if ($artworkPath === null || $artworkPath === '') {
+            return null;
+        }
+        if ($artworkPath === $storedPath) {
+            return $artworkPath;
+        }
+        if (!CrateImageHosts::isValidArtworkPath($artworkPath)) {
+            throw new \InvalidArgumentException('Invalid artworkPath.');
+        }
+        return $artworkPath;
+    }
+
+    /**
+     * Drop the appdata cache for an item whose artwork source has moved on.
+     *
+     * The cache file is named after the item id and extension alone, so a new
+     * remote URL with the same extension keeps serving the old picture. A
+     * 'local' predecessor is left alone: that file is the user's own upload,
+     * which stripEnrichment() restores the item to.
+     */
+    private function purgeStaleArtworkCache(int $itemId, ?string $previousPath, ?string $currentPath): void
+    {
+        if ($previousPath === null || $previousPath === 'local' || $previousPath === $currentPath) {
+            return;
+        }
+        $this->deleteArtworkFiles($itemId);
     }
 
     public function delete(int $id, string $userId): void
@@ -376,6 +421,60 @@ class MediaService
     }
 
     /**
+     * Remove every trace of $userId's Crate data: their items and playlists,
+     * the playlist rows their items appear in elsewhere, the shares they
+     * granted and the shares they received, and the artwork and photo files
+     * those items own in appdata.
+     *
+     * Shares are cleared on both sides because crate_shares holds plain UIDs
+     * with no foreign key to the accounts table: left behind, the granted ones
+     * keep a deleted user's collection readable, and the received ones hand
+     * every one of those collections to whoever next gets that UID.
+     *
+     * No wipe marker is recorded — unlike wipeScopes() this runs because the
+     * account is gone, so there is no client left to invalidate.
+     */
+    public function purgeUser(string $userId): void
+    {
+        $items     = $this->mapper->findAll($userId);
+        $playlists = $this->playlistMapper->findAll($userId);
+
+        $this->db->beginTransaction();
+        try {
+            foreach ($playlists as $playlist) {
+                $this->playlistItemMapper->deleteByPlaylist($playlist->getId());
+            }
+            $this->playlistMapper->deleteAllByUser($userId);
+            foreach ($items as $item) {
+                $this->playlistItemMapper->deleteByMediaItem($item->getId());
+            }
+            $this->mapper->deleteAllByUser($userId);
+            $this->shareMapper->deleteAllByOwner($userId);
+            $this->shareMapper->deleteAllReceivedByUser($userId);
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+
+        // After commit: a failed unlink must not undo the row deletions.
+        foreach ($items as $item) {
+            $this->deleteArtworkFiles($item->getId());
+            $this->deletePhotoFiles($item->getId());
+        }
+
+        $this->logger->info(
+            'Purged Crate data for deleted user {user}: items={items}, playlists={playlists}',
+            [
+                'user'      => $userId,
+                'items'     => count($items),
+                'playlists' => count($playlists),
+                'app'       => 'crate',
+            ],
+        );
+    }
+
+    /**
      * Persist a Discogs release ID onto an item without changing anything else.
      */
     public function patchDiscogsId(int $id, string $userId, string $discogsId): MediaItem
@@ -484,6 +583,7 @@ class MediaService
     private function applyEnrichmentFields(int $id, string $userId, array $fields): MediaItem
     {
         $item = $this->mapper->findWritableForUser($id, $userId);
+        $previousArtworkPath = $item->getArtworkPath();
         $this->snapshotOriginals($item);
 
         $map = [
@@ -521,6 +621,7 @@ class MediaService
 
         $item->setUpdatedAt((new \DateTime())->format('Y-m-d H:i:s'));
         $item = $this->mapper->update($item);
+        $this->purgeStaleArtworkCache($id, $previousArtworkPath, $item->getArtworkPath());
         $this->activityService->itemEnriched($item, $userId);
         return $item;
     }
@@ -555,8 +656,10 @@ class MediaService
         // Determine whether the pre-enrichment state had user-uploaded artwork.
         // If so, preserve the file on disk. Otherwise, delete stale cache files
         // so re-enrichment with a new URL doesn't serve the old cached image.
+        // Only the owner may reach the file deletion: a read/write sharee may
+        // add and edit, and removing the owner's uploaded artwork is neither.
         $originalArtwork = $item->getOriginalArtworkPath();
-        $shouldDeleteFiles = ($originalArtwork !== 'local');
+        $shouldDeleteFiles = ($originalArtwork !== 'local') && ($item->getUserId() === $userId);
 
         // Restore pre-enrichment values if a snapshot was taken, then clear it.
         if ($item->getOriginalTitle() !== null) {
