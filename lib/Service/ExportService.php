@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Crate\Service;
 
+use OCA\Crate\CrateCategories;
 use OCA\Crate\Db\MediaItem;
 use OCA\Crate\Db\MediaItemMapper;
 
@@ -55,21 +56,6 @@ class ExportService
 
         return [$this->buildCsv($headers, $rows), 'text/csv; charset=UTF-8', $filename . '.csv'];
     }
-
-    /**
-     * Categories that store per-item market values.
-     * Films and Books have no market-value source; their rows contain no
-     * market columns even if includeMarket is requested.
-     */
-    private const MARKET_CATEGORIES = ['music', 'game', 'comic'];
-
-    /**
-     * Categories whose market values come from PriceCharting, which
-     * returns three tiers (loose / CIB / new) in USD. Discogs-backed
-     * music just stores a single Market Value in the user's display
-     * currency.
-     */
-    private const PRICECHARTING_CATEGORIES = ['game', 'comic'];
 
     /** @return string[] */
     private function buildHeaders(
@@ -216,13 +202,23 @@ class ExportService
         }
 
         if ($includeMarket && $this->categoryHasMarket($category)) {
+            // Which market columns exist follows the export's category, so that
+            // every row lines up with the header. Which of them carry a value
+            // follows the item's own: the "all" export spans both price
+            // sources, and `market_value` holds a PriceCharting CIB price for a
+            // game but a Discogs asking price for a record — so writing it into
+            // both columns would invent a CIB price for every album.
+            $itemCategory      = $item->getCategory() ?? 'music';
+            $fromPriceCharting = $this->categoryUsesPriceCharting($itemCategory);
+            $fromDiscogs       = $this->categoryUsesDiscogsMarket($itemCategory);
+
             if ($this->categoryUsesPriceCharting($category)) {
-                $row[] = $item->getMarketValueLoose() !== null ? (string) $item->getMarketValueLoose() : '';
-                $row[] = $item->getMarketValue()      !== null ? (string) $item->getMarketValue()      : '';
-                $row[] = $item->getMarketValueNew()   !== null ? (string) $item->getMarketValueNew()   : '';
+                $row[] = $this->priceCell($fromPriceCharting, $item->getMarketValueLoose());
+                $row[] = $this->priceCell($fromPriceCharting, $item->getMarketValue());
+                $row[] = $this->priceCell($fromPriceCharting, $item->getMarketValueNew());
             }
             if ($this->categoryUsesDiscogsMarket($category)) {
-                $row[] = $item->getMarketValue() !== null ? (string) $item->getMarketValue() : '';
+                $row[] = $this->priceCell($fromDiscogs, $item->getMarketValue());
             }
             $row[] = $item->getMarketValueCurrency()  ?? '';
             $row[] = $item->getMarketValueFetchedAt() ?? '';
@@ -234,6 +230,15 @@ class ExportService
         }
 
         return $row;
+    }
+
+    /**
+     * One market-price cell: empty unless the row's own category is priced by
+     * the source that column belongs to.
+     */
+    private function priceCell(bool $applies, ?float $value): string
+    {
+        return $applies && $value !== null ? (string) $value : '';
     }
 
     /**
@@ -305,14 +310,24 @@ class ExportService
         };
     }
 
+    /**
+     * Films and books have no market-value source; their rows carry no market
+     * columns even when includeMarket is requested. A null category is the
+     * "all" export, which spans the ones that do.
+     */
     private function categoryHasMarket(?string $category): bool
     {
-        return $category === null || in_array($category, self::MARKET_CATEGORIES, true);
+        return $category === null || CrateCategories::hasMarketValue($category);
     }
 
+    /**
+     * PriceCharting quotes three tiers (loose / CIB / new) in USD, so those
+     * categories get a column each. Discogs-backed music stores a single
+     * Market Value in the user's display currency instead.
+     */
     private function categoryUsesPriceCharting(?string $category): bool
     {
-        return $category === null || in_array($category, self::PRICECHARTING_CATEGORIES, true);
+        return $category === null || CrateCategories::usesPriceCharting($category);
     }
 
     private function categoryUsesDiscogsMarket(?string $category): bool
@@ -338,9 +353,12 @@ class ExportService
         }
         // UTF-8 BOM so Excel opens it correctly
         fwrite($buf, "\xEF\xBB\xBF");
-        fputcsv($buf, $headers);
+        // Escaping is disabled so the output is RFC 4180: quotes are doubled and
+        // a backslash carries no meaning, matching what the importer reads back
+        // and what spreadsheets expect.
+        fputcsv($buf, $headers, escape: '');
         foreach ($rows as $row) {
-            fputcsv($buf, array_map(fn($v) => $this->sanitizeForSpreadsheet($v), $row));
+            fputcsv($buf, array_map(fn($v) => $this->sanitizeForSpreadsheet($v), $row), escape: '');
         }
         rewind($buf);
         $content = stream_get_contents($buf);

@@ -44,9 +44,24 @@ final class CrateCategories
      */
     public const MARKET_CATEGORIES = [self::MUSIC, self::GAME, self::COMIC];
 
+    /**
+     * Categories priced by PriceCharting, which quotes three tiers
+     * (loose / CIB / new) in USD. The remaining market category, music, is
+     * priced by Discogs as a single value in the user's display currency —
+     * so a tier column only ever carries a value for these two.
+     *
+     * @var list<string>
+     */
+    public const PRICECHARTING_CATEGORIES = [self::GAME, self::COMIC];
+
     public static function hasMarketValue(string $category): bool
     {
         return in_array($category, self::MARKET_CATEGORIES, true);
+    }
+
+    public static function usesPriceCharting(string $category): bool
+    {
+        return in_array($category, self::PRICECHARTING_CATEGORIES, true);
     }
 
     public static function isCategory(string $value): bool

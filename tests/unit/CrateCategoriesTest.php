@@ -53,4 +53,33 @@ class CrateCategoriesTest extends TestCase
         self::assertFalse(CrateCategories::isStatus('pending'));
         self::assertFalse(CrateCategories::isStatus('OWNED'));
     }
+
+    public function testOnlyMusicGamesAndComicsHaveAMarketValue(): void
+    {
+        self::assertSame(['music', 'game', 'comic'], CrateCategories::MARKET_CATEGORIES);
+        self::assertFalse(CrateCategories::hasMarketValue('film'));
+        self::assertFalse(CrateCategories::hasMarketValue('book'));
+        foreach (CrateCategories::MARKET_CATEGORIES as $cat) {
+            self::assertTrue(CrateCategories::hasMarketValue($cat), $cat);
+        }
+    }
+
+    public function testOnlyGamesAndComicsArePricedByPriceCharting(): void
+    {
+        self::assertSame(['game', 'comic'], CrateCategories::PRICECHARTING_CATEGORIES);
+        self::assertFalse(CrateCategories::usesPriceCharting('music'), 'music is priced by Discogs');
+        foreach (CrateCategories::PRICECHARTING_CATEGORIES as $cat) {
+            self::assertTrue(CrateCategories::usesPriceCharting($cat), $cat);
+        }
+    }
+
+    public function testEveryPriceChartingCategoryIsAMarketCategory(): void
+    {
+        // The export's price columns and MarketValueService's dispatch both
+        // read these two lists; a category priced by PriceCharting that isn't
+        // a market category at all would never reach either.
+        foreach (CrateCategories::PRICECHARTING_CATEGORIES as $cat) {
+            self::assertContains($cat, CrateCategories::MARKET_CATEGORIES, $cat);
+        }
+    }
 }

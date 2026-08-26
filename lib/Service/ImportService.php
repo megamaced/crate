@@ -338,7 +338,11 @@ class ImportService
      * Parse a CSV or XLSX file and return an array of raw row arrays.
      * First row is treated as headers; returns ['headers' => [], 'rows' => []].
      *
-     * @return array{headers: string[], rows: array<array<string|null>>}
+     * Each row is keyed by its offset from the header line, so a blank line
+     * mid-file leaves a gap instead of pulling the rows below it up a line —
+     * that key is what import() reports as the row number.
+     *
+     * @return array{headers: string[], rows: array<int, array<string|null>>}
      * @throws \RuntimeException on parse failure
      */
     public function parseFile(string $tmpPath, string $originalName): array
@@ -356,7 +360,7 @@ class ImportService
         throw new \RuntimeException("Unsupported file type: .{$ext}");
     }
 
-    /** @return array{headers: string[], rows: array<array<string|null>>} */
+    /** @return array{headers: string[], rows: array<int, array<string|null>>} */
     private function parseCsv(string $path): array
     {
         // Guard against excessively large files (10 MB limit)
@@ -379,14 +383,25 @@ class ImportService
 
         $headers = [];
         $rows = [];
-        while (($line = fgetcsv($tmp)) !== false) {
+        $lineNo = 0;
+        // Escaping is disabled so parsing follows RFC 4180, which is what every
+        // spreadsheet produces: a quote is escaped by doubling it and nothing
+        // else is special. PHP's historical default treats a backslash as an
+        // escape, so a value ending in one — a Windows path, an artist written
+        // "AC\DC\" — hides the closing quote and swallows every following row
+        // into that cell.
+        while (($line = fgetcsv($tmp, escape: '')) !== false) {
+            $lineNo++;
             if (empty($headers)) {
                 $headers = array_map('trim', array_map('strval', $line));
             } else {
-                // Skip blank lines (all-empty or single-null-element rows)
+                // Skip blank lines (all-empty or single-null-element rows), but
+                // key what survives by its offset from the header line: the
+                // row number reported back to the user is derived from that
+                // key, and a compacted list would name the wrong line.
                 $nonEmpty = array_filter($line, fn($v) => $v !== null && $v !== '');
                 if (!empty($nonEmpty)) {
-                    $rows[] = array_map(fn($v) => $v !== '' ? $v : null, $line);
+                    $rows[$lineNo - 2] = array_map(fn($v) => $v !== '' ? $v : null, $line);
                 }
             }
         }
@@ -398,7 +413,7 @@ class ImportService
      * Parse XLSX (and XLS/ODS if saved as XLSX) using ZipArchive + SimpleXML.
      * Handles the standard Office Open XML format.
      *
-     * @return array{headers: string[], rows: array<array<string|null>>}
+     * @return array{headers: string[], rows: array<int, array<string|null>>}
      */
     private function parseXlsx(string $path): array
     {
@@ -442,6 +457,7 @@ class ImportService
 
         $headers = [];
         $rows = [];
+        $nextIdx = 0;
 
         $sheet->registerXPathNamespace('x', 'http://schemas.openxmlformats.org/spreadsheetml/2006/main');
         $sheetRows = $sheet->xpath('//x:row') ?: [];
@@ -481,7 +497,15 @@ class ImportService
                 // trim(null) is deprecated.
                 $headers = array_map('trim', array_map('strval', $rowData));
             } else {
-                $rows[] = $rowData;
+                // Offset from the header line, taken from the row's own `r`
+                // reference: a wholly empty row is left out of sheetData
+                // altogether, and a running counter would then report every
+                // later row one line early. `r` is optional, so the counter
+                // stays on as a monotonic floor.
+                $sheetRow   = (int)(string)($row['r'] ?? '');
+                $idx        = max($nextIdx, $sheetRow > 1 ? $sheetRow - 2 : 0);
+                $rows[$idx] = $rowData;
+                $nextIdx    = $idx + 1;
             }
         }
 
@@ -585,14 +609,18 @@ class ImportService
      * Apply a column mapping to raw rows, returning structured row objects.
      * mapping: header-index => canonical field name (or null = ignore).
      *
-     * @param  array<array<string|null>> $rows
-     * @param  array<int, string|null>   $mapping
-     * @return array<array<string, string|null>>
+     * Row keys are carried through untouched: each holds the row's offset from
+     * the header line, which import() turns back into the row number it
+     * reports, so re-indexing here would move every error message.
+     *
+     * @param  array<int, array<string|null>> $rows
+     * @param  array<int, string|null>        $mapping
+     * @return array<int, array<string, string|null>>
      */
     public static function applyMapping(array $rows, array $mapping): array
     {
         $result = [];
-        foreach ($rows as $row) {
+        foreach ($rows as $idx => $row) {
             $item = [];
             foreach ($mapping as $colIdx => $field) {
                 if ($field === null) {
@@ -600,7 +628,7 @@ class ImportService
                 }
                 $item[$field] = isset($row[$colIdx]) ? trim((string)$row[$colIdx]) : null;
             }
-            $result[] = $item;
+            $result[$idx] = $item;
         }
         return $result;
     }
@@ -613,8 +641,8 @@ class ImportService
      * share of one category of someone else's library could otherwise map a
      * Category column and place rows in the owner's other collections.
      *
-     * @param  array<array<string, string|null>> $mappedRows
-     * @param  string                            $userId
+     * @param  array<int, array<string, string|null>> $mappedRows
+     * @param  string                                 $userId
      * @return array{created: int, duplicates: int, skipped: int, errors: string[], itemIds: int[]}
      */
     public function import(
@@ -661,7 +689,9 @@ class ImportService
         $this->db->beginTransaction();
 
         foreach ($mappedRows as $i => $row) {
-            $rowNum = $i + 2; // 1-indexed + header row
+            // Keys hold each row's offset from the header line, so a blank
+            // line mid-file no longer shifts what the errors below name.
+            $rowNum = $i + 2;
 
             // Per-row category override (e.g. from a re-imported export with Category column)
             $category = $batchCategory;

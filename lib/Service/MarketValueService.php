@@ -49,7 +49,7 @@ class MarketValueService
             return null;
         }
 
-        if (in_array($category, ['game', 'comic'], true)) {
+        if (CrateCategories::usesPriceCharting($category)) {
             return $this->fetchAndStorePriceCharting($item, $userId);
         }
 
