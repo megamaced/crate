@@ -16,6 +16,14 @@ use OCP\IDBConnection;
 
 class PlaylistService
 {
+    /**
+     * Stand-in for "the caller sent no description" in update(): the stored
+     * one is left alone, while an explicit empty string still clears it.
+     * Absence cannot be spelled as null — a missing parameter and a null one
+     * reach a controller identically — so it takes a value no request carries.
+     */
+    public const DESCRIPTION_UNCHANGED = "\x00unchanged";
+
     public function __construct(
         private readonly PlaylistMapper $playlistMapper,
         private readonly PlaylistItemMapper $playlistItemMapper,
@@ -141,12 +149,21 @@ class PlaylistService
         }
     }
 
-    public function update(int $id, string $userId, string $name, ?string $description): array
-    {
+    public function update(
+        int $id,
+        string $userId,
+        string $name,
+        ?string $description = self::DESCRIPTION_UNCHANGED,
+    ): array {
         // Owner or a read/write sharee may rename. (Delete stays owner-only.)
         $playlist = $this->resolveWritablePlaylist($id, $userId);
         $playlist->setName($name);
-        $playlist->setDescription($description);
+        // A rename that carries no description keeps the stored one: clients
+        // that only edit the name would otherwise wipe a description entered
+        // elsewhere. Clearing it is still possible by sending '' outright.
+        if ($description !== self::DESCRIPTION_UNCHANGED) {
+            $playlist->setDescription($description);
+        }
         $playlist->setUpdatedAt((new \DateTime())->format('Y-m-d H:i:s'));
         $this->playlistMapper->update($playlist);
         return $this->hydrateWithItems($playlist, $userId);

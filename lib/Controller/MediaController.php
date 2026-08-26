@@ -28,6 +28,10 @@ class MediaController extends OCSController
     private const MAX_OFFSET = 100000;
     /** Max limit accepted by paginated endpoints. */
     private const MAX_LIMIT = 200;
+    /** Rail size the clients render when they ask for no particular one. */
+    private const DEFAULT_RECOMMENDATIONS = 6;
+    /** Ceiling on a requested rail size, so one call cannot ask for a whole collection. */
+    private const MAX_RECOMMENDATIONS = 24;
 
     public function __construct(
         string $appName,
@@ -367,18 +371,32 @@ class MediaController extends OCSController
      * the rails too — with the local half drawn from their own collection.
      *
      * GET /api/v1/media/{id}/recommendations
+     *   ?include=both|local|online
+     *   &limit=1..24            — entries per rail, default 6
+     *
+     * `limit` is rejected rather than clamped, so a client asking for more than
+     * it can get hears about it; anything that is not a whole number arrives
+     * from the framework's int cast as 0 and fails the same bounds check. The
+     * online rail is bounded further by the provider results held in cache.
      */
     #[NoAdminRequired]
     #[UserRateLimit(limit: 120, period: 60)]
-    public function recommendations(int $id, string $include = 'both'): DataResponse
-    {
+    public function recommendations(
+        int $id,
+        string $include = 'both',
+        int $limit = self::DEFAULT_RECOMMENDATIONS,
+    ): DataResponse {
         if (!in_array($include, ['both', 'local', 'online'], true)) {
             return new DataResponse(['error' => 'Invalid include'], Http::STATUS_BAD_REQUEST);
         }
 
+        if ($limit < 1 || $limit > self::MAX_RECOMMENDATIONS) {
+            return new DataResponse(['error' => 'Invalid limit'], Http::STATUS_BAD_REQUEST);
+        }
+
         try {
             return new DataResponse(
-                $this->recommendationService->forItem($id, $this->userId(), 6, $include),
+                $this->recommendationService->forItem($id, $this->userId(), $limit, $include),
             );
         } catch (DoesNotExistException) {
             return new DataResponse(['error' => 'Not found'], Http::STATUS_NOT_FOUND);

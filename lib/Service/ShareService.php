@@ -219,7 +219,7 @@ class ShareService
     public function getSharesForAlbum(string $ownerUserId, int $mediaItemId): array
     {
         return array_map(
-            fn(CrateShare $s) => $s->jsonSerialize(),
+            fn(CrateShare $s) => $this->shareWithRecipientName($s),
             $this->shareMapper->findByOwnerAndShareable($ownerUserId, CrateShare::TYPE_ALBUM, $mediaItemId),
         );
     }
@@ -232,7 +232,7 @@ class ShareService
     public function getSharesForPlaylist(string $ownerUserId, int $playlistId): array
     {
         return array_map(
-            fn(CrateShare $s) => $s->jsonSerialize(),
+            fn(CrateShare $s) => $this->shareWithRecipientName($s),
             $this->shareMapper->findByOwnerAndShareable($ownerUserId, CrateShare::TYPE_PLAYLIST, $playlistId),
         );
     }
@@ -245,7 +245,7 @@ class ShareService
     public function getSharesForLibrary(string $ownerUserId): array
     {
         return array_map(
-            fn(CrateShare $s) => $s->jsonSerialize(),
+            fn(CrateShare $s) => $this->shareWithRecipientName($s),
             $this->shareMapper->findByOwnerAndShareable($ownerUserId, CrateShare::TYPE_LIBRARY, 0),
         );
     }
@@ -260,7 +260,7 @@ class ShareService
     {
         $this->validateCategory($category);
         return array_map(
-            fn(CrateShare $s) => $s->jsonSerialize(),
+            fn(CrateShare $s) => $this->shareWithRecipientName($s),
             $this->shareMapper->findByOwnerAndShareable($ownerUserId, CrateShare::TYPE_CATEGORY, 0, $category),
         );
     }
@@ -276,11 +276,7 @@ class ShareService
     {
         $out = [];
         foreach ($this->shareMapper->findByOwner($userId) as $share) {
-            $row = $share->jsonSerialize();
-            $recipient = $this->userManager->get($share->getSharedWithUserId());
-            $row['sharedWithDisplayName'] = $recipient !== null
-                ? $recipient->getDisplayName()
-                : $share->getSharedWithUserId();
+            $row = $this->shareWithRecipientName($share);
             [$label, $itemCategory] = $this->describeShareable($share, $userId);
             $row['label'] = $label;
             // Category of what's shared, so clients can badge a single-item
@@ -290,6 +286,23 @@ class ShareService
             $out[] = $row;
         }
         return $out;
+    }
+
+    /**
+     * A share row annotated with the recipient's display name, falling back to
+     * the uid when the account has gone. Every share list carries it: a uid is
+     * not a name the sharer recognises, and only the server can resolve one.
+     *
+     * @return array<string, mixed>
+     */
+    private function shareWithRecipientName(CrateShare $share): array
+    {
+        $row = $share->jsonSerialize();
+        $recipient = $this->userManager->get($share->getSharedWithUserId());
+        $row['sharedWithDisplayName'] = $recipient !== null
+            ? $recipient->getDisplayName()
+            : $share->getSharedWithUserId();
+        return $row;
     }
 
     /**

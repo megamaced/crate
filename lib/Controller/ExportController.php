@@ -11,6 +11,7 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
+use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataDownloadResponse;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\Http\Response;
@@ -39,9 +40,13 @@ class ExportController extends Controller
      *   &includeEnriched=0|1
      *   &includeMarket=0|1
      *   &includePrice=0|1   — original purchase price + currency
+     *
+     * Rate-limited like /import/commit: one call reads the whole collection and
+     * builds the file in memory, so it is the same class of work.
      */
     #[NoAdminRequired]
     #[NoCSRFRequired]
+    #[UserRateLimit(limit: 10, period: 60)]
     public function export(
         string $format = 'csv',
         string $scope = 'owned',

@@ -66,7 +66,11 @@ class HomeController extends OCSController
         usort($valuable, fn($a, $b) => ($b->getMarketValue() ?? 0) <=> ($a->getMarketValue() ?? 0));
 
         return new DataResponse([
-            'categories'    => $categories,
+            // Cast so the map survives an empty collection: PHP has a single
+            // array type, so an empty $categories would encode as JSON `[]`
+            // where every populated response is a keyed object, and clients
+            // typed against that object shape have nothing to parse.
+            'categories'    => (object) $categories,
             'recentlyAdded' => array_slice($owned, 0, 12),
             'mostValuable'  => array_slice($valuable, 0, 6),
         ]);

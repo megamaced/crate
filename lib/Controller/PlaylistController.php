@@ -52,9 +52,19 @@ class PlaylistController extends OCSController
         return new DataResponse($this->playlistService->create($this->userId(), trim($name), $description));
     }
 
+    /**
+     * PUT /api/v1/playlists/{id}
+     *
+     * `description` defaults to PlaylistService::DESCRIPTION_UNCHANGED rather
+     * than null, so a body that omits it renames the playlist and leaves the
+     * stored description alone. Sending '' still clears it.
+     */
     #[NoAdminRequired]
-    public function update(int $id, string $name, ?string $description = null): DataResponse
-    {
+    public function update(
+        int $id,
+        string $name,
+        ?string $description = PlaylistService::DESCRIPTION_UNCHANGED,
+    ): DataResponse {
         if (trim($name) === '') {
             return new DataResponse(['error' => 'Name is required'], Http::STATUS_BAD_REQUEST);
         }

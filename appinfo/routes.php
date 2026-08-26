@@ -52,8 +52,6 @@ return [
 		// ── Discogs API proxy ──────────────────────────────────────────────────
 		['name' => 'discogs#search',       'url' => '/api/v1/discogs/search',            'verb' => 'GET'],
 		['name' => 'discogs#barcodeSearch', 'url' => '/api/v1/discogs/barcode/{barcode}', 'verb' => 'GET'],
-		['name' => 'discogs#getRelease',    'url' => '/api/v1/discogs/release/{id}',      'verb' => 'GET'],
-		['name' => 'discogs#getArtist',     'url' => '/api/v1/discogs/artist/{id}',       'verb' => 'GET'],
 
 		// ── TMDB API proxy (films) ─────────────────────────────────────────────
 		['name' => 'tmdb#search',    'url' => '/api/v1/tmdb/search',     'verb' => 'GET'],
