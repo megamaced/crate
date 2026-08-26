@@ -520,14 +520,36 @@ function clearFilters() {
 }
 
 /**
- * Jump straight to one genre — called from the item detail view's genre chips.
- * Other filters are cleared so the result is the whole genre, not whatever the
- * list happened to be narrowed to beforehand.
+ * Shared preamble of the three detail-view entry points below: switch to the
+ * clicked item's own status tab and drop every filter, so the result is the
+ * whole genre / format / decade rather than whatever the list happened to be
+ * narrowed to beforehand.
  */
-function applyGenreFilter(genre, status = 'owned') {
+function resetFiltersFor(status) {
   clearFilters()
   statusFilter.value = status === 'wanted' ? 'wanted' : 'owned'
+}
+
+/** Jump straight to one genre — called from the item detail view's genre chips. */
+function applyGenreFilter(genre, status = 'owned') {
+  resetFiltersFor(status)
   filterGenre.value = genre ?? ''
+}
+
+/** Jump straight to one format — the detail view's format badge. */
+function applyFormatFilter(format, status = 'owned') {
+  resetFiltersFor(status)
+  filterFormat.value = format ?? ''
+}
+
+/**
+ * Jump straight to one decade — the detail view's year badge. The caller passes
+ * the decade label (`decadeOf()`), not a year, because that is what
+ * `filterDecade` matches on.
+ */
+function applyDecadeFilter(decade, status = 'owned') {
+  resetFiltersFor(status)
+  filterDecade.value = decade ?? ''
 }
 
 async function load() {
@@ -563,7 +585,7 @@ function update(updated) {
   if (i >= 0) items.value[i] = updated
 }
 
-defineExpose({ reload: load, update, applyGenreFilter })
+defineExpose({ reload: load, update, applyGenreFilter, applyFormatFilter, applyDecadeFilter })
 
 // Defer initial load until the view is actually visible. When the parent
 // uses v-show, the component mounts immediately (even while hidden), so

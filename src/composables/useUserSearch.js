@@ -3,8 +3,8 @@
  */
 import { ref } from 'vue'
 import axios from '@nextcloud/axios'
+import { generateOcsUrl } from '@nextcloud/router'
 import { showError } from '@nextcloud/dialogs'
-import { usersSearch } from '../api.js'
 
 /**
  * @param {{ minLength?: number, debounceMs?: number }} [opts]
@@ -39,7 +39,7 @@ export function useUserSearch({ minLength = 2, debounceMs = 300 } = {}) {
     controller = mine
     searching.value = true
     try {
-      const res = await axios.get(usersSearch(), {
+      const res = await axios.get(generateOcsUrl('/apps/crate/api/v1/users/search'), {
         params: { q: query.value.trim() },
         signal: mine.signal,
       })

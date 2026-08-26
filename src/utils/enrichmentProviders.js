@@ -7,13 +7,7 @@
  * needs, its two endpoints, how a detail response merges into a search result,
  * and which fields its result line prints.
  */
-import {
-  comicVineSearch, comicVineVolume,
-  discogsSearch,
-  openLibrarySearch, openLibraryWork,
-  rawgSearch, rawgGame,
-  tmdbSearch, tmdbMovie,
-} from '../api.js'
+import { generateOcsUrl } from '@nextcloud/router'
 
 /** Search results are already complete — there is no detail endpoint to follow. */
 const NO_DETAIL = null
@@ -30,7 +24,7 @@ export const ENRICHMENT_PROVIDERS = {
     // like one is routed to the barcode endpoint instead of the text search.
     searchParams: (q) => (/^\d{8,14}$/.test(q) ? { barcode: q } : { q }),
     credentialHint: 'No Discogs token saved — add one in Settings to enable search and enrichment.',
-    searchPath: discogsSearch,
+    searchPath: () => generateOcsUrl('/apps/crate/api/v1/discogs/search'),
     detailPath: NO_DETAIL,
     idKey: 'discogsId',
     thumbShape: 'square',
@@ -42,8 +36,8 @@ export const ENRICHMENT_PROVIDERS = {
     label: 'TMDB',
     placeholder: 'Search TMDB (film title…)',
     credentialHint: 'No TMDB token saved — add one in Settings to enable film search.',
-    searchPath: tmdbSearch,
-    detailPath: (result) => tmdbMovie(result.tmdbId),
+    searchPath: () => generateOcsUrl('/apps/crate/api/v1/tmdb/search'),
+    detailPath: (result) => generateOcsUrl(`/apps/crate/api/v1/tmdb/movie/${result.tmdbId}`),
     mergeDetail: replaceWithDetail,
     idKey: 'tmdbId',
     thumbShape: 'portrait',
@@ -56,9 +50,11 @@ export const ENRICHMENT_PROVIDERS = {
     placeholder: 'Search Open Library (title, author…)',
     // Open Library is the only open provider — no key, so no hint to show.
     credentialHint: null,
-    searchPath: openLibrarySearch,
+    searchPath: () => generateOcsUrl('/apps/crate/api/v1/openlibrary/search'),
     // The work key arrives as a path ("/works/OL123W"); the route takes the bare id.
-    detailPath: (result) => openLibraryWork(encodeURIComponent(result.workKey.replace(/^\/works\//, ''))),
+    detailPath: (result) => generateOcsUrl(
+      `/apps/crate/api/v1/openlibrary/work/${encodeURIComponent(result.workKey.replace(/^\/works\//, ''))}`,
+    ),
     // A work response carries description/cover/author bio but not the search
     // row's edition fields, so the two are merged rather than swapped.
     mergeDetail: (result, detail) => ({ ...result, ...detail }),
@@ -72,8 +68,8 @@ export const ENRICHMENT_PROVIDERS = {
     label: 'RAWG',
     placeholder: 'Search RAWG (game title…)',
     credentialHint: 'No RAWG API key saved — add one in Settings to enable game search.',
-    searchPath: rawgSearch,
-    detailPath: (result) => rawgGame(result.rawgId),
+    searchPath: () => generateOcsUrl('/apps/crate/api/v1/rawg/search'),
+    detailPath: (result) => generateOcsUrl(`/apps/crate/api/v1/rawg/game/${result.rawgId}`),
     mergeDetail: replaceWithDetail,
     idKey: 'rawgId',
     thumbShape: 'portrait',
@@ -85,8 +81,8 @@ export const ENRICHMENT_PROVIDERS = {
     label: 'ComicVine',
     placeholder: 'Search ComicVine (series title…)',
     credentialHint: 'No ComicVine API key saved — add one in Settings to enable comic search.',
-    searchPath: comicVineSearch,
-    detailPath: (result) => comicVineVolume(result.comicVineId),
+    searchPath: () => generateOcsUrl('/apps/crate/api/v1/comicvine/search'),
+    detailPath: (result) => generateOcsUrl(`/apps/crate/api/v1/comicvine/volume/${result.comicVineId}`),
     mergeDetail: replaceWithDetail,
     idKey: 'comicVineId',
     thumbShape: 'portrait',

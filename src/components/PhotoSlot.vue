@@ -50,8 +50,8 @@
 import { ref, computed, onBeforeUnmount, watch } from 'vue'
 import { NcButton } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
+import { generateUrl } from '@nextcloud/router'
 import { showError } from '@nextcloud/dialogs'
-import { photoGet } from '../api.js'
 import { cssUrl } from '../utils/artworkUrl.js'
 
 const props = defineProps({
@@ -105,8 +105,9 @@ const previewStyle = computed(() => {
   if (props.existing && !props.remove && props.itemId) {
     // Cache-bust on item.updatedAt; null/undefined is fine, just no buster.
     const bust = props.updatedAt ? `?_=${encodeURIComponent(props.updatedAt)}` : ''
+    const url = generateUrl(`/apps/crate/photo/${props.itemId}/${props.slotNum}`)
     return {
-      backgroundImage: cssUrl(`${photoGet(props.itemId, props.slotNum)}${bust}`),
+      backgroundImage: cssUrl(`${url}${bust}`),
       backgroundSize:  'cover',
       backgroundPosition: 'center',
     }

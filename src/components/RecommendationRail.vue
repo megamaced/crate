@@ -18,7 +18,10 @@
       >via {{ source }}</span>
     </header>
 
-    <ul class="rec-rail-track">
+    <ul
+      class="rec-rail-track"
+      :style="{ '--rec-rail-tile': `${tileMin}px`, '--rec-rail-gap': `${RAIL_GAP}px` }"
+    >
       <li
         v-for="(entry, index) in items"
         :key="entry.key"
@@ -69,6 +72,7 @@
 
 <script setup>
 import MediaThumb from './MediaThumb.vue'
+import { RAIL_GAP, RAIL_TILE_TARGET } from '../utils/railLayout.js'
 
 defineProps({
   title:  { type: String, required: true },
@@ -83,6 +87,12 @@ defineProps({
    * `thumb` set → a remote thumbnail URL.
    */
   items:  { type: Array, default: () => [] },
+  /**
+   * Grid tile floor in pixels, measured by the parent from the width the rail
+   * actually has (see utils/railLayout.js). The default is what a rail wide
+   * enough for the full-size tile gets.
+   */
+  tileMin: { type: Number, default: RAIL_TILE_TARGET },
 })
 
 defineEmits(['pick'])
@@ -112,29 +122,31 @@ defineEmits(['pick'])
 }
 
 /*
-  Horizontal scroll rather than a wrapping grid: the rail is a secondary
-  element and shouldn't push the rest of the detail view down as it fills.
+  A fluid grid rather than a fixed row: the rail fills whatever width the detail
+  view gives it, and the parent asks the server for exactly the number of
+  suggestions that lays out in complete rows at that width. Both the tile floor
+  and the gap come from the parent's measurement so the count and the grid can't
+  disagree.
 */
 .rec-rail-track {
-  display: flex;
-  gap: 12px;
-  overflow-x: auto;
-  padding: 0 0 4px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--rec-rail-tile), 1fr));
+  gap: var(--rec-rail-gap);
+  padding: 0;
   margin: 0;
   list-style: none;
-  scroll-snap-type: x proximity;
 }
 
+/* A long title clamps inside its tile instead of widening the track. */
 .rec-rail-item {
-  flex: 0 0 auto;
-  scroll-snap-align: start;
+  min-width: 0;
 }
 
 .rec-rail-card {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  width: 108px;
+  gap: 6px;
+  width: 100%;
   padding: 0;
   background: none;
   border: none;
@@ -150,8 +162,8 @@ defineEmits(['pick'])
 
 .rec-rail-art,
 .rec-rail-art-remote {
-  width: 108px;
-  height: 108px;
+  width: 100%;
+  aspect-ratio: 1;
   border-radius: var(--border-radius-large, 8px);
   overflow: hidden;
   background: var(--color-background-dark);
@@ -171,17 +183,18 @@ defineEmits(['pick'])
   line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  font-size: 12px;
   line-height: 1.3;
 }
 
 .rec-rail-name {
+  font-size: 13px;
   font-weight: 500;
 }
 
 .rec-rail-sub {
   -webkit-line-clamp: 1;
   line-clamp: 1;
+  font-size: 12px;
   color: var(--color-text-maxcontrast);
 }
 </style>

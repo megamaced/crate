@@ -576,7 +576,6 @@ import { useEnrichQueue } from '../composables/useEnrichQueue.js'
 import { useMarketValueQueue } from '../composables/useMarketValueQueue.js'
 import { useSettings } from '../composables/useSettings.js'
 import { useTokenSetting } from '../composables/useTokenSetting.js'
-import { mediaRefreshAllMv } from '../api.js'
 
 defineProps({
   open: { type: Boolean, required: true },
@@ -758,7 +757,7 @@ async function refreshAllMarketRates() {
     // Discogs id, games and comics are looked up by title — and returns just
     // their ids, so the whole collection doesn't have to come down the wire to
     // be filtered here.
-    const res = await axios.post(mediaRefreshAllMv())
+    const res = await axios.post(generateOcsUrl('/apps/crate/api/v1/market-value/refresh-all'))
     const ids = res.data.ocs?.data?.itemIds ?? []
     if (ids.length > 0) {
       marketQueue.start(ids, marketCurrency.value)

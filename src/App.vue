@@ -88,6 +88,8 @@
         @add-to-playlist="openAddToPlaylist"
         @share="openShareAlbum"
         @genre="showGenre"
+        @format="showFormat"
+        @decade="showDecade"
         @open-item="showDetail"
         @add-suggestion="openAddFromSuggestion"
       />
@@ -712,11 +714,11 @@ function showDetail(item) {
 }
 
 /**
- * A genre chip in the detail view was clicked: go back to the list the item
- * lives in — the shared-category page for a shared item, otherwise the owner's
- * own category view — with that genre as the only active filter.
+ * Go back to the list the item lives in — the shared-category page for a shared
+ * item, otherwise the owner's own category view — and hand the view to [apply]
+ * once it's on screen. Shared by the detail view's three filter chips.
  */
-function showGenre({ item, genre }) {
+function showFilteredList(item, apply) {
   const category = item.category ?? 'music'
   const target = item.sharedByUser ? sharedCategory : collectionViewRef
   if (item.sharedByUser) {
@@ -724,7 +726,25 @@ function showGenre({ item, genre }) {
   } else {
     switchView(CATEGORY_TO_VIEW[category] ?? 'music')
   }
-  nextTick(() => target.value?.applyGenreFilter?.(genre, item.status))
+  nextTick(() => apply(target.value))
+}
+
+/** A genre chip in the detail view was clicked: that genre as the only filter. */
+function showGenre({ item, genre }) {
+  showFilteredList(item, view => view?.applyGenreFilter?.(genre, item.status))
+}
+
+/** The format badge in the detail view was clicked. */
+function showFormat({ item, format }) {
+  showFilteredList(item, view => view?.applyFormatFilter?.(format, item.status))
+}
+
+/**
+ * The year badge in the detail view was clicked. The collection filters years
+ * by decade, so the detail view sends the decade label its year falls in.
+ */
+function showDecade({ item, decade }) {
+  showFilteredList(item, view => view?.applyDecadeFilter?.(decade, item.status))
 }
 
 // Tracks the in-flight auto-enrich so a navigation away cancels it; this

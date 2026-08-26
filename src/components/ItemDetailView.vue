@@ -102,11 +102,31 @@
           </p>
 
           <div class="detail-badges">
-            <span class="badge badge-format">{{ item.format }}</span>
+            <!-- Format and year are filter entry points, like the genre chips
+                 in the meta grid below. A format-less item keeps a plain badge:
+                 there is nothing to filter on. -->
+            <button
+              v-if="item.format"
+              type="button"
+              class="badge badge-format badge-filter"
+              :title="`Show all ${item.format} items`"
+              @click="$emit('format', { item, format: item.format })"
+            >
+              {{ item.format }}
+            </button>
             <span
+              v-else
+              class="badge badge-format"
+            >{{ item.format }}</span>
+            <button
               v-if="item.year"
-              class="badge badge-year"
-            >{{ item.year }}</span>
+              type="button"
+              class="badge badge-year badge-filter"
+              :title="`Show all ${decade} items`"
+              @click="$emit('decade', { item, decade })"
+            >
+              {{ item.year }}
+            </button>
             <span
               class="badge"
               :class="item.status === 'wanted' ? 'badge-wanted' : 'badge-owned'"
@@ -301,17 +321,24 @@
           {{ members.join(', ') }}
         </div>
       </section>
-      <RecommendationRail
-        title="More from your crate"
-        :items="localRail"
-        @pick="onLocalPick"
-      />
-      <RecommendationRail
-        title="If you like this…"
-        :source="onlineSource"
-        :items="onlineRail"
-        @pick="onOnlinePick"
-      />
+      <!-- Both rails share one wrapper because they share one width: it is the
+           width a row of tiles has to fill, which is what decides both the tile
+           size and how many suggestions are worth asking the server for. -->
+      <div ref="railsEl">
+        <RecommendationRail
+          title="More from your crate"
+          :items="localRail"
+          :tile-min="railTileMin"
+          @pick="onLocalPick"
+        />
+        <RecommendationRail
+          title="If you like this…"
+          :source="onlineSource"
+          :items="onlineRail"
+          :tile-min="railTileMin"
+          @pick="onOnlinePick"
+        />
+      </div>
     </div><!-- /detail-body -->
 
     <div
@@ -348,15 +375,15 @@ import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 
 import { NcButton } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
-import { generateOcsUrl } from '@nextcloud/router'
+import { generateOcsUrl, generateUrl } from '@nextcloud/router'
 import { showError } from '@nextcloud/dialogs'
 import { useSettings } from '../composables/useSettings.js'
 import { formatMarketValue } from '../utils/formatMarketValue.js'
-import { genreTokens } from '../utils/genres.js'
+import { decadeOf, genreTokens } from '../utils/genres.js'
 import { useArtworkStyle } from '../composables/useArtworkStyle.js'
-import { mediaRecommendations, photoGet } from '../api.js'
 import { ENRICHMENT_ID_KEY } from '../utils/enrichmentProviders.js'
 import { cssUrl } from '../utils/artworkUrl.js'
+import { RAIL_TILE_TARGET, railLayoutFor } from '../utils/railLayout.js'
 import RecommendationRail from './RecommendationRail.vue'
 
 const props = defineProps({
@@ -368,12 +395,16 @@ const props = defineProps({
 
 const emit = defineEmits([
   'back', 'edit', 'delete', 'enriched', 'addToPlaylist', 'share', 'genre',
-  'open-item', 'add-suggestion',
+  'format', 'decade', 'open-item', 'add-suggestion',
 ])
 
 // Genres render as buttons that filter the collection by that genre, so the
 // stored comma-separated string has to be split first.
 const genres = computed(() => genreTokens(props.item))
+
+// The collection has no exact-year filter — it buckets by decade — so the year
+// badge sends the bucket label rather than the year it displays.
+const decade = computed(() => decadeOf(props.item))
 
 const { autoFetchMarketRates, marketCurrency } = useSettings()
 
@@ -495,7 +526,7 @@ const lightboxSlot = ref(null)
 function photoUrl(slot, size = 'full') {
   // Cache-bust on item.updatedAt so a re-upload renders the new bytes
   // without waiting for the HTTP cache TTL to expire.
-  const base = photoGet(props.item.id, slot)
+  const base = generateUrl(`/apps/crate/photo/${props.item.id}/${slot}`)
   const params = new URLSearchParams()
   if (size && size !== 'full') params.set('size', size)
   if (props.item.updatedAt) params.set('_', props.item.updatedAt)
@@ -605,7 +636,46 @@ const localSuggestions  = ref([])
 const onlineSuggestions = ref([])
 const onlineSource      = ref('')
 
-const localRail = computed(() => localSuggestions.value.map(item => ({
+// Both rails lay their tiles out in a fluid grid, so the width they are given
+// decides the tile size and how many suggestions are worth fetching. Null until
+// measured, in which case the request omits `limit` and the server's own
+// default stands.
+const railsEl     = ref(null)
+const railTileMin = ref(RAIL_TILE_TARGET)
+const railLimit   = ref(null)
+
+function measureRails() {
+  const width = railsEl.value?.clientWidth ?? 0
+  if (width <= 0) return
+  const { tileMin, limit } = railLayoutFor(width)
+  railTileMin.value = tileMin
+  railLimit.value = limit
+}
+
+// A ResizeObserver fires for every pixel of a window drag, so measuring is
+// coalesced into one frame; a width that yields the same tile size and count
+// then changes nothing downstream.
+let railFrame = null
+function onRailResize() {
+  if (railFrame !== null) return
+  railFrame = requestAnimationFrame(() => {
+    railFrame = null
+    measureRails()
+  })
+}
+
+let railObserver = null
+
+/**
+ * A response can hold more suggestions than the current width can place — the
+ * window was wider when it was fetched, or a server that doesn't honour `limit`
+ * sent its own default — so a rail renders only what fits.
+ */
+function visible(suggestions) {
+  return railLimit.value === null ? suggestions : suggestions.slice(0, railLimit.value)
+}
+
+const localRail = computed(() => visible(localSuggestions.value).map(item => ({
   key:      `local-${item.id}`,
   title:    item.title,
   subtitle: [item.artist, item.year].filter(Boolean).join(' · '),
@@ -615,7 +685,7 @@ const localRail = computed(() => localSuggestions.value.map(item => ({
 
 const onlineRail = computed(() => {
   const idKey = ENRICHMENT_ID_KEY[props.item.category] ?? 'discogsId'
-  return onlineSuggestions.value.map((result, i) => ({
+  return visible(onlineSuggestions.value).map((result, i) => ({
     key:      `online-${result[idKey] ?? i}`,
     title:    result.title,
     subtitle: [result.artist, result.year].filter(Boolean).join(' · '),
@@ -625,17 +695,38 @@ const onlineRail = computed(() => {
   }))
 })
 
-async function loadRecommendations() {
+/** How many the newest request asked for; 0 while nothing has been asked for. */
+let fetchedLimit = 0
+/** Sequence number of the newest request, so an older reply can be dropped. */
+let railRequest = 0
+
+/**
+ * Fetch both rails in one request. `reset` clears what's on screen first, which
+ * is right when the item changed and wrong when the window merely widened —
+ * there the current suggestions should stay put until the longer list lands.
+ */
+async function loadRecommendations({ reset = true } = {}) {
   // Clicking through the rail re-enters this for a new item while the previous
-  // request is still out; without the id check a late response would paint the
-  // previous item's suggestions under the new item's header.
+  // request is still out, and a resize can put a second request out for the
+  // same item; without the sequence check a late reply would paint one item's
+  // suggestions under another's header, or a shorter list over a longer one.
+  const request = ++railRequest
   const requestedId = props.item.id
-  localSuggestions.value = []
-  onlineSuggestions.value = []
-  onlineSource.value = ''
+  const limit = railLimit.value
+  // Recorded here rather than on success: the resize watcher reads it to decide
+  // whether more tiles are needed, and an in-flight request already covers them.
+  fetchedLimit = limit ?? 0
+  if (reset) {
+    localSuggestions.value = []
+    onlineSuggestions.value = []
+    onlineSource.value = ''
+  }
   try {
-    const res = await axios.get(mediaRecommendations(requestedId))
-    if (props.item.id !== requestedId) return
+    const res = await axios.get(
+      generateOcsUrl(`/apps/crate/api/v1/media/${requestedId}/recommendations`),
+      limit === null ? undefined : { params: { limit } },
+    )
+    if (request !== railRequest) return
     const data = res.data.ocs?.data ?? {}
     localSuggestions.value  = Array.isArray(data.local) ? data.local : []
     onlineSuggestions.value = Array.isArray(data.online) ? data.online : []
@@ -644,6 +735,21 @@ async function loadRecommendations() {
     // Rails stay empty and render nothing — never worth an error toast.
   }
 }
+
+// Only a wider rail needs another request: a narrower one already holds more
+// tiles than it can place, and visible() trims them. The delay collapses a drag
+// across several tile counts into one refetch, and the condition is re-checked
+// when it fires because the first measurement lands alongside the initial load.
+const RAIL_REFETCH_DELAY = 300
+let railRefetchTimer = null
+watch(railLimit, () => {
+  clearTimeout(railRefetchTimer)
+  railRefetchTimer = setTimeout(() => {
+    if (railLimit.value !== null && railLimit.value > fetchedLimit) {
+      loadRecommendations({ reset: false })
+    }
+  }, RAIL_REFETCH_DELAY)
+})
 
 // The rail emits the entry it actually rendered. Re-reading the source array by
 // index would open whichever item a response that landed between paint and
@@ -659,8 +765,22 @@ function onOnlinePick({ entry }) {
 }
 
 onMounted(() => {
+  // Measured before the first request so it can carry the right `limit`.
+  measureRails()
+  if (railsEl.value) {
+    railObserver = new ResizeObserver(onRailResize)
+    railObserver.observe(railsEl.value)
+  }
   if (shouldAutoFetchMarket()) fetchMarketValue()
   loadRecommendations()
+})
+
+onBeforeUnmount(() => {
+  railObserver?.disconnect()
+  railObserver = null
+  if (railFrame !== null) cancelAnimationFrame(railFrame)
+  railFrame = null
+  clearTimeout(railRefetchTimer)
 })
 
 // Navigating between items reuses this component, so the rails have to follow
@@ -935,6 +1055,23 @@ async function stripEnrich() {
 .badge-country {
   background: var(--color-background-dark);
   color: var(--color-main-text);
+}
+
+/* The clickable badges keep the pill they sit next to: the pointer and the
+   hover / focus ring are the whole affordance, so the row still scans as one
+   set. Sized off .badge, whose font rules already override the button default. */
+.badge-filter {
+  border: none;
+  line-height: inherit;
+  cursor: pointer;
+}
+
+/* An outline rather than a colour change: it reads on both the primary-filled
+   format badge and the muted year badge, and adds no layout shift. */
+.badge-filter:hover,
+.badge-filter:focus-visible {
+  outline: 2px solid var(--color-main-text);
+  outline-offset: 1px;
 }
 
 .badge-wanted {

@@ -6,7 +6,6 @@
 import { ref, watch } from 'vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
-import { settingsOnlineRecs } from '../api.js'
 import { readBool, readString, safeSet } from '../utils/localStore.js'
 
 const KEY_ENRICH_ON_CLICK  = 'crate_auto_enrich_click'
@@ -128,7 +127,10 @@ function persistOnlineRecs() {
   clearTimeout(onlineRecsSaveTimer)
   onlineRecsSaveTimer = setTimeout(async () => {
     try {
-      await axios.put(settingsOnlineRecs(), { enabled: onlineRecommendations.value })
+      await axios.put(
+        generateOcsUrl('/apps/crate/api/v1/settings/online-recommendations'),
+        { enabled: onlineRecommendations.value },
+      )
     } catch {
       // Best-effort — localStorage still has the value
     }
