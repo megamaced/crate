@@ -449,10 +449,36 @@ const labelFieldLabel = computed(() => {
 const showBarcode = computed(() => true)
 const barcodeFieldLabel = computed(() => props.item.category === 'book' ? 'ISBN' : 'Barcode')
 
+/**
+ * The columns each provider actually writes, per category — mirroring the
+ * apply*Data() methods in MediaService. A music item comes back with a
+ * tracklist and band members, a book with a description and an author bio, so
+ * testing only for the music-shaped fields leaves every other category looking
+ * untouched however much of it Open Library or TMDB filled in.
+ *
+ * `discogsId` leads each list: it is the generic enrichment-id column every
+ * provider sets (the Discogs release, TMDB movie, Open Library work, RAWG game
+ * or ComicVine volume), and clearing it is what "Remove data" does to mark an
+ * item unenriched again. The rest are there for rows enriched before that id
+ * was stored. User-entered columns (title, artist, year, label, country,
+ * barcode, artwork) are deliberately absent: enrichment overwrites them, but a
+ * value in one says nothing about whether enrichment ever ran.
+ */
+const ENRICHED_FIELDS = {
+  music: ['discogsId', 'discogsArtistId', 'genres', 'pressingNotes', 'artistBio', 'artistMembers', 'tracklist'],
+  film:  ['discogsId', 'discogsArtistId', 'genres', 'pressingNotes'],
+  book:  ['discogsId', 'discogsArtistId', 'genres', 'pressingNotes', 'artistBio'],
+  game:  ['discogsId', 'genres', 'pressingNotes'],
+  comic: ['discogsId', 'genres', 'pressingNotes'],
+}
+
 const isEnriched = computed(() => {
   const i = props.item
-  return !!(i.genres || i.artistBio || i.pressingNotes ||
-    (Array.isArray(i.tracklist) && i.tracklist.length > 0))
+  const fields = ENRICHED_FIELDS[i.category] ?? ENRICHED_FIELDS.music
+  return fields.some((field) => {
+    const value = i[field]
+    return Array.isArray(value) ? value.length > 0 : !!value
+  })
 })
 
 const artStyle = useArtworkStyle(computed(() => props.item))
@@ -485,7 +511,10 @@ async function enrich() {
     }
   } catch (e) {
     console.error('Enrich failed', e)
-    showError('Couldn’t fetch enrichment data')
+    // The server names the lookup that failed ("No match found on Open
+    // Library."). Relaying it is the difference between a button that explains
+    // itself and one that looks like it did nothing.
+    showError(e.response?.data?.ocs?.data?.error ?? 'Couldn’t fetch enrichment data')
   } finally {
     enriching.value = false
   }
@@ -1038,12 +1067,26 @@ async function stripEnrich() {
   gap: 6px;
 }
 
+/* One pill, whether it is rendered as a span or as a button. .detail-badges is
+   a flex row, so its children already stretch to a common height — what pulls
+   the labels off each other's baseline is the box inside: a button centres its
+   content where a span does not, and carries UA and Nextcloud defaults for
+   font, line-height, border, padding and min-height that a span never sees.
+   Laying both out as a centred inline-flex box, from the same metrics, is what
+   makes the row line up. */
 .badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  margin: 0;
   padding: 3px 10px;
+  border: 0;
   border-radius: 20px;
+  font: inherit;
   font-size: 0.8em;
   font-weight: 600;
+  line-height: 1.4;
 }
 
 .badge-format {
@@ -1059,10 +1102,12 @@ async function stripEnrich() {
 
 /* The clickable badges keep the pill they sit next to: the pointer and the
    hover / focus ring are the whole affordance, so the row still scans as one
-   set. Sized off .badge, whose font rules already override the button default. */
-.badge-filter {
-  border: none;
-  line-height: inherit;
+   set. Sized entirely off .badge — the doubled class beats the `button`
+   selectors Nextcloud's own stylesheet applies a min-height and margin with. */
+.badge.badge-filter {
+  appearance: none;
+  min-height: 0;
+  height: auto;
   cursor: pointer;
 }
 

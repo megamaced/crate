@@ -136,28 +136,55 @@ class EnrichmentService
 
     private function enrichBook(int $id, string $userId, MediaItem $item): EnrichmentResult
     {
-        $workKey = $item->getDiscogsId();
-        if (empty($workKey)) {
-            $results = $this->openLibraryService->search(trim($item->getArtist() . ' ' . $item->getTitle()));
-            if (empty($results)) {
-                return EnrichmentResult::error(
-                    'No Open Library match found.',
-                    Http::STATUS_NOT_FOUND,
-                );
-            }
-            $workKey = (string)($results[0]['workKey'] ?? '');
-            $doc     = $results[0];
-        } else {
-            $doc = ['workKey' => $workKey];
-        }
+        $storedKey = (string)$item->getDiscogsId();
+        $doc       = $storedKey !== '' ? ['workKey' => $storedKey] : $this->findBook($item);
+        $workKey   = (string)($doc['workKey'] ?? '');
+
         if ($workKey === '') {
             return EnrichmentResult::error(
-                'No Open Library work key available.',
+                'No match found on Open Library.',
                 Http::STATUS_NOT_FOUND,
             );
         }
+
         $work = $this->openLibraryService->getWork($workKey);
+        // A stored work key Open Library will not resolve leaves nothing to
+        // apply. Saying so beats reporting a success that changed no field —
+        // which is indistinguishable, from the user's side, from a button that
+        // does nothing at all.
+        if (empty($work) && !isset($doc['title'])) {
+            return EnrichmentResult::error(
+                'Could not fetch this book from Open Library.',
+                Http::STATUS_BAD_GATEWAY,
+            );
+        }
+
         return EnrichmentResult::ok($this->mediaService->applyOpenLibraryData($id, $userId, $doc, $work));
+    }
+
+    /**
+     * The Open Library doc for a book that has no work key yet.
+     *
+     * The ISBN is tried first. Book items keep theirs in the barcode column, it
+     * names one edition exactly, and it is what finds the books free-text
+     * search cannot: a study guide, a translation, anything whose catalogued
+     * title differs from the one on the user's shelf. Title-and-author search
+     * is the fallback for items with no ISBN recorded.
+     *
+     * @return array<string, mixed> Empty when neither lookup matches
+     */
+    private function findBook(MediaItem $item): array
+    {
+        $isbn = trim((string)$item->getBarcode());
+        if ($isbn !== '') {
+            $doc = $this->openLibraryService->searchByIsbn($isbn);
+            if (!empty($doc['workKey'])) {
+                return $doc;
+            }
+        }
+
+        $results = $this->openLibraryService->search(trim($item->getArtist() . ' ' . $item->getTitle()));
+        return $results[0] ?? [];
     }
 
     private function enrichGame(int $id, string $userId, MediaItem $item): EnrichmentResult

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Crate\Controller;
 
+use OCA\Crate\CrateArtworkFiles;
 use OCA\Crate\CrateImageHosts;
 use OCA\Crate\Db\MediaItemMapper;
 use OCP\AppFramework\Controller;
@@ -31,8 +32,8 @@ class ArtworkController extends Controller
         'image/jpeg', 'image/png', 'image/webp', 'image/gif',
     ];
 
-    /** File extensions considered when locating / clearing cached artwork. */
-    private const ARTWORK_EXTENSIONS = ['.jpg', '.png', '.webp', '.gif'];
+    /** File extensions considered when locating a user-uploaded cover. */
+    private const ARTWORK_EXTENSIONS = CrateArtworkFiles::EXTENSIONS;
 
     /** Byte cap for a remote artwork fetch and for an upload. */
     private const MAX_REMOTE_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -89,7 +90,7 @@ class ArtworkController extends Controller
             }
             foreach (self::ARTWORK_EXTENSIONS as $ext) {
                 try {
-                    $file = $folder->getFile('artwork_' . $itemId . $ext);
+                    $file = $folder->getFile(CrateArtworkFiles::uploadName($itemId, $ext));
                     $mime = match ($ext) {
                         '.png'  => 'image/png',
                         '.webp' => 'image/webp',
@@ -118,11 +119,15 @@ class ArtworkController extends Controller
 
         // SSRF mitigation: only allow image hosts we actually enrich from.
         $host = parse_url($artworkPath, PHP_URL_HOST) ?? '';
-        if (!in_array($host, CrateImageHosts::ALL, true)) {
+        if (!CrateImageHosts::isAllowed($host)) {
             return new Response(Http::STATUS_FORBIDDEN);
         }
 
-        $cacheFile = 'artwork_' . $itemId . $this->extension($artworkPath);
+        // Keyed on the source URL as well as the item, so an entry cached for
+        // one cover can never be served in place of another. See
+        // CrateArtworkFiles for why that is the difference between a correct
+        // cover and someone else's.
+        $cacheFile = CrateArtworkFiles::cacheName($itemId, $artworkPath, $this->extension($artworkPath));
 
         try {
             $folder = $appData->getFolder('artwork');
@@ -138,7 +143,10 @@ class ArtworkController extends Controller
                 // Follow redirects manually so every hop's host is re-checked
                 // against the allowlist — not just the initial URL. A 302 from
                 // an allowlisted CDN to an off-allowlist (or non-https) target
-                // is rejected. NC's client additionally blocks private IPs.
+                // is rejected; the CDNs' own redirect targets are named in
+                // CrateImageHosts::REDIRECT_DOMAINS, which is what lets an Open
+                // Library cover held in the Internet Archive through. NC's
+                // client additionally blocks private IPs.
                 $url = $artworkPath;
                 $download = null;
                 for ($hop = 0; $hop <= 3; $hop++) {
@@ -158,7 +166,7 @@ class ArtworkController extends Controller
                     $next      = $this->resolveRedirect($url, $location);
                     $nextHost  = parse_url($next, PHP_URL_HOST) ?? '';
                     $nextSchme = parse_url($next, PHP_URL_SCHEME);
-                    if ($nextSchme !== 'https' || !in_array($nextHost, CrateImageHosts::ALL, true)) {
+                    if ($nextSchme !== 'https' || !CrateImageHosts::isAllowedRedirectTarget($nextHost)) {
                         return new Response(Http::STATUS_FORBIDDEN);
                     }
                     $url = $next;
@@ -286,14 +294,12 @@ class ArtworkController extends Controller
             // Re-read inside the transaction
             $item = $this->mapper->findWritableForUser($itemId, $userId);
 
-            foreach (self::ARTWORK_EXTENSIONS as $oldExt) {
-                try {
-                    $folder->getFile('artwork_' . $itemId . $oldExt)->delete();
-                } catch (NotFoundException) {
-                }
-            }
+            // Everything the item had before goes: the upload this replaces at
+            // whatever extension it used, and every cover cached from a remote
+            // URL the item previously pointed at.
+            CrateArtworkFiles::deleteAll($folder, $itemId);
 
-            $file = $folder->newFile('artwork_' . $itemId . $ext);
+            $file = $folder->newFile(CrateArtworkFiles::uploadName($itemId, $ext));
             $file->putContent($bytes);
 
             $item->setArtworkPath('local');
@@ -333,12 +339,7 @@ class ArtworkController extends Controller
             $item = $this->mapper->findWritableForUser($itemId, $userId);
             try {
                 $folder = $this->appDataFactory->get('crate')->getFolder('artwork');
-                foreach (self::ARTWORK_EXTENSIONS as $ext) {
-                    try {
-                        $folder->getFile('artwork_' . $itemId . $ext)->delete();
-                    } catch (NotFoundException) {
-                    }
-                }
+                CrateArtworkFiles::deleteAll($folder, $itemId);
             } catch (NotFoundException) {
             }
 

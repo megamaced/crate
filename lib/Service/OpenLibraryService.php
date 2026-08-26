@@ -7,7 +7,16 @@ namespace OCA\Crate\Service;
 class OpenLibraryService extends AbstractApiService
 {
     private const SEARCH_URL = 'https://openlibrary.org/search.json';
-    private const COVER_URL  = 'https://covers.openlibrary.org/b/id/';
+    private const COVER_BASE = 'https://covers.openlibrary.org/b/';
+
+    /**
+     * Fields asked of search.json: everything normaliseDoc() reads, including
+     * every cover identifier. The API returns exactly what is listed here, so
+     * an omitted identifier is indistinguishable from a book that has no
+     * cover — which is how a rail ends up as a row of grey boxes.
+     */
+    private const SEARCH_FIELDS = 'key,title,author_name,first_publish_year,'
+        . 'cover_i,cover_edition_key,lending_edition_s,edition_key,publisher,isbn,subject';
 
     protected function serviceName(): string
     {
@@ -25,11 +34,41 @@ class OpenLibraryService extends AbstractApiService
         $body = $this->getJson(self::SEARCH_URL, [
             'q'      => $query,
             'limit'  => '10',
-            'fields' => 'key,title,author_name,first_publish_year,cover_i,publisher,isbn,subject',
+            'fields' => self::SEARCH_FIELDS,
         ]);
 
         $docs = array_slice((array)($body['docs'] ?? []), 0, 10);
         return array_values(array_map(fn(array $d) => $this->normaliseDoc($d), $docs));
+    }
+
+    /**
+     * Look a book up by ISBN through the search index.
+     *
+     * The Books API (getByIsbn) answers the same question, but its payload
+     * carries no work key for a large part of the catalogue, and the work key
+     * is what every later step needs: it is the enrichment id, the handle
+     * getWork() reads the description and subjects from, and the exclusion key
+     * for the read-alike rail. The search index always has one.
+     *
+     * @return array<string, mixed> Empty when the ISBN is unknown to Open Library
+     */
+    public function searchByIsbn(string $isbn): array
+    {
+        // The index stores ISBNs unpunctuated, and the field query would treat
+        // anything else in the value as query syntax.
+        $isbn = strtoupper((string)preg_replace('/[^0-9Xx]/', '', $isbn));
+        if (!preg_match('/^(?:[0-9]{9}[0-9X]|[0-9]{13})$/', $isbn)) {
+            return [];
+        }
+
+        $body = $this->getJson(self::SEARCH_URL, [
+            'q'      => 'isbn:' . $isbn,
+            'limit'  => '1',
+            'fields' => self::SEARCH_FIELDS,
+        ]);
+
+        $doc = ((array)($body['docs'] ?? []))[0] ?? null;
+        return is_array($doc) ? $this->normaliseDoc($doc) : [];
     }
 
     /**
@@ -57,7 +96,7 @@ class OpenLibraryService extends AbstractApiService
             'q'      => 'subject:"' . $subject . '"',
             'sort'   => 'readinglog',
             'limit'  => (string)($limit + 1),
-            'fields' => 'key,title,author_name,first_publish_year,cover_i,publisher,isbn,subject',
+            'fields' => self::SEARCH_FIELDS,
         ]);
 
         $out = [];
@@ -166,8 +205,8 @@ class OpenLibraryService extends AbstractApiService
         $subjects = array_slice((array)($body['subjects'] ?? []), 0, 10);
         $genres   = $subjects ? implode(', ', $subjects) : null;
 
-        $coverId    = isset($body['covers'][0]) ? (int)$body['covers'][0] : null;
-        $artworkUrl = $coverId ? self::COVER_URL . $coverId . '-L.jpg' : null;
+        $coverId    = isset($body['covers'][0]) ? (int)$body['covers'][0] : 0;
+        $artworkUrl = $coverId > 0 ? self::COVER_BASE . 'id/' . $coverId . '-L.jpg' : null;
 
         return [
             'workKey'    => $workId,
@@ -255,9 +294,6 @@ class OpenLibraryService extends AbstractApiService
             $year = null;
         }
 
-        $coverId = isset($d['cover_i']) ? (int)$d['cover_i'] : null;
-        $thumb   = $coverId ? self::COVER_URL . $coverId . '-M.jpg' : null;
-
         $publishers = (array)($d['publisher'] ?? []);
         $label      = !empty($publishers[0]) ? (string)$publishers[0] : null;
 
@@ -268,14 +304,61 @@ class OpenLibraryService extends AbstractApiService
         $genres   = $subjects ? implode(', ', $subjects) : null;
 
         return [
-            'workKey' => (string)($d['key'] ?? ''),
-            'title'   => $d['title'] ?? '',
-            'artist'  => $artist,
-            'year'    => $year,
-            'thumb'   => $thumb,
-            'label'   => $label,
-            'barcode' => $barcode,
-            'genres'  => $genres,
+            'workKey'    => (string)($d['key'] ?? ''),
+            'title'      => $d['title'] ?? '',
+            'artist'     => $artist,
+            'year'       => $year,
+            'thumb'      => $this->coverUrl($d, 'M'),
+            'artworkUrl' => $this->coverUrl($d, 'L'),
+            'label'      => $label,
+            'barcode'    => $barcode,
+            'genres'     => $genres,
         ];
+    }
+
+    /**
+     * Cover URL for a search doc at the requested size, or null when the doc
+     * names no cover at all.
+     *
+     * Only part of the catalogue carries `cover_i`; the rest identifies its
+     * cover by edition, and covers.openlibrary.org serves the same image under
+     * /b/olid/ and /b/isbn/ as it does under /b/id/. Falling through whichever
+     * identifiers a doc does have is the difference between a rail of covers
+     * and a rail of grey boxes.
+     *
+     * @param array<string, mixed> $d
+     */
+    private function coverUrl(array $d, string $size): ?string
+    {
+        $coverId = isset($d['cover_i']) ? (int)$d['cover_i'] : 0;
+        if ($coverId > 0) {
+            return self::COVER_BASE . 'id/' . $coverId . '-' . $size . '.jpg';
+        }
+
+        // cover_edition_key and lending_edition_s are the editions Open Library
+        // itself picks to represent the work, so they carry a cover far more
+        // often than an arbitrary member of edition_key.
+        $olid = '';
+        foreach (['cover_edition_key', 'lending_edition_s'] as $field) {
+            $olid = trim((string)($d[$field] ?? ''));
+            if ($olid !== '') {
+                break;
+            }
+        }
+        if ($olid === '') {
+            $editions = (array)($d['edition_key'] ?? []);
+            $olid     = trim((string)($editions[0] ?? ''));
+        }
+        if ($olid !== '') {
+            return self::COVER_BASE . 'olid/' . rawurlencode($olid) . '-' . $size . '.jpg';
+        }
+
+        $isbns = (array)($d['isbn'] ?? []);
+        $isbn  = trim((string)($isbns[0] ?? ''));
+        if ($isbn !== '') {
+            return self::COVER_BASE . 'isbn/' . rawurlencode($isbn) . '-' . $size . '.jpg';
+        }
+
+        return null;
     }
 }

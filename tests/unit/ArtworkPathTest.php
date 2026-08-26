@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Crate\Tests\Unit;
 
+use OCA\Crate\CrateArtworkFiles;
 use OCA\Crate\CrateImageHosts;
 use OCA\Crate\Db\CrateShareMapper;
 use OCA\Crate\Db\MediaItem;
@@ -28,10 +29,10 @@ use Psr\Log\LoggerInterface;
 
 /**
  * Two things about `artwork_path`: it is a free-form string a writer supplies,
- * and the appdata cache file it produces is named after the item id alone. So
- * the value has to be constrained to something the artwork endpoint can serve,
- * and the cache has to be dropped when the item's artwork source moves — else
- * re-enriching to a different release keeps serving the first cover for good.
+ * and it owns files in appdata. So the value has to be constrained to something
+ * the artwork endpoint can serve, and the files have to go when the item's
+ * artwork source moves — else a superseded cover keeps occupying disk under an
+ * item that no longer points at it.
  */
 #[AllowMockObjectsWithoutExpectations]
 class ArtworkPathTest extends TestCase
@@ -69,6 +70,45 @@ class ArtworkPathTest extends TestCase
         self::assertSame($valid, CrateImageHosts::isValidArtworkPath($path));
     }
 
+    /** @return list<array{0: string, 1: bool}> */
+    public static function redirectTargets(): array
+    {
+        return [
+            // covers.openlibrary.org answers most requests with a 302 into the
+            // archive, so the hop has to be followable or the cover is a blank
+            // box in the browser and a 403 from the proxy.
+            ['archive.org', true],
+            ['ia600505.us.archive.org', true],
+            ['covers.openlibrary.org', true],
+            // Suffix matching must not be fooled by a lookalike domain.
+            ['evilarchive.org', false],
+            ['archive.org.evil.example', false],
+            ['evil.example.com', false],
+        ];
+    }
+
+    #[DataProvider('redirectTargets')]
+    public function testRedirectTargetsAreAllowedButNotStorable(string $host, bool $followable): void
+    {
+        self::assertSame($followable, CrateImageHosts::isAllowedRedirectTarget($host));
+        // A redirect target is somewhere a fetch may end up, never a value the
+        // artwork column may hold.
+        if (!CrateImageHosts::isAllowed($host)) {
+            self::assertFalse(CrateImageHosts::isValidArtworkPath('https://' . $host . '/cover.jpg'));
+        }
+    }
+
+    public function testThePageAllowsEveryHostAFetchCanReach(): void
+    {
+        $sources = CrateImageHosts::imageSources();
+
+        self::assertContains('https://covers.openlibrary.org', $sources);
+        self::assertContains('https://archive.org', $sources);
+        // img-src is re-applied to each hop of a redirect, and the archive
+        // serves the bytes from a per-datanode subdomain.
+        self::assertContains('https://*.archive.org', $sources);
+    }
+
     public function testUpdateRejectsAnArtworkPathNothingCanServe(): void
     {
         $this->mapper->method('findWritableForUser')->willReturn($this->item('https://i.discogs.com/a.jpg'));
@@ -85,35 +125,50 @@ class ArtworkPathTest extends TestCase
         $item = $this->item('http://old.example.com/legacy.jpg');
         $this->mapper->method('findWritableForUser')->willReturn($item);
         $this->mapper->method('update')->willReturnArgument(0);
-        $this->folder->expects(self::never())->method('getFile');
+        $this->folder->expects(self::never())->method('getDirectoryListing');
 
         $saved = $this->service()->update(5, 'alice', $this->data('http://old.example.com/legacy.jpg'));
         self::assertSame('http://old.example.com/legacy.jpg', $saved->getArtworkPath());
     }
 
-    public function testReEnrichingToADifferentCoverDropsTheCachedFile(): void
+    public function testReEnrichingToADifferentCoverDropsTheItemsFiles(): void
     {
         $item = $this->item('https://i.discogs.com/old.jpg');
         $this->mapper->method('findWritableForUser')->willReturn($item);
         $this->mapper->method('update')->willReturnArgument(0);
 
-        // The cache file is keyed on the item id and extension only, so the
-        // stale entry has to go for the new cover to ever be fetched.
-        $deleted = [];
-        $this->folder->method('getFile')->willReturnCallback(
-            function (string $name) use (&$deleted): ISimpleFile {
-                $file = $this->createStub(ISimpleFile::class);
-                $deleted[] = $name;
-                return $file;
-            },
-        );
+        // Every file the item owns goes, whatever cover or extension it came
+        // from — and nothing belonging to any other item does.
+        $deleted = $this->listFolder([
+            'artwork_5.jpg',
+            'artwork_5.png',
+            'artwork_5_1a2b3c4d5e6f7890.jpg',
+            'artwork_50.jpg',
+            'artwork_4_1a2b3c4d5e6f7890.webp',
+            'photo_5_1.jpg',
+        ]);
 
         $this->service()->applyReleaseData(5, 'alice', ['artworkUrl' => 'https://i.discogs.com/new.jpg']);
 
         self::assertSame(
-            ['artwork_5.jpg', 'artwork_5.png', 'artwork_5.webp', 'artwork_5.gif'],
-            $deleted,
+            ['artwork_5.jpg', 'artwork_5.png', 'artwork_5_1a2b3c4d5e6f7890.jpg'],
+            $deleted->names,
         );
+    }
+
+    public function testAnItemGivenItsFirstCoverDropsWhateverPrecededIt(): void
+    {
+        // An item with no artwork is the one that may have inherited a file
+        // from an earlier occupant of its id, so this is exactly the case that
+        // must not be skipped.
+        $item = $this->item(null);
+        $this->mapper->method('findWritableForUser')->willReturn($item);
+        $this->mapper->method('update')->willReturnArgument(0);
+        $deleted = $this->listFolder(['artwork_5.jpg']);
+
+        $this->service()->applyReleaseData(5, 'alice', ['artworkUrl' => 'https://i.discogs.com/new.jpg']);
+
+        self::assertSame(['artwork_5.jpg'], $deleted->names);
     }
 
     public function testEnrichmentThatLeavesTheCoverAloneKeepsTheCache(): void
@@ -121,7 +176,7 @@ class ArtworkPathTest extends TestCase
         $item = $this->item('https://i.discogs.com/same.jpg');
         $this->mapper->method('findWritableForUser')->willReturn($item);
         $this->mapper->method('update')->willReturnArgument(0);
-        $this->folder->expects(self::never())->method('getFile');
+        $this->folder->expects(self::never())->method('getDirectoryListing');
 
         $this->service()->applyReleaseData(5, 'alice', ['artworkUrl' => 'https://i.discogs.com/same.jpg']);
     }
@@ -132,7 +187,7 @@ class ArtworkPathTest extends TestCase
         $item = $this->item('local');
         $this->mapper->method('findWritableForUser')->willReturn($item);
         $this->mapper->method('update')->willReturnArgument(0);
-        $this->folder->expects(self::never())->method('getFile');
+        $this->folder->expects(self::never())->method('getDirectoryListing');
 
         $this->service()->applyReleaseData(5, 'alice', ['artworkUrl' => 'https://i.discogs.com/new.jpg']);
     }
@@ -144,7 +199,7 @@ class ArtworkPathTest extends TestCase
         $this->mapper->method('findWritableForUser')->willReturn($item);
         $this->mapper->method('update')->willReturnArgument(0);
         // 'bob' holds a read/write share; removing alice's files is not an edit.
-        $this->folder->expects(self::never())->method('getFile');
+        $this->folder->expects(self::never())->method('getDirectoryListing');
 
         $this->service()->stripEnrichment(5, 'bob');
     }
@@ -155,11 +210,54 @@ class ArtworkPathTest extends TestCase
         $item->setOriginalArtworkPath(null);
         $this->mapper->method('findWritableForUser')->willReturn($item);
         $this->mapper->method('update')->willReturnArgument(0);
-        $this->folder->expects(self::exactly(4))
-            ->method('getFile')
-            ->willThrowException(new NotFoundException('gone'));
+        $deleted = $this->listFolder(['artwork_5_00ff00ff00ff00ff.jpg']);
 
         $this->service()->stripEnrichment(5, 'alice');
+
+        self::assertSame(['artwork_5_00ff00ff00ff00ff.jpg'], $deleted->names);
+    }
+
+    public function testACacheEntryIsNamedAfterTheCoverItHolds(): void
+    {
+        // Two covers for the same item never share a file name, which is what
+        // stops a stale entry being served in place of the current cover.
+        $one = CrateArtworkFiles::cacheName(5, 'https://i.discogs.com/old.jpg', '.jpg');
+        $two = CrateArtworkFiles::cacheName(5, 'https://i.discogs.com/new.jpg', '.jpg');
+
+        self::assertNotSame($one, $two);
+        self::assertSame($one, CrateArtworkFiles::cacheName(5, 'https://i.discogs.com/old.jpg', '.jpg'));
+        // And neither can be mistaken for another item's, nor for an upload.
+        self::assertNotSame($one, CrateArtworkFiles::cacheName(50, 'https://i.discogs.com/old.jpg', '.jpg'));
+        self::assertNotSame($one, CrateArtworkFiles::uploadName(5, '.jpg'));
+    }
+
+    /**
+     * Stand the appdata folder up with $names in it, and hand back a recorder
+     * of the names the code under test deletes.
+     */
+    private function listFolder(array $names): object
+    {
+        $recorder = new class {
+            /** @var list<string> */
+            public array $names = [];
+        };
+
+        $files = array_map(
+            function (string $name) use ($recorder): ISimpleFile {
+                $file = $this->createMock(ISimpleFile::class);
+                $file->method('getName')->willReturn($name);
+                $file->method('delete')->willReturnCallback(
+                    static function () use ($recorder, $name): void {
+                        $recorder->names[] = $name;
+                    },
+                );
+                return $file;
+            },
+            $names,
+        );
+        $this->folder->method('getDirectoryListing')->willReturn($files);
+
+        return $recorder;
     }
 
     private function item(?string $artworkPath): MediaItem

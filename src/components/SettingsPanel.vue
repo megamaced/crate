@@ -1,26 +1,57 @@
 <template>
+  <!-- show-navigation gives the standard Nextcloud two-column settings layout:
+       a section list on the left, the sections themselves scrolling on the
+       right. The component drops the rail by itself on narrow viewports, so
+       the same markup covers mobile. Section order here is the order the rail
+       shows, and matches the Android app's settings screen. -->
   <NcAppSettingsDialog
     :open="open"
-    :show-navigation="false"
+    show-navigation
     name="Crate settings"
     @update:open="$emit('update:open', $event)"
   >
-    <!-- ── General ── -->
+    <!-- ── Categories ── -->
     <NcAppSettingsSection
-      id="crate-settings-general"
-      name="General"
+      id="crate-settings-categories"
+      name="Categories"
+      description="Hide categories you don't use. Hidden categories disappear from the sidebar and the Home view, and won't show up in search. At least one category must remain visible."
     >
-      <div class="settings-enrichment-options">
-        <div>
-          <NcCheckboxRadioSwitch v-model="autoEnrichOnClick">
-            Auto-enrich items when opening them
-          </NcCheckboxRadioSwitch>
-          <p class="settings-sub-hint">
-            Applies to Music (Discogs), Films (TMDB), Books (Open Library — no key needed), Games (RAWG), and Comics (ComicVine). Requires the relevant API key to be configured below.
-          </p>
-        </div>
+      <div class="settings-stack">
+        <NcCheckboxRadioSwitch
+          v-for="cat in categoryToggles"
+          :key="cat.value"
+          :model-value="!hiddenCategories.includes(cat.value)"
+          :disabled="!hiddenCategories.includes(cat.value) && hiddenCategories.length >= categoryToggles.length - 1"
+          @update:model-value="setCategoryVisible(cat.value, $event)"
+        >
+          {{ cat.label }}
+        </NcCheckboxRadioSwitch>
+      </div>
+    </NcAppSettingsSection>
 
-        <div class="settings-actions settings-enrich-all">
+    <!-- ── Enrichment ── -->
+    <NcAppSettingsSection
+      id="crate-settings-enrichment"
+      name="Enrichment"
+      description="Fill items in with metadata, artwork and descriptions from each category's provider. Every provider except Open Library needs a key, set under API keys."
+    >
+      <div class="settings-group">
+        <h4 class="settings-group__label">
+          Automatic
+        </h4>
+        <NcCheckboxRadioSwitch v-model="autoEnrichOnClick">
+          Auto-enrich items when opening them
+        </NcCheckboxRadioSwitch>
+        <p class="settings-sub-hint">
+          Applies to Music (Discogs), Films (TMDB), Books (Open Library — no key needed), Games (RAWG), and Comics (ComicVine). Requires the relevant API key to be configured.
+        </p>
+      </div>
+
+      <div class="settings-group">
+        <h4 class="settings-group__label">
+          Everything at once
+        </h4>
+        <div class="settings-actions">
           <NcButton
             variant="secondary"
             :disabled="enrich.running.value || marketQueue.running.value"
@@ -38,342 +69,134 @@
             Stop
           </NcButton>
         </div>
+        <p class="settings-hint settings-hint--tight">
+          Enriches every un-enriched item across every category, using whichever API keys you have configured.
+        </p>
+      </div>
+
+      <div class="settings-group">
+        <h4 class="settings-group__label">
+          By category
+        </h4>
+        <div class="settings-stack settings-stack--wide">
+          <EnrichProviderRow
+            label="Books"
+            action-label="Enrich all un-enriched books"
+            :disabled="enrich.running.value || marketQueue.running.value"
+            @enrich="enrichAll('book')"
+          >
+            Book metadata, covers and author bios via the
+            <a
+              href="https://openlibrary.org/developers/api"
+              target="_blank"
+              rel="noopener"
+            >Open Library API</a>.
+            No API key is required.
+          </EnrichProviderRow>
+
+          <EnrichProviderRow
+            label="Comics"
+            action-label="Enrich all un-enriched comics"
+            :disabled="!comicVine.hasValue.value || enrich.running.value || marketQueue.running.value"
+            :hint="comicVine.hasValue.value ? '' : 'Add a ComicVine API key under API keys to enable enrichment.'"
+            @enrich="enrichAll('comic')"
+          >
+            Comic volume metadata, artwork, genres and descriptions via the
+            <a
+              href="https://comicvine.gamespot.com/api/"
+              target="_blank"
+              rel="noopener"
+            >ComicVine API</a>.
+          </EnrichProviderRow>
+
+          <EnrichProviderRow
+            label="Films"
+            action-label="Enrich all un-enriched films"
+            :disabled="!tmdb.hasValue.value || enrich.running.value || marketQueue.running.value"
+            :hint="tmdb.hasValue.value ? '' : 'Add a TMDB API key under API keys to enable enrichment.'"
+            @enrich="enrichAll('film')"
+          >
+            Film metadata, posters and director info via the
+            <a
+              href="https://www.themoviedb.org/"
+              target="_blank"
+              rel="noopener"
+            >TMDB API</a>.
+          </EnrichProviderRow>
+
+          <EnrichProviderRow
+            label="Games"
+            action-label="Enrich all un-enriched games"
+            :disabled="!rawg.hasValue.value || enrich.running.value || marketQueue.running.value"
+            :hint="rawg.hasValue.value ? '' : 'Add a RAWG API key under API keys to enable enrichment.'"
+            @enrich="enrichAll('game')"
+          >
+            Game metadata and cover art via the
+            <a
+              href="https://rawg.io/"
+              target="_blank"
+              rel="noopener"
+            >RAWG API</a>.
+          </EnrichProviderRow>
+
+          <EnrichProviderRow
+            label="Music"
+            action-label="Enrich all un-enriched music"
+            :disabled="!discogs.hasValue.value || enrich.running.value || marketQueue.running.value"
+            :hint="discogs.hasValue.value ? '' : 'Add a Discogs API key under API keys to enable enrichment.'"
+            @enrich="enrichAll('music')"
+          >
+            Metadata, artwork, tracklists and artist info via the
+            <a
+              href="https://www.discogs.com/developers/"
+              target="_blank"
+              rel="noopener"
+            >Discogs API</a>.
+          </EnrichProviderRow>
+        </div>
+      </div>
+    </NcAppSettingsSection>
+
+    <!-- ── Recommendations ── -->
+    <NcAppSettingsSection
+      id="crate-settings-recommendations"
+      name="Recommendations"
+      description="Items show a &quot;More from your crate&quot; row, suggesting similar things you already own or want. That's worked out locally from your own collection and needs no setup."
+    >
+      <div class="settings-group">
+        <h4 class="settings-group__label">
+          Online
+        </h4>
+        <NcCheckboxRadioSwitch
+          :model-value="onlineRecommendations"
+          @update:model-value="onlineRecommendations = $event"
+        >
+          Enable online recommendations
+        </NcCheckboxRadioSwitch>
         <p class="settings-sub-hint">
-          Enriches every un-enriched item across every category, using whichever API keys you have configured below.
+          Also suggest things you don't own yet, from the same service that enriched the item — Discogs for music, TMDB for films, Open Library for books, RAWG for games. Only enriched items can have these, since suggestions are looked up by the ID enrichment stores. Results are cached, so re-opening an item won't re-query the service. Comics aren't covered: ComicVine publishes no similarity data.
         </p>
       </div>
     </NcAppSettingsSection>
 
-    <!-- ── Books ── -->
-    <NcAppSettingsSection
-      id="crate-settings-books"
-      name="Books"
-    >
-      <p class="settings-hint">
-        Book metadata, covers and author bios via the
-        <a
-          href="https://openlibrary.org/developers/api"
-          target="_blank"
-          rel="noopener"
-        >Open Library API</a>.
-        No API key is required.
-      </p>
-
-      <div class="settings-actions settings-enrich-all">
-        <NcButton
-          variant="secondary"
-          :disabled="enrich.running.value || marketQueue.running.value"
-          @click="enrichAll('book')"
-        >
-          Enrich all un-enriched books
-        </NcButton>
-      </div>
-    </NcAppSettingsSection>
-    <!-- ── Comics ── -->
-    <NcAppSettingsSection
-      id="crate-settings-comics"
-      name="Comics"
-    >
-      <p class="settings-hint">
-        Comic volume metadata, artwork, genres and descriptions via the
-        <a
-          href="https://comicvine.gamespot.com/api/"
-          target="_blank"
-          rel="noopener"
-        >ComicVine API</a>.
-        Get a free API key at
-        <a
-          href="https://comicvine.gamespot.com/api/"
-          target="_blank"
-          rel="noopener"
-        >comicvine.gamespot.com/api</a>.
-      </p>
-
-      <div class="settings-field">
-        <label for="comicvine-key">ComicVine API key</label>
-        <div class="settings-token-row">
-          <input
-            id="comicvine-key"
-            v-model="comicVine.input.value"
-            type="password"
-            :placeholder="comicVine.hasValue.value ? '(saved — paste a new one to replace)' : 'Paste your API key here'"
-            autocomplete="off"
-          >
-        </div>
-      </div>
-
-      <div class="settings-actions">
-        <NcButton
-          variant="primary"
-          :disabled="comicVine.saving.value || comicVine.input.value === ''"
-          @click="saveComicVineKey"
-        >
-          {{ comicVine.saving.value ? 'Saving…' : 'Save' }}
-        </NcButton>
-        <NcButton
-          v-if="comicVine.hasValue.value"
-          variant="tertiary"
-          :disabled="comicVine.saving.value"
-          @click="clearComicVineKey"
-        >
-          Remove
-        </NcButton>
-        <span
-          v-if="comicVine.message.value"
-          class="settings-saved"
-        >{{ comicVine.message.value }}</span>
-      </div>
-
-      <div class="settings-actions settings-enrich-all">
-        <NcButton
-          variant="secondary"
-          :disabled="!comicVine.hasValue.value || enrich.running.value || marketQueue.running.value"
-          @click="enrichAll('comic')"
-        >
-          Enrich all un-enriched comics
-        </NcButton>
-        <span
-          v-if="!comicVine.hasValue.value"
-          class="settings-hint"
-          style="margin:0"
-        >Add a ComicVine API key above to enable enrichment.</span>
-      </div>
-    </NcAppSettingsSection>
-    <!-- ── Films ── -->
-    <NcAppSettingsSection
-      id="crate-settings-films"
-      name="Films"
-    >
-      <p class="settings-hint">
-        Film metadata, posters and director info via the
-        <a
-          href="https://www.themoviedb.org/"
-          target="_blank"
-          rel="noopener"
-        >TMDB API</a>.
-        Generate an API Read Access Token at
-        <a
-          href="https://www.themoviedb.org/settings/api"
-          target="_blank"
-          rel="noopener"
-        >themoviedb.org/settings/api</a>.
-      </p>
-
-      <div class="settings-field">
-        <label for="tmdb-token">TMDB API Read Access Token</label>
-        <div class="settings-token-row">
-          <input
-            id="tmdb-token"
-            v-model="tmdb.input.value"
-            type="password"
-            :placeholder="tmdb.hasValue.value ? '(saved — paste a new one to replace)' : 'Paste your API key here'"
-            autocomplete="off"
-          >
-        </div>
-      </div>
-
-      <div class="settings-actions">
-        <NcButton
-          variant="primary"
-          :disabled="tmdb.saving.value || tmdb.input.value === ''"
-          @click="saveTmdbToken"
-        >
-          {{ tmdb.saving.value ? 'Saving…' : 'Save' }}
-        </NcButton>
-        <NcButton
-          v-if="tmdb.hasValue.value"
-          variant="tertiary"
-          :disabled="tmdb.saving.value"
-          @click="clearTmdbToken"
-        >
-          Remove
-        </NcButton>
-        <span
-          v-if="tmdb.message.value"
-          class="settings-saved"
-        >{{ tmdb.message.value }}</span>
-      </div>
-
-      <div class="settings-actions settings-enrich-all">
-        <NcButton
-          variant="secondary"
-          :disabled="!tmdb.hasValue.value || enrich.running.value || marketQueue.running.value"
-          @click="enrichAll('film')"
-        >
-          Enrich all un-enriched films
-        </NcButton>
-        <span
-          v-if="!tmdb.hasValue.value"
-          class="settings-hint"
-          style="margin:0"
-        >Add a TMDB API key above to enable enrichment.</span>
-      </div>
-    </NcAppSettingsSection>
-    <!-- ── Games ── -->
-    <NcAppSettingsSection
-      id="crate-settings-games"
-      name="Games"
-    >
-      <p class="settings-hint">
-        Game metadata and cover art via the
-        <a
-          href="https://rawg.io/"
-          target="_blank"
-          rel="noopener"
-        >RAWG API</a>.
-        Get a free API key at
-        <a
-          href="https://rawg.io/apidocs"
-          target="_blank"
-          rel="noopener"
-        >rawg.io/apidocs</a>.
-      </p>
-
-      <div class="settings-field">
-        <label for="rawg-key">RAWG API key</label>
-        <div class="settings-token-row">
-          <input
-            id="rawg-key"
-            v-model="rawg.input.value"
-            type="password"
-            :placeholder="rawg.hasValue.value ? '(saved — paste a new one to replace)' : 'Paste your API key here'"
-            autocomplete="off"
-          >
-        </div>
-      </div>
-
-      <div class="settings-actions">
-        <NcButton
-          variant="primary"
-          :disabled="rawg.saving.value || rawg.input.value === ''"
-          @click="saveRawgKey"
-        >
-          {{ rawg.saving.value ? 'Saving…' : 'Save' }}
-        </NcButton>
-        <NcButton
-          v-if="rawg.hasValue.value"
-          variant="tertiary"
-          :disabled="rawg.saving.value"
-          @click="clearRawgKey"
-        >
-          Remove
-        </NcButton>
-        <span
-          v-if="rawg.message.value"
-          class="settings-saved"
-        >{{ rawg.message.value }}</span>
-      </div>
-
-      <div class="settings-actions settings-enrich-all">
-        <NcButton
-          variant="secondary"
-          :disabled="!rawg.hasValue.value || enrich.running.value || marketQueue.running.value"
-          @click="enrichAll('game')"
-        >
-          Enrich all un-enriched games
-        </NcButton>
-        <span
-          v-if="!rawg.hasValue.value"
-          class="settings-hint"
-          style="margin:0"
-        >Add a RAWG API key above to enable enrichment.</span>
-      </div>
-    </NcAppSettingsSection>
-    <!-- ── Music ── -->
-    <NcAppSettingsSection
-      id="crate-settings-music"
-      name="Music"
-    >
-      <p class="settings-hint">
-        Metadata, artwork, tracklists and artist info via the
-        <a
-          href="https://www.discogs.com/developers/"
-          target="_blank"
-          rel="noopener"
-        >Discogs API</a>.
-        Generate a personal access token at
-        <a
-          href="https://www.discogs.com/settings/developers"
-          target="_blank"
-          rel="noopener"
-        >discogs.com/settings/developers</a>.
-      </p>
-
-      <div class="settings-field">
-        <label for="discogs-token">Discogs personal access token</label>
-        <div class="settings-token-row">
-          <input
-            id="discogs-token"
-            v-model="discogs.input.value"
-            type="password"
-            :placeholder="discogs.hasValue.value ? '(saved — paste a new one to replace)' : 'Paste your API key here'"
-            autocomplete="off"
-          >
-        </div>
-      </div>
-
-      <div class="settings-actions">
-        <NcButton
-          variant="primary"
-          :disabled="discogs.saving.value || discogs.input.value === ''"
-          @click="saveDiscogsToken"
-        >
-          {{ discogs.saving.value ? 'Saving…' : 'Save' }}
-        </NcButton>
-        <NcButton
-          v-if="discogs.hasValue.value"
-          variant="tertiary"
-          :disabled="discogs.saving.value"
-          @click="clearDiscogsToken"
-        >
-          Remove
-        </NcButton>
-        <span
-          v-if="discogs.message.value"
-          class="settings-saved"
-        >{{ discogs.message.value }}</span>
-      </div>
-
-      <div class="settings-actions settings-enrich-all">
-        <NcButton
-          variant="secondary"
-          :disabled="!discogs.hasValue.value || enrich.running.value || marketQueue.running.value"
-          @click="enrichAll('music')"
-        >
-          Enrich all un-enriched music
-        </NcButton>
-        <span
-          v-if="!discogs.hasValue.value"
-          class="settings-hint"
-          style="margin:0"
-        >Add a Discogs API key above to enable enrichment.</span>
-      </div>
-    </NcAppSettingsSection>
-
-    <!-- ── Market Values ── -->
+    <!-- ── Market values ── -->
     <NcAppSettingsSection
       id="crate-settings-market"
       name="Market values"
     >
       <p class="settings-hint">
-        Music market values come from Discogs (configured in the Music section above); game and comic prices come from
+        Music market values come from Discogs; game and comic prices come from
         <a
           href="https://www.pricecharting.com/"
           target="_blank"
           rel="noopener"
-        >PriceCharting</a> (paid API &mdash; requires a subscription). Films and books have no market-value source.
+        >PriceCharting</a> (paid API &mdash; requires a subscription). Both keys live under API keys. Films and books have no market-value source.
       </p>
 
-      <div class="settings-enrichment-options">
-        <div>
-          <NcCheckboxRadioSwitch v-model="autoFetchMarketRates">
-            Fetch market rates automatically
-          </NcCheckboxRadioSwitch>
-          <p class="settings-sub-hint">
-            When enabled, opening an item triggers a live price lookup for the applicable categories.
-          </p>
-        </div>
-
+      <div class="settings-group">
+        <h4 class="settings-group__label">
+          Display
+        </h4>
         <div class="settings-field settings-field--inline">
           <label for="market-currency">Display currency</label>
           <select
@@ -389,130 +212,154 @@
               {{ c }}
             </option>
           </select>
-          <p class="settings-sub-hint">
+          <p class="settings-sub-hint settings-sub-hint--flush">
             Used for Discogs (music) prices. PriceCharting (games &amp; comics) prices are always in USD.
           </p>
         </div>
       </div>
 
-      <div class="settings-field">
-        <label for="pricecharting-token">PriceCharting API key</label>
-        <p class="settings-sub-hint pricecharting-helper">
-          API access is a paid subscription &mdash; see the
-          <a
-            href="https://www.pricecharting.com/api-documentation"
-            target="_blank"
-            rel="noopener"
-          >API documentation</a> for pricing and details.
+      <div class="settings-group">
+        <h4 class="settings-group__label">
+          Fetching
+        </h4>
+        <NcCheckboxRadioSwitch v-model="autoFetchMarketRates">
+          Fetch market rates automatically
+        </NcCheckboxRadioSwitch>
+        <p class="settings-sub-hint">
+          When enabled, opening an item triggers a live price lookup for the applicable categories.
         </p>
-        <div class="settings-token-row">
-          <input
-            id="pricecharting-token"
-            v-model="priceCharting.input.value"
-            type="password"
-            :placeholder="priceCharting.hasValue.value ? '(saved — paste a new one to replace)' : 'Paste your API key here'"
-            autocomplete="off"
+
+        <div class="settings-actions settings-actions--spaced">
+          <NcButton
+            variant="secondary"
+            :disabled="(!discogs.hasValue.value && !priceCharting.hasValue.value) || marketQueue.running.value || enrich.running.value"
+            @click="refreshAllMarketRates"
           >
+            {{ marketQueue.running.value
+              ? `Fetching… ${marketQueue.done.value} / ${marketQueue.total.value}`
+              : 'Refresh all market rates' }}
+          </NcButton>
+          <NcButton
+            v-if="marketQueue.running.value"
+            variant="tertiary"
+            @click="marketQueue.cancel()"
+          >
+            Stop
+          </NcButton>
+          <span
+            v-if="!discogs.hasValue.value && !priceCharting.hasValue.value"
+            class="settings-hint settings-hint--flush"
+          >Add a Discogs or PriceCharting API key to enable market rates.</span>
         </div>
       </div>
-
-      <div class="settings-actions">
-        <NcButton
-          variant="primary"
-          :disabled="priceCharting.saving.value || priceCharting.input.value === ''"
-          @click="savePriceChartingToken"
-        >
-          {{ priceCharting.saving.value ? 'Saving…' : 'Save' }}
-        </NcButton>
-        <NcButton
-          v-if="priceCharting.hasValue.value"
-          variant="tertiary"
-          :disabled="priceCharting.saving.value"
-          @click="clearPriceChartingToken"
-        >
-          Remove
-        </NcButton>
-        <span
-          v-if="priceCharting.message.value"
-          class="settings-saved"
-        >{{ priceCharting.message.value }}</span>
-      </div>
-
-      <div class="settings-actions settings-enrich-all">
-        <NcButton
-          variant="secondary"
-          :disabled="(!discogs.hasValue.value && !priceCharting.hasValue.value) || marketQueue.running.value || enrich.running.value"
-          @click="refreshAllMarketRates"
-        >
-          {{ marketQueue.running.value
-            ? `Fetching… ${marketQueue.done.value} / ${marketQueue.total.value}`
-            : 'Refresh all market rates' }}
-        </NcButton>
-        <NcButton
-          v-if="marketQueue.running.value"
-          variant="tertiary"
-          @click="marketQueue.cancel()"
-        >
-          Stop
-        </NcButton>
-        <span
-          v-if="!discogs.hasValue.value && !priceCharting.hasValue.value"
-          class="settings-hint"
-          style="margin:0"
-        >Add a Discogs or PriceCharting API key to enable market rates.</span>
-      </div>
     </NcAppSettingsSection>
 
-    <!-- ── Hide categories ── -->
+    <!-- ── API keys ──
+         Every provider credential in one place, in the same order as the
+         Android app. Keys are configured once and then never touched, which is
+         why they sit below the sections that use them rather than inside each. -->
     <NcAppSettingsSection
-      id="crate-settings-categories"
-      name="Categories"
+      id="crate-settings-api-keys"
+      name="API keys"
+      description="Keys are stored on your Nextcloud server and are never shown again once saved. Books need no key — Open Library is open."
     >
-      <p class="settings-hint">
-        Hide categories you don't use. Hidden categories disappear from the sidebar and the Home view, and won't show up in search. At least one category must remain visible.
-      </p>
-      <div class="settings-enrichment-options">
-        <NcCheckboxRadioSwitch
-          v-for="cat in categoryToggles"
-          :key="cat.value"
-          :model-value="!hiddenCategories.includes(cat.value)"
-          :disabled="!hiddenCategories.includes(cat.value) && hiddenCategories.length >= categoryToggles.length - 1"
-          @update:model-value="setCategoryVisible(cat.value, $event)"
-        >
-          {{ cat.label }}
-        </NcCheckboxRadioSwitch>
-      </div>
+      <TokenField
+        v-model="discogs.input.value"
+        input-id="discogs-token"
+        label="Discogs personal access token"
+        :has-value="discogs.hasValue.value"
+        :saving="discogs.saving.value"
+        :message="discogs.message.value"
+        @save="saveDiscogsToken"
+        @remove="clearDiscogsToken"
+      >
+        Powers music enrichment and music market values. Generate a personal access token at
+        <a
+          href="https://www.discogs.com/settings/developers"
+          target="_blank"
+          rel="noopener"
+        >discogs.com/settings/developers</a>.
+      </TokenField>
+
+      <TokenField
+        v-model="tmdb.input.value"
+        input-id="tmdb-token"
+        label="TMDB API Read Access Token"
+        :has-value="tmdb.hasValue.value"
+        :saving="tmdb.saving.value"
+        :message="tmdb.message.value"
+        @save="saveTmdbToken"
+        @remove="clearTmdbToken"
+      >
+        Powers film enrichment. Generate an API Read Access Token at
+        <a
+          href="https://www.themoviedb.org/settings/api"
+          target="_blank"
+          rel="noopener"
+        >themoviedb.org/settings/api</a>.
+      </TokenField>
+
+      <TokenField
+        v-model="rawg.input.value"
+        input-id="rawg-key"
+        label="RAWG API key"
+        :has-value="rawg.hasValue.value"
+        :saving="rawg.saving.value"
+        :message="rawg.message.value"
+        @save="saveRawgKey"
+        @remove="clearRawgKey"
+      >
+        Powers game enrichment. Get a free API key at
+        <a
+          href="https://rawg.io/apidocs"
+          target="_blank"
+          rel="noopener"
+        >rawg.io/apidocs</a>.
+      </TokenField>
+
+      <TokenField
+        v-model="comicVine.input.value"
+        input-id="comicvine-key"
+        label="ComicVine API key"
+        :has-value="comicVine.hasValue.value"
+        :saving="comicVine.saving.value"
+        :message="comicVine.message.value"
+        @save="saveComicVineKey"
+        @remove="clearComicVineKey"
+      >
+        Powers comic enrichment. Get a free API key at
+        <a
+          href="https://comicvine.gamespot.com/api/"
+          target="_blank"
+          rel="noopener"
+        >comicvine.gamespot.com/api</a>.
+      </TokenField>
+
+      <TokenField
+        v-model="priceCharting.input.value"
+        input-id="pricecharting-token"
+        label="PriceCharting API key"
+        :has-value="priceCharting.hasValue.value"
+        :saving="priceCharting.saving.value"
+        :message="priceCharting.message.value"
+        @save="savePriceChartingToken"
+        @remove="clearPriceChartingToken"
+      >
+        Powers game and comic market values. API access is a paid subscription &mdash; see the
+        <a
+          href="https://www.pricecharting.com/api-documentation"
+          target="_blank"
+          rel="noopener"
+        >API documentation</a> for pricing and details.
+      </TokenField>
     </NcAppSettingsSection>
 
-    <!-- ── Recommendations ── -->
-    <NcAppSettingsSection
-      id="crate-settings-recommendations"
-      name="Recommendations"
-    >
-      <p class="settings-hint">
-        Items show a "More from your crate" row, suggesting similar things you already own or want. That's worked out locally from your own collection and needs no setup.
-      </p>
-      <div class="settings-enrichment-options">
-        <NcCheckboxRadioSwitch
-          :model-value="onlineRecommendations"
-          @update:model-value="onlineRecommendations = $event"
-        >
-          Enable online recommendations
-        </NcCheckboxRadioSwitch>
-      </div>
-      <p class="settings-hint">
-        Also suggest things you don't own yet, from the same service that enriched the item — Discogs for music, TMDB for films, Open Library for books, RAWG for games. Only enriched items can have these, since suggestions are looked up by the ID enrichment stores. Results are cached, so re-opening an item won't re-query the service. Comics aren't covered: ComicVine publishes no similarity data.
-      </p>
-    </NcAppSettingsSection>
-
-    <!-- ── Danger Zone ── -->
+    <!-- ── Danger zone ── -->
     <NcAppSettingsSection
       id="crate-settings-danger"
       name="Danger zone"
+      description="Permanently delete selected data from your collection. You choose what to wipe in the confirmation dialog. This cannot be undone."
     >
-      <p class="settings-hint">
-        Permanently delete selected data from your collection. You choose what to wipe in the confirmation dialog. This cannot be undone.
-      </p>
       <div class="settings-actions">
         <NcButton
           variant="error"
@@ -572,6 +419,8 @@ import { NcAppSettingsDialog, NcAppSettingsSection, NcButton, NcCheckboxRadioSwi
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
 import { showError } from '@nextcloud/dialogs'
+import EnrichProviderRow from './settings/EnrichProviderRow.vue'
+import TokenField from './settings/TokenField.vue'
 import { useEnrichQueue } from '../composables/useEnrichQueue.js'
 import { useMarketValueQueue } from '../composables/useMarketValueQueue.js'
 import { useSettings } from '../composables/useSettings.js'
@@ -771,8 +620,8 @@ async function refreshAllMarketRates() {
 /**
  * Start the enrich queue for every un-enriched item in the given category,
  * or — when category is null — across every category the user has. Shared
- * between the global "Enrich all items" button in General and each
- * per-category button.
+ * between the "Enrich all items" button and each per-category button in the
+ * Enrichment section.
  */
 async function enrichAll(category = null) {
   if (enrich.running.value || marketQueue.running.value) return
@@ -798,9 +647,29 @@ onMounted(load)
 </script>
 
 <style scoped>
-.pricecharting-helper {
-  margin-top: -4px;
-  margin-bottom: 6px;
+/* A titled block within a section — the bold sub-label plus the controls it
+   covers. NcAppSettingsSection already spaces its direct children apart, so a
+   group only has to handle the gaps inside itself. */
+.settings-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-group__label {
+  font-size: 0.9em;
+  font-weight: 700;
+  margin: 0 0 8px;
+}
+
+/* Vertical run of like-for-like controls (category switches, provider rows). */
+.settings-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-stack--wide {
+  gap: 16px;
 }
 
 .wipe-scopes {
@@ -817,10 +686,19 @@ onMounted(load)
   line-height: 1.5;
 }
 
+.settings-hint--tight {
+  margin: 8px 0 0;
+}
+
+.settings-hint--flush {
+  margin: 0;
+}
+
 .settings-hint a {
   color: var(--color-primary-element);
 }
 
+/* Indented to line up under the label of the switch it belongs to. */
 .settings-sub-hint {
   font-size: 0.8em;
   color: var(--color-text-maxcontrast);
@@ -828,8 +706,8 @@ onMounted(load)
   line-height: 1.4;
 }
 
-.settings-field {
-  margin-bottom: 12px;
+.settings-sub-hint--flush {
+  margin-left: 0;
 }
 
 .settings-field--inline {
@@ -845,28 +723,6 @@ onMounted(load)
   margin-bottom: 6px;
 }
 
-.settings-token-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.settings-token-row input {
-  flex: 1;
-  border: 2px solid var(--color-border-dark);
-  border-radius: var(--border-radius);
-  background: var(--color-main-background);
-  color: var(--color-main-text);
-  padding: 6px 10px;
-  font-size: 1em;
-  font-family: monospace;
-}
-
-.settings-token-row input:focus {
-  border-color: var(--color-primary-element);
-  outline: none;
-}
-
 .settings-actions {
   display: flex;
   align-items: center;
@@ -874,19 +730,13 @@ onMounted(load)
   flex-wrap: wrap;
 }
 
+.settings-actions--spaced {
+  margin-top: 16px;
+}
+
 .settings-saved {
   font-size: 0.875em;
   color: #4ade80;
-}
-
-.settings-enrichment-options {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.settings-enrich-all {
-  margin-top: 12px;
 }
 
 .settings-currency-select {

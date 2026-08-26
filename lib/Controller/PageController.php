@@ -32,8 +32,8 @@ class PageController extends Controller
         // it with the instance default, which is why it starts from a populated
         // ContentSecurityPolicy.
         $csp = new ContentSecurityPolicy();
-        foreach (CrateImageHosts::ALL as $host) {
-            $csp->addAllowedImageDomain('https://' . $host);
+        foreach (CrateImageHosts::imageSources() as $source) {
+            $csp->addAllowedImageDomain($source);
         }
         $response->setContentSecurityPolicy($csp);
 

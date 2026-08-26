@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Crate\Service;
 
+use OCA\Crate\CrateArtworkFiles;
 use OCA\Crate\CrateCategories;
 use OCA\Crate\CrateImageHosts;
 use OCA\Crate\Db\CrateShareMapper;
@@ -251,16 +252,18 @@ class MediaService
     }
 
     /**
-     * Drop the appdata cache for an item whose artwork source has moved on.
+     * Drop the appdata artwork files for an item whose artwork source has moved
+     * on, so nothing the item no longer points at is left occupying disk.
      *
-     * The cache file is named after the item id and extension alone, so a new
-     * remote URL with the same extension keeps serving the old picture. A
-     * 'local' predecessor is left alone: that file is the user's own upload,
+     * Runs whenever the source changes at all, the previously-empty case
+     * included: an item that has just been given its first cover is exactly the
+     * one that may have inherited a file from an earlier occupant of its id. A
+     * 'local' predecessor is left alone — that file is the user's own upload,
      * which stripEnrichment() restores the item to.
      */
     private function purgeStaleArtworkCache(int $itemId, ?string $previousPath, ?string $currentPath): void
     {
-        if ($previousPath === null || $previousPath === 'local' || $previousPath === $currentPath) {
+        if ($previousPath === 'local' || $previousPath === $currentPath) {
             return;
         }
         $this->deleteArtworkFiles($itemId);
@@ -294,19 +297,20 @@ class MediaService
         ]);
     }
 
-    /** Remove cached/uploaded artwork files for a single item. */
-    private function deleteArtworkFiles(int $itemId): void
+    /**
+     * Remove the cached and uploaded artwork files for one or more items.
+     *
+     * Takes the whole batch at once so a wipe lists the appdata folder a single
+     * time rather than once per item.
+     */
+    private function deleteArtworkFiles(int ...$itemIds): void
     {
         try {
             $folder = $this->appDataFactory->get('crate')->getFolder('artwork');
-            foreach (['.jpg', '.png', '.webp', '.gif'] as $ext) {
-                try {
-                    $folder->getFile('artwork_' . $itemId . $ext)->delete();
-                } catch (NotFoundException) {
-                }
-            }
         } catch (NotFoundException) {
+            return;
         }
+        CrateArtworkFiles::deleteAll($folder, ...$itemIds);
     }
 
     /**
@@ -401,8 +405,11 @@ class MediaService
             throw $e;
         }
 
+        $this->deleteArtworkFiles(...array_map(
+            static fn(MediaItem $item): int => $item->getId(),
+            $itemsToDelete,
+        ));
         foreach ($itemsToDelete as $item) {
-            $this->deleteArtworkFiles($item->getId());
             $this->deletePhotoFiles($item->getId());
         }
 
@@ -458,8 +465,11 @@ class MediaService
         }
 
         // After commit: a failed unlink must not undo the row deletions.
+        $this->deleteArtworkFiles(...array_map(
+            static fn(MediaItem $item): int => $item->getId(),
+            $items,
+        ));
         foreach ($items as $item) {
-            $this->deleteArtworkFiles($item->getId());
             $this->deletePhotoFiles($item->getId());
         }
 
@@ -525,7 +535,9 @@ class MediaService
             'barcode' => $doc['barcode'] ?? null,
             'genres' => $genres,
             'overview' => $work['overview'] ?? null,
-            'artworkUrl' => $work['artworkUrl'] ?? null,
+            // The work carries the better cover, but only the search doc has
+            // one when the work record itself has no `covers` entry.
+            'artworkUrl' => $work['artworkUrl'] ?? $doc['artworkUrl'] ?? null,
             'artistBio' => $work['authorBio'] ?? null,
             'enrichmentArtistId' => $work['authorKey'] ?? null,
             'enrichmentId' => $doc['workKey'] ?? null,
