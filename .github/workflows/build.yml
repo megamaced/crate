@@ -16,15 +16,12 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   php:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
@@ -38,7 +35,7 @@ jobs:
           coverage: none
 
       - name: Cache Composer
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.composer/cache
           key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
@@ -67,7 +64,7 @@ jobs:
       matrix:
         php: ['8.2', '8.3']
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
@@ -82,11 +79,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: '24'
           cache: npm
@@ -97,8 +94,35 @@ jobs:
 
       - run: npm run build
 
+      # @nextcloud/webpack-vue-config hardcodes `publicPath` to `/apps/<app>/js/`,
+      # so webpack builds lazy-chunk URLs from a prefix that only exists when the
+      # app lives under the `apps` root. The official Nextcloud Docker image
+      # installs apps into `custom_apps`, served at `/custom_apps`, where every
+      # dynamically imported component 404s — the symptom that shipped in v1.9.0.
+      # webpack.config.js overrides the prefix to `auto`; nothing in the build
+      # itself fails when that override is lost, so assert it here instead.
+      - name: Assert the bundle has no hardcoded apps root
+        run: |
+          if [ ! -d js ]; then
+            echo "::error file=webpack.config.js::js/ is missing after 'npm run build', so the publicPath check could not run."
+            exit 1
+          fi
+          mapfile -t bundles < <(find js -type f -name '*.js' | sort)
+          if [ "${#bundles[@]}" -eq 0 ]; then
+            echo "::error file=webpack.config.js::'npm run build' emitted no *.js under js/, so the publicPath check could not run."
+            exit 1
+          fi
+          echo "Scanning ${#bundles[@]} built file(s) for a hardcoded apps root."
+          if hits=$(grep -Fl 'apps/crate/js' "${bundles[@]}"); then
+            echo "Hardcoded 'apps/crate/js' found in:"
+            echo "$hits"
+            echo "::error file=webpack.config.js::The built bundle hardcodes 'apps/crate/js' as its publicPath, so every lazily imported component (settings panel, all modals) will 404 on installs whose apps root is not 'apps' — the official Docker image serves apps from '/custom_apps'. Restore output.publicPath = 'auto' in webpack.config.js."
+            exit 1
+          fi
+          echo "OK: publicPath is resolved at runtime, no apps root baked into the bundle."
+
       - name: Upload built JS bundle
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: crate-js-${{ github.sha }}
           path: js/
@@ -113,14 +137,14 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
       # Package the exact bundle the js job linted and built, rather than a
       # second independent webpack run over the same inputs.
       - name: Download built JS bundle
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: crate-js-${{ github.sha }}
           path: js/
@@ -135,7 +159,7 @@ jobs:
           cp -r appinfo img lib templates js LICENSE README.md "$STAGE/crate/"
           tar -C "$STAGE" -czf "crate-${VERSION}.tar.gz" crate
 
-      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+      - uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3
         with:
           files: crate-*.tar.gz
           generate_release_notes: true
