@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Crate\Tests\Unit;
 
+use OCA\Crate\Db\CrateShare;
 use OCA\Crate\Db\CrateShareMapper;
 use OCA\Crate\Db\MediaItem;
 use OCA\Crate\Db\MediaItemMapper;
@@ -72,6 +73,17 @@ class PlaylistSharingTest extends TestCase
         $item->setTitle($title);
         $item->setNotes('private note');
         return $item;
+    }
+
+    private function share(string $owner, int $playlistId, string $permission = CrateShare::PERMISSION_READ): CrateShare
+    {
+        $share = new CrateShare();
+        $share->setId(31);
+        $share->setOwnerUserId($owner);
+        $share->setShareableType('playlist');
+        $share->setShareableId($playlistId);
+        $share->setPermission($permission);
+        return $share;
     }
 
     private function playlistItem(int $playlistId, int $mediaItemId): PlaylistItem
@@ -149,11 +161,92 @@ class PlaylistSharingTest extends TestCase
         $this->service()->addItem(7, 'carol', 9);
     }
 
+    public function testASharedPlaylistResolvesForItsShareeAndSaysSo(): void
+    {
+        // The canonical detail endpoint is where a sharee lands on refresh,
+        // bookmark or browser-back. Owner-only resolution answered 404 there
+        // for a playlist the shared-with-me list had just handed them.
+        $this->playlistMapper->method('findByUser')
+            ->willThrowException(new DoesNotExistException('not owner'));
+        $this->shareMapper->method('findSharedWith')
+            ->willReturn($this->share('bob', 7, CrateShare::PERMISSION_READWRITE));
+        $this->playlistMapper->method('findById')->willReturn($this->playlist(7, 'bob'));
+        $this->playlistItemMapper->method('findByPlaylist')->willReturn([$this->playlistItem(7, 9)]);
+        $this->mediaItemMapper->method('findByIds')
+            ->willReturn([$this->item(9, 'bob', "Bob's record")]);
+
+        $result = $this->service()->findForViewer(7, 'carol');
+
+        self::assertSame('bob', $result['sharedByUser']);
+        self::assertSame(CrateShare::PERMISSION_READWRITE, $result['permission']);
+        self::assertTrue($result['canWrite']);
+        self::assertSame(31, $result['shareId']);
+    }
+
+    public function testAReadOnlyShareeIsToldTheyCannotWrite(): void
+    {
+        $this->playlistMapper->method('findByUser')
+            ->willThrowException(new DoesNotExistException('not owner'));
+        $this->shareMapper->method('findSharedWith')->willReturn($this->share('bob', 7));
+        $this->playlistMapper->method('findById')->willReturn($this->playlist(7, 'bob'));
+        $this->playlistItemMapper->method('findByPlaylist')->willReturn([]);
+        $this->mediaItemMapper->method('findByIds')->willReturn([]);
+
+        $result = $this->service()->findForViewer(7, 'carol');
+
+        self::assertFalse($result['canWrite']);
+        self::assertSame(CrateShare::PERMISSION_READ, $result['permission']);
+    }
+
+    public function testAStrangerGetsNothing(): void
+    {
+        $this->playlistMapper->method('findByUser')
+            ->willThrowException(new DoesNotExistException('not owner'));
+        $this->shareMapper->method('findSharedWith')->willReturn(null);
+
+        $this->expectException(DoesNotExistException::class);
+        $this->service()->findForViewer(7, 'mallory');
+    }
+
+    public function testAMutationHandsTheShareeBackTheSameShareEnvelope(): void
+    {
+        // Renaming used to return a playlist with no share metadata, so the
+        // client dropped the badge and offered owner-only Share/Delete.
+        $this->playlistMapper->method('findByUser')
+            ->willThrowException(new DoesNotExistException('not owner'));
+        $this->shareMapper->method('isWritableSharedWith')->willReturn(true);
+        $this->shareMapper->method('findSharedWith')
+            ->willReturn($this->share('bob', 7, CrateShare::PERMISSION_READWRITE));
+        $this->playlistMapper->method('findById')->willReturn($this->playlist(7, 'bob'));
+        $this->playlistItemMapper->method('findByPlaylist')->willReturn([]);
+        $this->mediaItemMapper->method('findByIds')->willReturn([]);
+
+        $result = $this->service()->update(7, 'carol', 'Renamed');
+
+        self::assertSame('bob', $result['sharedByUser']);
+        self::assertTrue($result['canWrite']);
+    }
+
+    public function testTheOwnerIsNotDescribedAsASharee(): void
+    {
+        $this->playlistMapper->method('findByUser')->willReturn($this->playlist(7, 'bob'));
+        $this->playlistItemMapper->method('findByPlaylist')->willReturn([]);
+        $this->mediaItemMapper->method('findByIds')->willReturn([]);
+        // No share lookup should be needed for the owner's own playlist.
+        $this->shareMapper->expects(self::never())->method('findSharedWith');
+
+        $result = $this->service()->findForViewer(7, 'bob');
+
+        self::assertTrue($result['canWrite']);
+        self::assertArrayNotHasKey('sharedByUser', $result);
+        self::assertArrayNotHasKey('permission', $result);
+    }
+
     public function testSharedPlaylistHidesTracksBelongingToNeitherViewerNorOwner(): void
     {
         // Dave holds a share of Bob's playlist, which lists one of Bob's items,
         // one of Dave's own, and one that is still Alice's.
-        $this->shareMapper->method('isSharedWith')->willReturn(true);
+        $this->shareMapper->method('findSharedWith')->willReturn($this->share('bob', 7));
         $this->playlistMapper->method('findById')->willReturn($this->playlist(7, 'bob'));
         $this->playlistItemMapper->method('findByPlaylist')->willReturn([
             $this->playlistItem(7, 9),

@@ -88,20 +88,39 @@ class CrateShareMapper extends QBMapper
         int $shareableId,
         string $shareableCategory = CrateShare::CATEGORY_NONE,
     ): bool {
+        return $this->findSharedWith($viewerUserId, $type, $shareableId, $shareableCategory) !== null;
+    }
+
+    /**
+     * The share row granting $viewerUserId access to the given shareable, or
+     * null when there is none.
+     *
+     * Callers that need to describe the access — who shared it, at what
+     * permission — want the row rather than the boolean, so that the response
+     * they build says the same thing wherever it was built.
+     */
+    public function findSharedWith(
+        string $viewerUserId,
+        string $type,
+        int $shareableId,
+        string $shareableCategory = CrateShare::CATEGORY_NONE,
+    ): ?CrateShare {
         $qb = $this->db->getQueryBuilder();
         $shareableIdParam = $qb->createNamedParameter($shareableId, IQueryBuilder::PARAM_INT);
-        $qb->select('id')
+        $qb->select('*')
             ->from($this->getTableName())
             ->where($qb->expr()->eq('shared_with_user_id', $qb->createNamedParameter($viewerUserId)))
             ->andWhere($qb->expr()->eq('shareable_type', $qb->createNamedParameter($type)))
             ->andWhere($qb->expr()->eq('shareable_id', $shareableIdParam))
             ->andWhere($qb->expr()->eq('shareable_category', $qb->createNamedParameter($shareableCategory)))
+            // A read/write row wins over a read-only one when both exist, so
+            // the permission reported is the access actually granted.
+            ->orderBy('permission', 'DESC')
             ->setMaxResults(1);
         try {
-            $this->findEntity($qb);
-            return true;
+            return $this->findEntity($qb);
         } catch (DoesNotExistException) {
-            return false;
+            return null;
         }
     }
 

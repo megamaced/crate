@@ -610,7 +610,9 @@ async function openPlaylistById(playlistId) {
       const res = await axios.get(generateOcsUrl(`/apps/crate/api/v1/playlists/${playlistId}`))
       const playlist = res.data.ocs?.data
       if (!playlist) return false
-      selectedPlaylist.value = playlist
+      // The endpoint resolves ownership or a share and describes the access
+      // itself; the merge is belt-and-braces for a response that predates it.
+      selectedPlaylist.value = preserveSharedFlags(playlist, selectedPlaylist.value)
     } catch {
       // Playlist deleted or unreadable — the caller decides where to go.
       return false
@@ -642,11 +644,10 @@ function handleCollectionWiped() {
 function preserveSharedFlags(next, prev) {
   if (!next || !prev) return next
   if (Number(next.id) !== Number(prev.id)) return next
-  if (next.sharedByUser === undefined && prev.sharedByUser !== undefined) {
-    next.sharedByUser = prev.sharedByUser
-  }
-  if (next.canWrite === undefined && prev.canWrite !== undefined) {
-    next.canWrite = prev.canWrite
+  for (const key of ['sharedByUser', 'canWrite', 'permission', 'shareId']) {
+    if (next[key] === undefined && prev[key] !== undefined) {
+      next[key] = prev[key]
+    }
   }
   return next
 }
@@ -800,7 +801,9 @@ async function showPlaylistDetail(playlist) {
   if (!Array.isArray(playlist.items)) {
     try {
       const res = await axios.get(generateOcsUrl(`/apps/crate/api/v1/playlists/${playlist.id}`))
-      playlist = res.data.ocs?.data ?? playlist
+      // Keep the share envelope the caller already had: this row may have come
+      // from the shared-with-me list, which is where the badge comes from.
+      playlist = preserveSharedFlags(res.data.ocs?.data ?? playlist, playlist)
     } catch { /* fall through with whatever we have */ }
   }
   selectedPlaylist.value = playlist
@@ -822,7 +825,10 @@ async function handleDeletePlaylist(playlist) {
 }
 
 function handlePlaylistUpdated(updatedPlaylist) {
-  selectedPlaylist.value = updatedPlaylist
+  // A rename or a track change returns the playlist as the mutating user sees
+  // it. Merging rather than replacing keeps the share badge and the read-only
+  // gating from blinking off if the response ever arrives without them.
+  selectedPlaylist.value = preserveSharedFlags(updatedPlaylist, selectedPlaylist.value)
 }
 
 // ── add to playlist / share modals ────────────────────────────────────────────

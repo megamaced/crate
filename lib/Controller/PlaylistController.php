@@ -40,11 +40,19 @@ class PlaylistController extends OCSController
         );
     }
 
+    /**
+     * GET /api/v1/playlists/{id}
+     *
+     * Resolves ownership *or* an active share: this is the endpoint a client
+     * lands on when a shared playlist is opened by URL — a refresh, a
+     * bookmark, browser back — and answering 404 there sent the sharee home
+     * from a playlist the shared-with-me list had just shown them.
+     */
     #[NoAdminRequired]
     public function show(int $id): DataResponse
     {
         try {
-            return new DataResponse($this->playlistService->find($id, $this->userId()));
+            return new DataResponse($this->playlistService->findForViewer($id, $this->userId()));
         } catch (\OCP\AppFramework\Db\DoesNotExistException) {
             return new DataResponse(['error' => 'Not found'], Http::STATUS_NOT_FOUND);
         }

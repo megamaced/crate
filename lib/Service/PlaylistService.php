@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Crate\Service;
 
+use OCA\Crate\Db\CrateShare;
 use OCA\Crate\Db\CrateShareMapper;
 use OCA\Crate\Db\MediaItemMapper;
 use OCA\Crate\Db\Playlist;
@@ -105,11 +106,31 @@ class PlaylistService
      */
     public function findForSharedAccess(int $id, string $viewerUserId): array
     {
-        if (!$this->shareMapper->isSharedWith($viewerUserId, 'playlist', $id)) {
+        $share = $this->shareMapper->findSharedWith($viewerUserId, 'playlist', $id);
+        if ($share === null) {
             throw new DoesNotExistException('Playlist not shared with user');
         }
-        $playlist = $this->playlistMapper->findById($id);
-        return $this->hydrateWithItems($playlist, $viewerUserId);
+        return $this->hydrateWithItems($this->playlistMapper->findById($id), $viewerUserId, $share);
+    }
+
+    /**
+     * Resolve a playlist the caller may READ — they own it, or hold a share of
+     * it — and describe that access in the result.
+     *
+     * The canonical detail endpoint has to accept both, or a sharee opening a
+     * playlist by URL (a refresh, a bookmark, browser back) gets a 404 for
+     * something the shared-with-me list had just handed them.
+     *
+     * @throws DoesNotExistException if the caller neither owns it nor holds a share
+     * @return array<string, mixed>
+     */
+    public function findForViewer(int $id, string $userId): array
+    {
+        try {
+            return $this->find($id, $userId);
+        } catch (DoesNotExistException) {
+            return $this->findForSharedAccess($id, $userId);
+        }
     }
 
     public function create(string $userId, string $name, ?string $description): array
@@ -277,10 +298,23 @@ class PlaylistService
      * written before that rule, and items whose owner changed since. It stays
      * because dropping it would disclose those.
      *
+     * Every response carrying a playlist goes through here, so the access
+     * description travels with it: `canWrite` always, and the share envelope
+     * (`shareId`, `sharedByUser`, `permission`) whenever the viewer is not the
+     * owner. Attaching it only in the shared-with-me listing meant a rename or
+     * a track change handed the client back a playlist that looked unshared,
+     * and the UI dropped the badge and offered owner-only controls.
+     *
+     * $share is passed when the caller has already resolved it; otherwise it
+     * is looked up, and only for a viewer who is not the owner.
+     *
      * @return array<string, mixed>
      */
-    private function hydrateWithItems(Playlist $playlist, string $viewerUserId): array
-    {
+    private function hydrateWithItems(
+        Playlist $playlist,
+        string $viewerUserId,
+        ?CrateShare $share = null,
+    ): array {
         $pItems = $this->playlistItemMapper->findByPlaylist($playlist->getId());
 
         // Bulk-fetch all referenced media items in one query, then reorder to
@@ -310,6 +344,19 @@ class PlaylistService
         // The cover comes from the visible tracks: an id the viewer cannot
         // fetch artwork for would only render as a broken image.
         $data['coverId']   = $mediaItems[0]['id'] ?? null;
+
+        if ($ownerUserId === $viewerUserId) {
+            $data['canWrite'] = true;
+            return $data;
+        }
+
+        $share ??= $this->shareMapper->findSharedWith($viewerUserId, 'playlist', $playlist->getId());
+        $data['canWrite'] = $share?->canWrite() ?? false;
+        if ($share !== null) {
+            $data['shareId']      = $share->getId();
+            $data['sharedByUser'] = $share->getOwnerUserId();
+            $data['permission']   = $share->getPermission();
+        }
         return $data;
     }
 }
