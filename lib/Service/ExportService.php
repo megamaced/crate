@@ -510,8 +510,8 @@ class ExportService
         $xml .= '<row r="1">';
         foreach ($headers as $ci => $value) {
             $ref  = $this->cellRef($ci, 1);
-            $text = htmlspecialchars((string) $value, ENT_XML1 | ENT_QUOTES, 'UTF-8');
-            $xml .= '<c r="' . $ref . '" t="inlineStr" s="1"><is><t>' . $text . '</t></is></c>';
+            $xml .= '<c r="' . $ref . '" t="inlineStr" s="1"><is><t>'
+                . self::xmlText($value) . '</t></is></c>';
         }
         $xml .= '</row>';
 
@@ -523,14 +523,55 @@ class ExportService
                 $ref  = $this->cellRef($ci, $rowNum);
                 // No formula guard here: only a <f> element is evaluated, so an
                 // inline string is text by construction.
-                $text = htmlspecialchars((string) $value, ENT_XML1 | ENT_QUOTES, 'UTF-8');
-                $xml .= '<c r="' . $ref . '" t="inlineStr"><is><t>' . $text . '</t></is></c>';
+                $xml .= '<c r="' . $ref . '" t="inlineStr"><is><t>'
+                    . self::xmlText($value) . '</t></is></c>';
             }
             $xml .= '</row>';
         }
 
         $xml .= '</sheetData></worksheet>';
         return $xml;
+    }
+
+    /**
+     * Render one value as worksheet character data.
+     *
+     * Escaping alone is not enough. `htmlspecialchars(..., ENT_XML1)` handles
+     * markup, but XML 1.0 also forbids most C0 control characters outright —
+     * they have no escape, not even a numeric reference. `notes` and the
+     * enrichment blurbs are free text an API client writes directly, so a
+     * stored U+0001 travelled into the worksheet as a raw byte and produced a
+     * workbook that spreadsheet software reports as damaged ("PCDATA invalid
+     * Char value 1" from any conforming parser).
+     *
+     * Anything outside XML 1.0's legal set is dropped, as is any byte sequence
+     * that is not valid UTF-8 — which would break the document just as surely.
+     */
+    private static function xmlText(mixed $value): string
+    {
+        $text = (string) $value;
+        if ($text === '') {
+            return '';
+        }
+        // Drop invalid UTF-8 first: the /u pattern below fails outright on it,
+        // and an ill-formed sequence cannot be written to the document anyway.
+        if (!mb_check_encoding($text, 'UTF-8')) {
+            $text = mb_convert_encoding($text, 'UTF-8', 'UTF-8');
+        }
+        // XML 1.0 §2.2: Char ::= #x9 | #xA | #xD | [#x20-#xD7FF]
+        //                      | [#xE000-#xFFFD] | [#x10000-#x10FFFF]
+        $stripped = preg_replace(
+            '/[^\x{0009}\x{000A}\x{000D}\x{0020}-\x{D7FF}\x{E000}-\x{FFFD}\x{10000}-\x{10FFFF}]+/u',
+            '',
+            $text,
+        );
+        // preg_replace returns null only if the pattern fails on the subject;
+        // the check above should prevent it, but a null would otherwise become
+        // an empty cell silently.
+        if ($stripped !== null) {
+            $text = $stripped;
+        }
+        return htmlspecialchars($text, ENT_XML1 | ENT_QUOTES, 'UTF-8');
     }
 
     /** Convert zero-based column index + 1-based row to a cell reference like "A1", "B3", "AA2". */
