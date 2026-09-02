@@ -220,15 +220,17 @@ class ArtworkPathTest extends TestCase
     public function testACacheEntryIsNamedAfterTheCoverItHolds(): void
     {
         // Two covers for the same item never share a file name, which is what
-        // stops a stale entry being served in place of the current cover.
-        $one = CrateArtworkFiles::cacheName(5, 'https://i.discogs.com/old.jpg', '.jpg');
-        $two = CrateArtworkFiles::cacheName(5, 'https://i.discogs.com/new.jpg', '.jpg');
+        // stops a stale entry being served in place of the current cover. The
+        // extension is not part of the key — it comes from the fetched
+        // Content-Type — so the name is compared without one.
+        $one = CrateArtworkFiles::cachePrefix(5, 'https://i.discogs.com/old.jpg');
+        $two = CrateArtworkFiles::cachePrefix(5, 'https://i.discogs.com/new.jpg');
 
         self::assertNotSame($one, $two);
-        self::assertSame($one, CrateArtworkFiles::cacheName(5, 'https://i.discogs.com/old.jpg', '.jpg'));
+        self::assertSame($one, CrateArtworkFiles::cachePrefix(5, 'https://i.discogs.com/old.jpg'));
         // And neither can be mistaken for another item's, nor for an upload.
-        self::assertNotSame($one, CrateArtworkFiles::cacheName(50, 'https://i.discogs.com/old.jpg', '.jpg'));
-        self::assertNotSame($one, CrateArtworkFiles::uploadName(5, '.jpg'));
+        self::assertNotSame($one, CrateArtworkFiles::cachePrefix(50, 'https://i.discogs.com/old.jpg'));
+        self::assertNotSame($one . '.jpg', CrateArtworkFiles::uploadName(5, '.jpg'));
     }
 
     /**

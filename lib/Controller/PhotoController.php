@@ -177,8 +177,17 @@ class PhotoController extends Controller
         }
         // Strip EXIF/IPTC/XMP before persisting. Photos are the "receipts
         // and personal photos" slot — phone-gallery uploads commonly
-        // carry GPS, timestamps, camera serials. See GdImageTrait.
-        $bytes = $this->stripImageMetadata($bytes, (string) $mime);
+        // carry GPS, timestamps, camera serials. See GdImageTrait. A file that
+        // cannot be sanitised is refused rather than stored intact: this slot
+        // is served on to sharees, so its metadata travels with it.
+        $sanitised = $this->stripImageMetadata($bytes, (string) $mime);
+        if ($sanitised === null) {
+            return new DataResponse(
+                ['error' => 'This image could not be processed. Re-save it as JPEG or PNG and try again.'],
+                Http::STATUS_UNSUPPORTED_MEDIA_TYPE,
+            );
+        }
+        $bytes = $sanitised;
 
         $appData = $this->appDataFactory->get('crate');
         try {
@@ -187,23 +196,16 @@ class PhotoController extends Controller
             $folder = $appData->newFolder('photos');
         }
 
-        // Hold the media_item row across the file ops so concurrent uploads
-        // can't leave the DB pointing at a missing file. Matches the
-        // ArtworkController upload pattern.
+        $fileName = $this->fileName($itemId, $slot, $ext);
+
+        // Same ordering as ArtworkController::upload, and for the same two
+        // reasons: the row UPDATE runs first because that is what actually
+        // takes the write lock (a plain SELECT serialises nothing under MVCC),
+        // and no file is removed until the transaction has committed, so a
+        // failed write rolls back with the previous photo still in place.
         $this->db->beginTransaction();
         try {
             $item = $this->mapper->findWritableForUser($itemId, $userId);
-
-            // Clear any prior file in this slot (any extension).
-            foreach (self::PHOTO_EXTENSIONS as $oldExt) {
-                try {
-                    $folder->getFile($this->fileName($itemId, $slot, $oldExt))->delete();
-                } catch (NotFoundException) {
-                }
-            }
-
-            $file = $folder->newFile($this->fileName($itemId, $slot, $ext));
-            $file->putContent($bytes);
 
             if ($slot === 1) {
                 $item->setPhoto1Path('local');
@@ -213,11 +215,21 @@ class PhotoController extends Controller
             $item->setUpdatedAt(date('Y-m-d H:i:s'));
             $this->mapper->update($item);
 
+            try {
+                $file = $folder->getFile($fileName);
+            } catch (NotFoundException) {
+                $file = $folder->newFile($fileName);
+            }
+            $file->putContent($bytes);
+
             $this->db->commit();
         } catch (\Throwable $e) {
             $this->db->rollBack();
             throw $e;
         }
+
+        // Committed: drop whatever this slot held at another extension.
+        $this->deleteSlotFiles($itemId, $slot, $fileName);
 
         return new DataResponse(['status' => 'ok', 'slot' => $slot]);
     }
@@ -244,20 +256,12 @@ class PhotoController extends Controller
             return new DataResponse(['error' => 'Not found'], Http::STATUS_NOT_FOUND);
         }
 
+        // Commit the cleared marker first; unlink afterwards. A file deleted
+        // inside a transaction that then rolls back is gone regardless, leaving
+        // the row pointing at a photo that no longer exists.
         $this->db->beginTransaction();
         try {
             $item = $this->mapper->findWritableForUser($itemId, $userId);
-            try {
-                $folder = $this->appDataFactory->get('crate')->getFolder('photos');
-                foreach (self::PHOTO_EXTENSIONS as $ext) {
-                    try {
-                        $folder->getFile($this->fileName($itemId, $slot, $ext))->delete();
-                    } catch (NotFoundException) {
-                    }
-                }
-            } catch (NotFoundException) {
-            }
-
             if ($slot === 1) {
                 $item->setPhoto1Path(null);
             } else {
@@ -271,7 +275,40 @@ class PhotoController extends Controller
             throw $e;
         }
 
+        $this->deleteSlotFiles($itemId, $slot, null);
+
         return new DataResponse(['status' => 'ok']);
+    }
+
+    /**
+     * Remove the files held in one photo slot, at every extension except
+     * $keepName. Best-effort and post-commit: a file left behind costs disk,
+     * not correctness, because the read path only looks at a slot the row
+     * still marks 'local'.
+     */
+    private function deleteSlotFiles(int $itemId, int $slot, ?string $keepName): void
+    {
+        try {
+            $folder = $this->appDataFactory->get('crate')->getFolder('photos');
+        } catch (NotFoundException) {
+            return;
+        }
+        foreach (self::PHOTO_EXTENSIONS as $ext) {
+            $name = $this->fileName($itemId, $slot, $ext);
+            if ($name === $keepName) {
+                continue;
+            }
+            try {
+                $folder->getFile($name)->delete();
+            } catch (NotFoundException) {
+            } catch (\Throwable $e) {
+                $this->logger->warning('Could not remove photo {name}: {msg}', [
+                    'name' => $name,
+                    'msg'  => $e->getMessage(),
+                    'app'  => 'crate',
+                ]);
+            }
+        }
     }
 
     private function fileName(int $itemId, int $slot, string $ext): string

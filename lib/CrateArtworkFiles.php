@@ -42,10 +42,15 @@ final class CrateArtworkFiles
         return 'artwork_' . $itemId . $ext;
     }
 
-    /** Name the artwork proxy caches $sourceUrl under for $itemId. */
-    public static function cacheName(int $itemId, string $sourceUrl, string $ext): string
+    /**
+     * Name prefix the artwork proxy caches $sourceUrl under for $itemId. The
+     * extension is appended once the fetch has told us what the bytes actually
+     * are; the reader tries every extension against this prefix, because the
+     * source URL's suffix is a claim and not a fact.
+     */
+    public static function cachePrefix(int $itemId, string $sourceUrl): string
     {
-        return 'artwork_' . $itemId . '_' . substr(sha1($sourceUrl), 0, 16) . $ext;
+        return 'artwork_' . $itemId . '_' . substr(sha1($sourceUrl), 0, 16);
     }
 
     /**
@@ -58,13 +63,36 @@ final class CrateArtworkFiles
      */
     public static function deleteAll(ISimpleFolder $folder, int ...$itemIds): void
     {
+        self::deleteMatching($folder, $itemIds, null);
+    }
+
+    /**
+     * Delete every artwork file belonging to $itemId except $keepName — the
+     * post-commit tidy-up after a replacement, which runs once the file the
+     * item now points at is the committed one. Anything it fails to remove is
+     * a stale file the naming scheme above already prevents from being served.
+     */
+    public static function deleteOthers(ISimpleFolder $folder, int $itemId, string $keepName): void
+    {
+        self::deleteMatching($folder, [$itemId], $keepName);
+    }
+
+    /**
+     * @param list<int> $itemIds
+     */
+    private static function deleteMatching(ISimpleFolder $folder, array $itemIds, ?string $keepName): void
+    {
         if (empty($itemIds)) {
             return;
         }
         $wanted = array_flip(array_map(static fn(int $id): string => (string)$id, $itemIds));
 
         foreach ($folder->getDirectoryListing() as $file) {
-            if (!preg_match(self::NAME_PATTERN, $file->getName(), $m)) {
+            $name = $file->getName();
+            if ($name === $keepName) {
+                continue;
+            }
+            if (!preg_match(self::NAME_PATTERN, $name, $m)) {
                 continue;
             }
             if (!isset($wanted[$m[1]])) {

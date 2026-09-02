@@ -68,3 +68,19 @@ spl_autoload_register(static function (string $class): void {
             break;
     }
 });
+
+// PHPUnit includes each *Test.php itself, and composer's autoload-dev PSR-4
+// prefix maps OCA\Crate\Tests\ onto `tests/` — which does not resolve
+// `...\Tests\Unit\Foo` to `tests/unit/Foo.php` on a case-sensitive filesystem.
+// Test-support classes that are not test cases (a host for a trait under test,
+// say) need this to be found.
+spl_autoload_register(static function (string $class): void {
+    $prefix = 'OCA\\Crate\\Tests\\Unit\\';
+    if (!str_starts_with($class, $prefix)) {
+        return;
+    }
+    $path = __DIR__ . '/unit/' . str_replace('\\', DIRECTORY_SEPARATOR, substr($class, strlen($prefix))) . '.php';
+    if (is_file($path)) {
+        require $path;
+    }
+});
