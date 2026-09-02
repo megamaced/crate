@@ -188,18 +188,26 @@ class PlaylistService
 
     /**
      * @throws DoesNotExistException if the caller may not write the playlist,
-     *   or the track is neither theirs nor the playlist owner's
+     *   or the track does not belong to the playlist's owner
      */
     public function addItem(int $playlistId, string $userId, int $mediaItemId): array
     {
         // Owner or a read/write sharee may add tracks.
         $playlist = $this->resolveWritablePlaylist($playlistId, $userId);
-        // The track must belong to the caller or to the playlist owner. Read
-        // access is not enough: a sharee could otherwise put an item they can
-        // merely see into their own playlist and share that playlist onwards,
-        // handing a third party an item its owner never shared with them.
+        // The track must belong to the playlist's owner. Read access is not
+        // enough: a sharee could otherwise put an item they can merely see into
+        // a playlist and share that playlist onwards, handing a third party an
+        // item its owner never shared with them.
+        //
+        // A sharee's *own* item is refused for a different reason. It would be
+        // stored, but hydrateWithItems() below only ever discloses tracks
+        // belonging to the viewer or to the playlist owner — so the row would
+        // be visible to the contributor and invisible to the owner, who would
+        // see a different itemCount for the same playlist and have no way to
+        // remove a membership row they cannot see. One owner for every track
+        // keeps the playlist the same playlist for everyone who can open it.
         $item = $this->mediaItemMapper->findById($mediaItemId);
-        if ($item->getUserId() !== $userId && $item->getUserId() !== $playlist->getUserId()) {
+        if ($item->getUserId() !== $playlist->getUserId()) {
             throw new DoesNotExistException('Media item not available to this playlist');
         }
 
@@ -263,6 +271,11 @@ class PlaylistService
      * A third contributor's own tracks stay hidden: the full record includes
      * notes, purchase price and barcode, and no share grants a reader access
      * to a stranger's items just because both appear in one playlist.
+     *
+     * addItem() no longer creates such a row — every track it accepts belongs
+     * to the playlist's owner — so the filter now only covers membership rows
+     * written before that rule, and items whose owner changed since. It stays
+     * because dropping it would disclose those.
      *
      * @return array<string, mixed>
      */

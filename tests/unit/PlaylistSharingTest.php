@@ -132,6 +132,23 @@ class PlaylistSharingTest extends TestCase
         self::assertSame(1, $result['itemCount']);
     }
 
+    public function testWritableShareeMayNotAddAnItemOfTheirOwn(): void
+    {
+        // Carol holds a read/write share of Bob's playlist 7 and tries to
+        // contribute one of her own records. Stored, it would be visible to
+        // Carol and hidden from Bob by hydrateWithItems() — two itemCounts for
+        // one playlist, and a membership row its owner cannot remove.
+        $this->playlistMapper->method('findByUser')
+            ->willThrowException(new DoesNotExistException('not owner'));
+        $this->shareMapper->method('isWritableSharedWith')->willReturn(true);
+        $this->playlistMapper->method('findById')->willReturn($this->playlist(7, 'bob'));
+        $this->mediaItemMapper->method('findById')->willReturn($this->item(9, 'carol', "Carol's record"));
+        $this->playlistItemMapper->expects(self::never())->method('insert');
+
+        $this->expectException(DoesNotExistException::class);
+        $this->service()->addItem(7, 'carol', 9);
+    }
+
     public function testSharedPlaylistHidesTracksBelongingToNeitherViewerNorOwner(): void
     {
         // Dave holds a share of Bob's playlist, which lists one of Bob's items,
