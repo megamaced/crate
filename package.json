@@ -22,5 +22,8 @@
     "eslint": "^10.9.0",
     "eslint-plugin-vue": "^10.10.0",
     "globals": "^17.11.0"
+  },
+  "overrides": {
+    "browserslist": "^4.28.7"
   }
 }
