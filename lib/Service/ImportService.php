@@ -161,6 +161,24 @@ class ImportService
     /** Hard cap on rows accepted in one import. */
     private const MAX_IMPORT_ROWS = 20000;
 
+    /**
+     * Widest row the parser will materialise. A cell's `r` reference names its
+     * column, and the gap-filling below pads every column before it — so a
+     * single cell claiming `XFD1` would otherwise allocate 16,384 array
+     * entries for one value, and a crafted reference far more. Real imports
+     * are a dozen columns wide.
+     */
+    private const MAX_XLSX_COLUMNS = 256;
+
+    /** Cap on entries in the shared-string table. */
+    private const MAX_SHARED_STRINGS = 100000;
+
+    /** Cap on the total text held in the shared-string table. */
+    private const MAX_SHARED_STRING_BYTES = 8 * 1024 * 1024;
+
+    /** Cap on the text of any single cell. */
+    private const MAX_CELL_BYTES = 32 * 1024;
+
     /** Column name aliases → canonical field name */
     public const ALIASES = [
         // Artist-equivalent across categories
@@ -405,6 +423,16 @@ class ImportService
                 // key, and a compacted list would name the wrong line.
                 $nonEmpty = array_filter($line, fn($v) => $v !== null && $v !== '');
                 if (!empty($nonEmpty)) {
+                    if (count($rows) >= self::MAX_IMPORT_ROWS) {
+                        fclose($tmp);
+                        // Refused while reading, as the XLSX path does. The
+                        // 10 MB cap bounds this far more tightly than it does a
+                        // compressed worksheet, but preview applying no row
+                        // limit at all was the same gap in both formats.
+                        throw new \RuntimeException(
+                            'Too many rows — the limit is ' . self::MAX_IMPORT_ROWS . ' rows per import',
+                        );
+                    }
                     $rows[$lineNo - 2] = array_map(fn($v) => $v !== '' ? $v : null, $line);
                 }
             }
@@ -414,8 +442,21 @@ class ImportService
     }
 
     /**
-     * Parse XLSX using ZipArchive + SimpleXML. Handles the standard Office
+     * Parse XLSX using ZipArchive + XMLReader. Handles the standard Office
      * Open XML format; .xls and .ods have to be re-saved as .xlsx first.
+     *
+     * Streamed rather than loaded. A worksheet is bounded at 32 MB inflated
+     * (see MAX_XLSX_MEMBER_BYTES), but that says nothing about what parsing it
+     * costs: a 3 MB upload holding 700,000 short rows built a libxml DOM, an
+     * XPath node list over every row, and a PHP array of all of them — 728 MB
+     * of resident memory measured, most of it libxml's and therefore outside
+     * `memory_limit`, which is why the process limit could not contain it.
+     * Preview never applied the row cap either, so an authenticated user could
+     * spend that 20 times a minute.
+     *
+     * XMLReader walks the part instead, holding one row at a time, and every
+     * unbounded dimension — rows, columns, shared strings, cell text — now has
+     * a ceiling that is checked while reading rather than afterwards.
      *
      * @return array{headers: string[], rows: array<int, array<string|null>>}
      */
@@ -433,107 +474,413 @@ class ImportService
         }
 
         try {
-            $ssXml    = $this->readZipMember($zip, 'xl/sharedStrings.xml');
-            $sheetXml = $this->readZipMember($zip, 'xl/worksheets/sheet1.xml');
+            $sheetMember = $this->firstWorksheetMember($zip);
+            // Inflation budget is settled from the central directory, before
+            // anything is read: the parse below streams, but a part that
+            // declares an implausible size or ratio should not be opened at all.
+            $sheetPresent  = $this->assertMemberWithinBudget($zip, $sheetMember);
+            $sharedPresent = $this->assertMemberWithinBudget($zip, 'xl/sharedStrings.xml');
         } finally {
             $zip->close();
         }
 
-        // Shared strings (text cells are stored by index)
-        $sharedStrings = [];
-        if ($ssXml !== false) {
-            $ss = $this->parseXmlSafe($ssXml);
-            if ($ss !== null) {
-                foreach ($ss->si as $si) {
-                    $sharedStrings[] = $this->sharedStringText($si);
-                }
-            }
-        }
-
-        if ($sheetXml === false) {
+        if (!$sheetPresent) {
             throw new \RuntimeException('Could not read worksheet from spreadsheet');
         }
 
-        $sheet = $this->parseXmlSafe($sheetXml);
-        if ($sheet === null) {
-            throw new \RuntimeException('Could not parse worksheet XML');
+        $sharedStrings = $sharedPresent ? $this->streamSharedStrings($path) : [];
+
+        return $this->streamWorksheet($path, $sheetMember, $sharedStrings);
+    }
+
+    /**
+     * Open one zip member for streaming XML reads, or null when it cannot be
+     * opened. Network access is off; entity substitution and DTD loading stay
+     * at their defaults (both off), and a DOCTYPE encountered while reading is
+     * treated as a crafted file by the callers below.
+     */
+    private function openZipXml(string $path, string $member): ?\XMLReader
+    {
+        $reader = new \XMLReader();
+        if ($reader->open('zip://' . $path . '#' . $member, null, LIBXML_NONET) !== true) {
+            return null;
+        }
+        return $reader;
+    }
+
+    /**
+     * Read the shared-string table. Text cells reference it by index, so it
+     * has to be held whole — hence the count and byte ceilings.
+     *
+     * @return list<string>
+     */
+    private function streamSharedStrings(string $path): array
+    {
+        $reader = $this->openZipXml($path, 'xl/sharedStrings.xml');
+        if ($reader === null) {
+            return [];
         }
 
-        $headers = [];
-        $rows = [];
-        $nextIdx = 0;
-
-        $sheet->registerXPathNamespace('x', 'http://schemas.openxmlformats.org/spreadsheetml/2006/main');
-        $sheetRows = $sheet->xpath('//x:row') ?: [];
-
-        foreach ($sheetRows as $row) {
-            $rowData = [];
-
-            foreach ($row->c as $cell) {
-                // Parse column index from cell reference (e.g. "C5" → col 2).
-                // The `r` attribute is optional in OOXML (LibreOffice omits it
-                // for dense rows), in which case the cell belongs in the next
-                // free column.
-                $ref = (string)($cell['r'] ?? '');
-                preg_match('/^([A-Z]+)/', $ref, $m);
-                $colIdx = isset($m[1])
-                    ? $this->colLetterToIndex($m[1])
-                    : count($rowData);
-
-                $type = (string)($cell['t'] ?? '');
-                $val  = isset($cell->v) ? (string)$cell->v : null;
-
-                if ($type === 's' && $val !== null) {
-                    // Shared string
-                    $val = $sharedStrings[(int)$val] ?? '';
-                } elseif ($type === 'inlineStr') {
-                    $val = isset($cell->is->t) ? (string)$cell->is->t : '';
+        $strings = [];
+        $bytes   = 0;
+        try {
+            while ($reader->read()) {
+                self::rejectDoctype($reader);
+                if ($reader->nodeType !== \XMLReader::ELEMENT || $reader->localName !== 'si') {
+                    continue;
                 }
-                // Sparse: fill gaps with null
-                while (count($rowData) < $colIdx) {
-                    $rowData[] = null;
+                if (count($strings) >= self::MAX_SHARED_STRINGS) {
+                    throw new \RuntimeException('Spreadsheet has too many distinct text values to process');
                 }
-                $rowData[$colIdx] = $val !== '' ? $val : null;
+                $text   = self::readSharedString($reader);
+                $bytes += strlen($text);
+                if ($bytes > self::MAX_SHARED_STRING_BYTES) {
+                    throw new \RuntimeException('Spreadsheet contents too large to process');
+                }
+                $strings[] = $text;
             }
+        } finally {
+            $reader->close();
+        }
+        return $strings;
+    }
 
-            if (empty($headers)) {
-                // strval first: a sparse row legitimately holds nulls, and
-                // trim(null) is deprecated.
-                $headers = array_map('trim', array_map('strval', $rowData));
-            } else {
+    /**
+     * Flatten one <si> entry of the shared-string table. A plain string holds a
+     * single <t>; a formatted one is split into <r> runs each with their own
+     * <t>. Both shapes are just the <t> text in document order, so every <t>
+     * descendant is concatenated.
+     */
+    private static function readSharedString(\XMLReader $reader): string
+    {
+        if ($reader->isEmptyElement) {
+            return '';
+        }
+        $depth = $reader->depth;
+        $text  = '';
+        $inT   = false;
+
+        while ($reader->read()) {
+            if (
+                $reader->nodeType === \XMLReader::END_ELEMENT
+                && $reader->depth === $depth
+                && $reader->localName === 'si'
+            ) {
+                break;
+            }
+            if ($reader->localName === 't') {
+                if ($reader->nodeType === \XMLReader::ELEMENT) {
+                    $inT = !$reader->isEmptyElement;
+                } elseif ($reader->nodeType === \XMLReader::END_ELEMENT) {
+                    $inT = false;
+                }
+                continue;
+            }
+            if ($inT && self::isTextNode($reader)) {
+                $text .= $reader->value;
+                if (strlen($text) > self::MAX_CELL_BYTES) {
+                    return substr($text, 0, self::MAX_CELL_BYTES);
+                }
+            }
+        }
+        return $text;
+    }
+
+    /**
+     * Walk the worksheet a row at a time.
+     *
+     * @param  list<string> $sharedStrings
+     * @return array{headers: string[], rows: array<int, array<string|null>>}
+     */
+    private function streamWorksheet(string $path, string $member, array $sharedStrings): array
+    {
+        $reader = $this->openZipXml($path, $member);
+        if ($reader === null) {
+            throw new \RuntimeException('Could not read worksheet from spreadsheet');
+        }
+
+        $headers  = [];
+        $rows     = [];
+        $nextIdx  = 0;
+        $dataRows = 0;
+
+        try {
+            while ($reader->read()) {
+                self::rejectDoctype($reader);
+                if ($reader->nodeType !== \XMLReader::ELEMENT || $reader->localName !== 'row') {
+                    continue;
+                }
+
+                // Read the row's own reference before descending into it.
+                $sheetRow = (int) (string) $reader->getAttribute('r');
+                $rowData  = $this->readRowCells($reader, $sharedStrings);
+
+                if (empty($headers)) {
+                    // strval first: a sparse row legitimately holds nulls, and
+                    // trim(null) is deprecated.
+                    $headers = array_map('trim', array_map('strval', $rowData));
+                    continue;
+                }
+
+                $dataRows++;
+                if ($dataRows > self::MAX_IMPORT_ROWS) {
+                    // Refused here rather than counted and rejected afterwards:
+                    // the point is not to hold the rows in the first place.
+                    throw new \RuntimeException(
+                        'Too many rows — the limit is ' . self::MAX_IMPORT_ROWS . ' rows per import',
+                    );
+                }
+
                 // Offset from the header line, taken from the row's own `r`
                 // reference: a wholly empty row is left out of sheetData
                 // altogether, and a running counter would then report every
                 // later row one line early. `r` is optional, so the counter
                 // stays on as a monotonic floor.
-                $sheetRow   = (int)(string)($row['r'] ?? '');
                 $idx        = max($nextIdx, $sheetRow > 1 ? $sheetRow - 2 : 0);
                 $rows[$idx] = $rowData;
                 $nextIdx    = $idx + 1;
             }
+        } finally {
+            $reader->close();
         }
 
         return ['headers' => $headers, 'rows' => $rows];
     }
 
     /**
-     * Flatten one <si> entry of the shared-string table. A plain string holds a
-     * single <t>; a formatted one is split into <r> runs each with their own
-     * <t>. Element access is used rather than XPath because the part declares a
-     * default namespace, which an unprefixed XPath step never matches.
+     * Read the cells of the <row> the reader is positioned on, leaving it on
+     * the row's closing tag.
+     *
+     * @param  list<string> $sharedStrings
+     * @return array<int, string|null>
      */
-    private function sharedStringText(\SimpleXMLElement $si): string
+    private function readRowCells(\XMLReader $reader, array $sharedStrings): array
     {
-        $text = '';
-        foreach ($si->t as $t) {
-            $text .= (string)$t;
+        $rowData = [];
+        if ($reader->isEmptyElement) {
+            return $rowData;
         }
-        foreach ($si->r as $run) {
-            foreach ($run->t as $t) {
-                $text .= (string)$t;
+        $rowDepth = $reader->depth;
+
+        while ($reader->read()) {
+            if (
+                $reader->nodeType === \XMLReader::END_ELEMENT
+                && $reader->depth === $rowDepth
+                && $reader->localName === 'row'
+            ) {
+                break;
+            }
+            if ($reader->nodeType !== \XMLReader::ELEMENT || $reader->localName !== 'c') {
+                continue;
+            }
+
+            // Parse column index from cell reference (e.g. "C5" → col 2).
+            // The `r` attribute is optional in OOXML (LibreOffice omits it
+            // for dense rows), in which case the cell belongs in the next
+            // free column.
+            $ref  = (string) $reader->getAttribute('r');
+            $type = (string) $reader->getAttribute('t');
+            preg_match('/^([A-Z]+)/', $ref, $m);
+            $colIdx = isset($m[1])
+                ? $this->colLetterToIndex($m[1])
+                : count($rowData);
+
+            $val = $this->readCellValue($reader, $type, $sharedStrings);
+
+            // Past the width ceiling the cell is dropped rather than padded to.
+            if ($colIdx >= self::MAX_XLSX_COLUMNS) {
+                continue;
+            }
+            // Sparse: fill gaps with null
+            while (count($rowData) < $colIdx) {
+                $rowData[] = null;
+            }
+            $rowData[$colIdx] = ($val !== null && $val !== '') ? $val : null;
+        }
+
+        return $rowData;
+    }
+
+    /**
+     * Read the value of the <c> the reader is positioned on, leaving it on the
+     * cell's closing tag. Mirrors the three shapes a cell takes: a shared
+     * string is an index into the table, an inline string carries its own
+     * <is><t>, and everything else is the literal <v>.
+     *
+     * @param list<string> $sharedStrings
+     */
+    private function readCellValue(\XMLReader $reader, string $type, array $sharedStrings): ?string
+    {
+        $v      = null;
+        $t      = null;
+        $inside = null;
+
+        if (!$reader->isEmptyElement) {
+            $cellDepth = $reader->depth;
+            while ($reader->read()) {
+                if (
+                    $reader->nodeType === \XMLReader::END_ELEMENT
+                    && $reader->depth === $cellDepth
+                    && $reader->localName === 'c'
+                ) {
+                    break;
+                }
+                $name = $reader->localName;
+                if ($name === 'v' || $name === 't') {
+                    if ($reader->nodeType === \XMLReader::ELEMENT) {
+                        // Seen, even if empty: "<v/>" is a value, not a
+                        // missing one, and the caller distinguishes the two.
+                        if ($name === 'v') {
+                            $v ??= '';
+                        } else {
+                            $t ??= '';
+                        }
+                        $inside = $reader->isEmptyElement ? null : $name;
+                    } elseif ($reader->nodeType === \XMLReader::END_ELEMENT) {
+                        $inside = null;
+                    }
+                    continue;
+                }
+                if ($inside !== null && self::isTextNode($reader)) {
+                    if ($inside === 'v') {
+                        $v .= $reader->value;
+                        if (strlen((string) $v) > self::MAX_CELL_BYTES) {
+                            $v = substr((string) $v, 0, self::MAX_CELL_BYTES);
+                            $inside = null;
+                        }
+                    } else {
+                        $t .= $reader->value;
+                        if (strlen((string) $t) > self::MAX_CELL_BYTES) {
+                            $t = substr((string) $t, 0, self::MAX_CELL_BYTES);
+                            $inside = null;
+                        }
+                    }
+                }
             }
         }
-        return $text;
+
+        if ($type === 'inlineStr') {
+            return $t ?? '';
+        }
+        if ($type === 's' && $v !== null) {
+            return $sharedStrings[(int) $v] ?? '';
+        }
+        return $v;
+    }
+
+    /** True for the node types that carry character data. */
+    private static function isTextNode(\XMLReader $reader): bool
+    {
+        return $reader->nodeType === \XMLReader::TEXT
+            || $reader->nodeType === \XMLReader::CDATA
+            || $reader->nodeType === \XMLReader::SIGNIFICANT_WHITESPACE
+            || $reader->nodeType === \XMLReader::WHITESPACE;
+    }
+
+    /**
+     * A well-formed XLSX part never declares a DTD, so one appearing mid-stream
+     * signals a crafted file. Mirrors the check parseXmlSafe() applies to the
+     * small parts it still loads whole.
+     */
+    private static function rejectDoctype(\XMLReader $reader): void
+    {
+        if ($reader->nodeType === \XMLReader::DOC_TYPE) {
+            throw new \RuntimeException('Spreadsheet rejected: unexpected document type declaration');
+        }
+    }
+
+    /**
+     * Name of the zip member holding the workbook's first worksheet.
+     *
+     * OOXML does not require it to be `xl/worksheets/sheet1.xml`, and assuming
+     * so rejects valid workbooks — a sheet deleted and re-added, or a
+     * generator that numbers parts differently, leaves the only sheet at
+     * sheet2.xml. The mapping is two hops: `xl/workbook.xml` lists sheets in
+     * document order and names each by relationship id, and
+     * `xl/_rels/workbook.xml.rels` resolves that id to the part.
+     *
+     * Hidden sheets are skipped — a workbook whose first sheet is hidden means
+     * the visible one, which is what the user is looking at. Falls back to
+     * sheet1.xml when either part is missing or unreadable, so a workbook with
+     * no relationships still parses the way it used to.
+     */
+    private function firstWorksheetMember(\ZipArchive $zip): string
+    {
+        $fallback = 'xl/worksheets/sheet1.xml';
+
+        $workbookXml = $this->readZipMember($zip, 'xl/workbook.xml');
+        $relsXml     = $this->readZipMember($zip, 'xl/_rels/workbook.xml.rels');
+        if ($workbookXml === false || $relsXml === false) {
+            return $fallback;
+        }
+
+        $workbook = $this->parseXmlSafe($workbookXml);
+        $rels     = $this->parseXmlSafe($relsXml);
+        if ($workbook === null || $rels === null) {
+            return $fallback;
+        }
+
+        // r:id lives in the relationships namespace, so it has to be read
+        // through attributes() rather than array access.
+        $relNs = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+        $relId = null;
+        foreach ($workbook->sheets->sheet ?? [] as $sheet) {
+            $state = strtolower((string)($sheet['state'] ?? ''));
+            if ($state === 'hidden' || $state === 'veryhidden') {
+                continue;
+            }
+            $id = (string)($sheet->attributes($relNs)['id'] ?? '');
+            if ($id !== '') {
+                $relId = $id;
+                break;
+            }
+        }
+        if ($relId === null) {
+            return $fallback;
+        }
+
+        foreach ($rels->Relationship ?? [] as $rel) {
+            if ((string)($rel['Id'] ?? '') !== $relId) {
+                continue;
+            }
+            $member = self::resolveWorkbookTarget((string)($rel['Target'] ?? ''));
+            return $member ?? $fallback;
+        }
+        return $fallback;
+    }
+
+    /**
+     * Resolve a workbook relationship target to a zip member name.
+     *
+     * Targets are relative to the workbook part's own directory (`xl/`), may
+     * be absolute (`/xl/worksheets/sheet2.xml`), and may contain traversal
+     * segments. The resolved name must stay under `xl/` — the target is
+     * attacker-supplied and would otherwise select any member of the archive.
+     * Returns null when it does not.
+     */
+    private static function resolveWorkbookTarget(string $target): ?string
+    {
+        $target = trim($target);
+        if ($target === '' || preg_match('#^[a-z][a-z0-9+.-]*://#i', $target) === 1) {
+            return null;
+        }
+
+        $path = str_starts_with($target, '/') ? ltrim($target, '/') : 'xl/' . $target;
+
+        $parts = [];
+        foreach (explode('/', $path) as $segment) {
+            if ($segment === '' || $segment === '.') {
+                continue;
+            }
+            if ($segment === '..') {
+                array_pop($parts);
+                continue;
+            }
+            $parts[] = $segment;
+        }
+        $resolved = implode('/', $parts);
+
+        return str_starts_with($resolved, 'xl/') ? $resolved : null;
     }
 
     /**
@@ -544,6 +891,23 @@ class ImportService
      * @throws \RuntimeException when the member exceeds the inflation budget
      */
     private function readZipMember(\ZipArchive $zip, string $name): string|false
+    {
+        if (!$this->assertMemberWithinBudget($zip, $name)) {
+            return false;
+        }
+        return $zip->getFromName($name);
+    }
+
+    /**
+     * Check one member against the inflation budget without reading it, so a
+     * part that is going to be streamed is still refused before it is opened.
+     *
+     * Returns false when the member is absent, true when it is present and
+     * within budget.
+     *
+     * @throws \RuntimeException when the member exceeds the inflation budget
+     */
+    private function assertMemberWithinBudget(\ZipArchive $zip, string $name): bool
     {
         $stat = $zip->statName($name);
         if ($stat === false) {
@@ -563,7 +927,7 @@ class ImportService
         ) {
             throw new \RuntimeException('Spreadsheet rejected: implausible compression ratio');
         }
-        return $zip->getFromName($name);
+        return true;
     }
 
     /**
