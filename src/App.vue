@@ -1005,15 +1005,17 @@ async function saveItem(payload) {
     // Route into the owner's collection when adding to a shared library/category.
     if (sharedOwner) payload.owner = sharedOwner
 
-    // Discogs-switch: delete the stale cached file BEFORE the PUT so the
-    // PUT's new artworkPath survives (DELETE sets artworkPath=null in DB,
-    // so it must run first; the subsequent PUT then writes the new URL).
-    if (replaceArtwork && wasEditing && editId) {
-      try {
-        await axios.delete(generateUrl(`/apps/crate/artwork/${editId}`))
-      } catch { /* no cached file — fine */ }
-    }
-
+    // Enrichment switch: nothing to purge from here. DELETE /artwork is not a
+    // cache purge — it unlinks the user's own uploaded cover and clears
+    // artwork_path — so calling it before the PUT meant a PUT that then failed
+    // (network drop, 500, expired session) left the item with neither the old
+    // artwork nor the new one, and nothing in the UI able to restore it.
+    //
+    // The server handles the switch itself: cache entries are keyed on the
+    // source URL, so a stale one can never be served for the new cover, and
+    // MediaService::update purges superseded ones after the commit. It keeps a
+    // 'local' upload deliberately — that is the file "Remove enrichment data"
+    // restores the item to, and deleting it here is what broke that.
     if (wasEditing) {
       const res = await axios.put(
         generateOcsUrl(`/apps/crate/api/v1/media/${editId}`),
@@ -1079,8 +1081,8 @@ async function saveItem(payload) {
           showError('Failed to remove artwork')
         }
       } else if (replaceArtwork) {
-        // Stale cache already deleted before the PUT; re-fetch so detail view
-        // picks up the new artworkPath from the PUT response.
+        // Re-fetch so the detail view picks up the new artworkPath the PUT
+        // wrote, rather than the one the modal was opened with.
         try {
           const r = await axios.get(generateOcsUrl(`/apps/crate/api/v1/media/${targetId}`))
           const fresh = r.data.ocs?.data

@@ -370,7 +370,7 @@ const artworkPreviewUrl = ref(null)
 // and the local /apps/crate/artwork/{id} URL takes over.
 const enrichPreviewUrl = ref(null)
 const removeArtworkFlag = ref(false)  // user clicked "Remove" — wipe artwork entirely
-const replaceArtworkFlag = ref(false) // Enrichment switch — delete stale cache then PUT new URL
+const replaceArtworkFlag = ref(false) // Enrichment switch — re-fetch the item after the PUT
 
 const hasArtwork = computed(() => {
   if (artworkPreviewUrl.value || enrichPreviewUrl.value) return true
