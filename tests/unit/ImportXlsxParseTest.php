@@ -88,6 +88,34 @@ class ImportXlsxParseTest extends TestCase
     }
 
     /**
+     * The picker used to offer .xls and .ods, and parseFile() routed both to
+     * the OOXML reader. Neither can ever parse: a genuine .xls is an OLE2
+     * compound file that ZipArchive cannot open, and a genuine .ods is a zip
+     * holding `content.xml` rather than the `xl/` members read above. Both
+     * therefore have to be refused by name, with a message that says so,
+     * rather than reaching the reader and failing there.
+     */
+    public function testSpreadsheetFormatsThatCannotParseAreRefusedByName(): void
+    {
+        $ns    = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+        $sheet = '<?xml version="1.0"?><worksheet xmlns="' . $ns . '"><sheetData>'
+            . '<row><c t="inlineStr"><is><t>Artist</t></is></c></row>'
+            . '</sheetData></worksheet>';
+        // A well-formed XLSX: only the claimed extension differs.
+        $path    = $this->makeXlsx($sheet, null);
+        $service = (new \ReflectionClass(ImportService::class))->newInstanceWithoutConstructor();
+
+        foreach (['collection.xls', 'collection.ods', 'collection.numbers'] as $name) {
+            try {
+                $service->parseFile($path, $name);
+                self::fail("Expected {$name} to be refused");
+            } catch (\RuntimeException $e) {
+                self::assertStringContainsString('Unsupported file type', $e->getMessage());
+            }
+        }
+    }
+
+    /**
      * @return array{headers: string[], rows: array<array<string|null>>}
      */
     private function parse(string $path): array

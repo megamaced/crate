@@ -60,7 +60,7 @@
           <input
             ref="fileInput"
             type="file"
-            accept=".csv,.xlsx,.xls,.ods"
+            accept=".csv,.xlsx"
             style="display:none"
             @change="onFileChange"
           >

@@ -353,7 +353,11 @@ class ImportService
             return $this->parseCsv($tmpPath);
         }
 
-        if (in_array($ext, ['xlsx', 'xls', 'ods'], true)) {
+        // Only OOXML. parseXlsx() reads `xl/sharedStrings.xml` and
+        // `xl/worksheets/sheet1.xml` out of a zip, which a binary .xls (an OLE2
+        // compound file) and an .ods (a zip holding `content.xml`) never carry,
+        // so routing either here produced a parse error rather than a refusal.
+        if ($ext === 'xlsx') {
             return $this->parseXlsx($tmpPath);
         }
 
@@ -410,8 +414,8 @@ class ImportService
     }
 
     /**
-     * Parse XLSX (and XLS/ODS if saved as XLSX) using ZipArchive + SimpleXML.
-     * Handles the standard Office Open XML format.
+     * Parse XLSX using ZipArchive + SimpleXML. Handles the standard Office
+     * Open XML format; .xls and .ods have to be re-saved as .xlsx first.
      *
      * @return array{headers: string[], rows: array<int, array<string|null>>}
      */
