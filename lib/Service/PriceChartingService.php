@@ -18,16 +18,6 @@ class PriceChartingService extends AbstractApiService
         return 'crate/pricecharting_token';
     }
 
-    public function getToken(string $userId): string
-    {
-        return $this->getCredential($userId);
-    }
-
-    public function hasToken(string $userId): bool
-    {
-        return $this->getCredential($userId) !== '';
-    }
-
     /**
      * Search PriceCharting for a product by title.
      * Returns up to 10 results: [{priceChartingId, title, platform}]

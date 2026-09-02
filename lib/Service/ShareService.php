@@ -376,15 +376,6 @@ class ShareService
     }
 
     /**
-     * True if $callerUserId may add a new item of $category into
-     * $ownerUserId's collection via a read/write library or category share.
-     */
-    public function canAddToCollection(string $callerUserId, string $ownerUserId, string $category): bool
-    {
-        return $this->shareMapper->hasWritableCollectionShare($callerUserId, $ownerUserId, $category);
-    }
-
-    /**
      * Verify the target user exists and is not the owner.
      *
      * Both rejections carry the same message on purpose: telling the caller
