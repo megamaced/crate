@@ -54,6 +54,7 @@ class MediaController extends OCSController
         int $limit = 50,
         int $offset = 0,
         ?bool $paginated = null,
+        ?int $updatedSinceId = null,
     ): DataResponse {
         // Explicit flag or inferred from presence of pagination-related params.
         $isPaginated = $paginated === true
@@ -61,6 +62,7 @@ class MediaController extends OCSController
                 $this->request->getParam('limit') !== null
                 || $this->request->getParam('offset') !== null
                 || $this->request->getParam('updatedSince') !== null
+                || $this->request->getParam('updatedSinceId') !== null
                 || $this->request->getParam('status') !== null
             ));
 
@@ -73,6 +75,13 @@ class MediaController extends OCSController
                 return new DataResponse(['error' => 'Invalid updatedSince'], Http::STATUS_BAD_REQUEST);
             }
         }
+        // The id half of the delta cursor. Only meaningful alongside a
+        // timestamp, and only as the id of a row the client has already seen.
+        if ($updatedSinceId !== null) {
+            if ($updatedSince === null || $updatedSinceId < 0) {
+                return new DataResponse(['error' => 'Invalid updatedSinceId'], Http::STATUS_BAD_REQUEST);
+            }
+        }
 
         if ($isPaginated) {
             $result = $this->mediaService->findPaginated(
@@ -82,14 +91,23 @@ class MediaController extends OCSController
                 $updatedSince,
                 $limit,
                 $offset,
+                $updatedSinceId,
             );
-            return new DataResponse([
+            $response = [
                 'items'   => $result['items'],
                 'total'   => $result['total'],
                 'limit'   => $limit,
                 'offset'  => $offset,
                 'wipedAt' => $this->mediaService->getWipedAt($this->userId()),
-            ]);
+            ];
+            // Present on a delta request that returned rows. Sending it back
+            // verbatim as `updatedSince` + `updatedSinceId` resumes exactly
+            // where this page stopped; deriving a cursor from max(updatedAt)
+            // instead loses any row edited within that same second.
+            if (isset($result['nextCursor'])) {
+                $response['nextCursor'] = $result['nextCursor'];
+            }
+            return new DataResponse($response);
         }
 
         return new DataResponse($this->mediaService->findAll($this->userId(), $category));
@@ -146,22 +164,29 @@ class MediaController extends OCSController
         if (isset($priceResult['error'])) {
             return new DataResponse(['error' => $priceResult['error']], Http::STATUS_BAD_REQUEST);
         }
-        $data = new MediaItemData(
-            $title,
-            $artist,
-            $mediaFormat,
-            $year,
-            $barcode,
-            $notes,
-            $status,
-            $discogsId,
-            $artworkPath,
-            $label,
-            $country,
-            $category,
-            $priceResult['price'],
-            $priceResult['currency'],
-        );
+        // MediaItemData bounds every value against its column, so a payload
+        // the schema cannot hold is a 400 here rather than a driver exception
+        // (or a silent truncation) further down.
+        try {
+            $data = new MediaItemData(
+                $title,
+                $artist,
+                $mediaFormat,
+                $year,
+                $barcode,
+                $notes,
+                $status,
+                $discogsId,
+                $artworkPath,
+                $label,
+                $country,
+                $category,
+                $priceResult['price'],
+                $priceResult['currency'],
+            );
+        } catch (\InvalidArgumentException $e) {
+            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+        }
         // $owner set → adding into another user's collection via a read/write
         // library/category share. MediaService verifies the share and rejects
         // otherwise.
@@ -203,23 +228,23 @@ class MediaController extends OCSController
         if (isset($priceResult['error'])) {
             return new DataResponse(['error' => $priceResult['error']], Http::STATUS_BAD_REQUEST);
         }
-        $data = new MediaItemData(
-            $title,
-            $artist,
-            $mediaFormat,
-            $year,
-            $barcode,
-            $notes,
-            $status,
-            $discogsId,
-            $artworkPath,
-            $label,
-            $country,
-            $category,
-            $priceResult['price'],
-            $priceResult['currency'],
-        );
         try {
+            $data = new MediaItemData(
+                $title,
+                $artist,
+                $mediaFormat,
+                $year,
+                $barcode,
+                $notes,
+                $status,
+                $discogsId,
+                $artworkPath,
+                $label,
+                $country,
+                $category,
+                $priceResult['price'],
+                $priceResult['currency'],
+            );
             return new DataResponse($this->mediaService->update($id, $this->userId(), $data));
         } catch (DoesNotExistException) {
             return new DataResponse(['error' => 'Not found'], Http::STATUS_NOT_FOUND);

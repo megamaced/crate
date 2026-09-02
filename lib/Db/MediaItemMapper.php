@@ -51,23 +51,33 @@ class MediaItemMapper extends QBMapper
         ?string $updatedSince = null,
         int $limit = 50,
         int $offset = 0,
+        ?int $updatedSinceId = null,
     ): array {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
             ->from($this->getTableName())
             ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+            ->setMaxResults($limit)
+            ->setFirstResult($offset);
+
+        if ($updatedSince !== null) {
+            // A delta sweep is read in cursor order, which `created_at DESC`
+            // is not: the client's next cursor is the last row it saw, so the
+            // sort key has to be the one the cursor advances along. `id`
+            // breaks ties within a second, matching the tuple predicate in
+            // applyFilters().
+            $qb->orderBy('updated_at', 'ASC')->addOrderBy('id', 'ASC');
+        } else {
             // `created_at` is not unique — a bulk import stamps every row it
             // creates with the same second. LIMIT/OFFSET over a non-unique sort
             // key has no defined row order between pages, so the same row can
             // come back on two pages while another is never returned at all.
             // `id` breaks every tie, making the sequence total and pagination
             // lossless. Keep this in lock-step with findAll()'s ordering.
-            ->orderBy('created_at', 'DESC')
-            ->addOrderBy('id', 'DESC')
-            ->setMaxResults($limit)
-            ->setFirstResult($offset);
+            $qb->orderBy('created_at', 'DESC')->addOrderBy('id', 'DESC');
+        }
 
-        $this->applyFilters($qb, $status, $category, $updatedSince);
+        $this->applyFilters($qb, $status, $category, $updatedSince, $updatedSinceId);
 
         return $this->findEntities($qb);
     }
@@ -77,13 +87,14 @@ class MediaItemMapper extends QBMapper
         ?string $status = null,
         ?string $category = null,
         ?string $updatedSince = null,
+        ?int $updatedSinceId = null,
     ): int {
         $qb = $this->db->getQueryBuilder();
         $qb->select($qb->func()->count('*', 'cnt'))
             ->from($this->getTableName())
             ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
 
-        $this->applyFilters($qb, $status, $category, $updatedSince);
+        $this->applyFilters($qb, $status, $category, $updatedSince, $updatedSinceId);
 
         // Errors propagate, as they do from findPaginated(): the two run the
         // same filters over the same table, so swallowing a failure here would
@@ -105,6 +116,7 @@ class MediaItemMapper extends QBMapper
         ?string $status,
         ?string $category,
         ?string $updatedSince,
+        ?int $updatedSinceId = null,
     ): void {
         if ($status !== null) {
             $qb->andWhere($qb->expr()->eq('status', $qb->createNamedParameter($status)));
@@ -112,9 +124,36 @@ class MediaItemMapper extends QBMapper
         if ($category !== null) {
             $qb->andWhere($qb->expr()->eq('category', $qb->createNamedParameter($category)));
         }
-        if ($updatedSince !== null) {
-            $qb->andWhere($qb->expr()->gt('updated_at', $qb->createNamedParameter($updatedSince)));
+        if ($updatedSince === null) {
+            return;
         }
+
+        // `updated_at` is a DATETIME — whole seconds on every supported
+        // engine — so a timestamp alone cannot separate two rows edited in the
+        // same second. A strict `>` against the highest timestamp a sweep
+        // returned therefore drops any row stamped that same second which the
+        // sweep had not yet reached, and nothing later re-reports it: an edit
+        // changes no row count, so a client's count-drift check never
+        // escalates to a full sweep. The row simply stays stale.
+        //
+        // `(updated_at, id)` is the cursor that does separate them. A client
+        // that sends back the last row's id gets an exact resume point.
+        $ts = $qb->createNamedParameter($updatedSince);
+        if ($updatedSinceId === null) {
+            // No id: the boundary second has to be re-sent in full, since
+            // there is no way to tell which of its rows the client already
+            // has. Costs a repeat of the rows sharing that one second and
+            // loses none of them. Clients should send `updatedSinceId`.
+            $qb->andWhere($qb->expr()->gte('updated_at', $ts));
+            return;
+        }
+        $qb->andWhere($qb->expr()->orX(
+            $qb->expr()->gt('updated_at', $ts),
+            $qb->expr()->andX(
+                $qb->expr()->eq('updated_at', $ts),
+                $qb->expr()->gt('id', $qb->createNamedParameter($updatedSinceId, IQueryBuilder::PARAM_INT)),
+            ),
+        ));
     }
 
     /**

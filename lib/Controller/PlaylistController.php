@@ -16,6 +16,13 @@ class PlaylistController extends OCSController
 {
     use UsesAuthenticatedUser;
 
+    /**
+     * Column width of `crate_playlists.name`, in characters. A longer name is
+     * a driver exception on PostgreSQL and strict MySQL and a silent
+     * truncation elsewhere, so it is answered here instead.
+     */
+    private const MAX_NAME_LEN = 500;
+
     public function __construct(
         string $appName,
         IRequest $request,
@@ -46,8 +53,9 @@ class PlaylistController extends OCSController
     #[NoAdminRequired]
     public function create(string $name, ?string $description = null): DataResponse
     {
-        if (trim($name) === '') {
-            return new DataResponse(['error' => 'Name is required'], Http::STATUS_BAD_REQUEST);
+        $error = self::validateName($name);
+        if ($error !== null) {
+            return new DataResponse(['error' => $error], Http::STATUS_BAD_REQUEST);
         }
         return new DataResponse($this->playlistService->create($this->userId(), trim($name), $description));
     }
@@ -65,8 +73,9 @@ class PlaylistController extends OCSController
         string $name,
         ?string $description = PlaylistService::DESCRIPTION_UNCHANGED,
     ): DataResponse {
-        if (trim($name) === '') {
-            return new DataResponse(['error' => 'Name is required'], Http::STATUS_BAD_REQUEST);
+        $error = self::validateName($name);
+        if ($error !== null) {
+            return new DataResponse(['error' => $error], Http::STATUS_BAD_REQUEST);
         }
         try {
             return new DataResponse($this->playlistService->update($id, $this->userId(), trim($name), $description));
@@ -104,5 +113,21 @@ class PlaylistController extends OCSController
         } catch (\OCP\AppFramework\Db\DoesNotExistException) {
             return new DataResponse(['error' => 'Playlist not found'], Http::STATUS_NOT_FOUND);
         }
+    }
+
+    /**
+     * Reject a playlist name the column cannot hold, or a blank one. Returns
+     * the error message, or null when the name is usable.
+     */
+    private static function validateName(string $name): ?string
+    {
+        $name = trim($name);
+        if ($name === '') {
+            return 'Name is required';
+        }
+        if (mb_strlen($name, 'UTF-8') > self::MAX_NAME_LEN) {
+            return 'Name exceeds ' . self::MAX_NAME_LEN . ' characters';
+        }
+        return null;
     }
 }

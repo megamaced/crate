@@ -66,7 +66,13 @@ class MediaService
 
     /**
      * Paginated list for the REST API.
-     * Returns ['items' => MediaItem[], 'total' => int].
+     *
+     * Returns ['items' => MediaItem[], 'total' => int], plus 'nextCursor' on a
+     * delta request that returned rows: the `(updated_at, id)` pair of the last
+     * row of this page, which is the resume point a client should send back as
+     * `updatedSince` / `updatedSinceId`. Handing the cursor out rather than
+     * letting the client derive one from max(updatedAt) is what makes the
+     * resume exact — see MediaItemMapper::applyFilters().
      */
     public function findPaginated(
         string $userId,
@@ -75,12 +81,30 @@ class MediaService
         ?string $updatedSince = null,
         int $limit = 50,
         int $offset = 0,
+        ?int $updatedSinceId = null,
     ): array {
         $limit = max(1, min(200, $limit));
-        return [
-            'items' => $this->mapper->findPaginated($userId, $status, $category, $updatedSince, $limit, $offset),
-            'total' => $this->mapper->countAll($userId, $status, $category, $updatedSince),
+        $items = $this->mapper->findPaginated(
+            $userId,
+            $status,
+            $category,
+            $updatedSince,
+            $limit,
+            $offset,
+            $updatedSinceId,
+        );
+        $result = [
+            'items' => $items,
+            'total' => $this->mapper->countAll($userId, $status, $category, $updatedSince, $updatedSinceId),
         ];
+        if ($updatedSince !== null && $items !== []) {
+            $last = $items[array_key_last($items)];
+            $result['nextCursor'] = [
+                'updatedSince'   => $last->getUpdatedAt(),
+                'updatedSinceId' => $last->getId(),
+            ];
+        }
+        return $result;
     }
 
     /** @return int[] */
