@@ -1,0 +1,36 @@
+name: Dependabot auto-merge
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # Queues GitHub's native auto-merge on Dependabot's minor and patch PRs. The
+  # merge only happens once the checks required by the main-branch ruleset have
+  # passed, so this job never judges whether an update is safe — CI does.
+  # Majors, and any group that contains one, are left for a human to read.
+  auto-merge:
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      # Also verifies the PR's commits really came from Dependabot, and fails
+      # the job if they did not.
+      - id: metadata
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3
+
+      # update-type is the highest bump in the PR, so a grouped PR carrying one
+      # major is held back as a whole. An allowlist rather than "not major", so
+      # an update-type that could not be determined is never merged.
+      - if: >-
+          steps.metadata.outputs.update-type == 'version-update:semver-minor' ||
+          steps.metadata.outputs.update-type == 'version-update:semver-patch'
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

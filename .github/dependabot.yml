@@ -4,6 +4,12 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # New releases wait a week before Dependabot proposes them: minor and patch
+    # PRs merge themselves once CI is green, so this is the window for a
+    # hijacked release to be caught and yanked upstream first. Security
+    # updates skip the wait.
+    cooldown:
+      default-days: 7
     groups:
       nextcloud:
         patterns: ['@nextcloud/*']
@@ -12,6 +18,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
 
   # Also keeps the commit-SHA pins in .github/workflows up to date, which is
   # what makes pinning to a SHA maintainable rather than a one-off.
@@ -19,3 +27,5 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
