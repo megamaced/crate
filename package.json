@@ -19,7 +19,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.0",
     "@nextcloud/webpack-vue-config": "^7.0.4",
-    "eslint": "^10.9.1",
+    "eslint": "^10.11.0",
     "eslint-plugin-vue": "^10.11.0",
     "globals": "^17.12.0"
   },
