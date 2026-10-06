@@ -58,4 +58,24 @@ class ImportFormatCanonicalTest extends TestCase
             self::assertSame($name, $valid[$key], 'import stores a non-canonical spelling');
         }
     }
+
+    public function testMusicFormatsAreExactlyTheFrontendMusicGroups(): void
+    {
+        $js = file_get_contents(__DIR__ . '/../../src/utils/categoryFormats.js');
+        self::assertNotFalse($js);
+        self::assertSame(1, preg_match('/FORMAT_GROUPS = \{\s*music:\s*\[(.*?)\bfilm:/s', $js, $music));
+        preg_match_all('/formats:\s*\[(.*?)\]/s', $music[1], $blocks);
+        $jsMusic = [];
+        foreach ($blocks[1] as $block) {
+            preg_match_all("/'([^']*)'/", $block, $names);
+            array_push($jsMusic, ...$names[1]);
+        }
+
+        /** @var array<string, string> $formats */
+        $formats = (new \ReflectionClass(ImportService::class))->getConstant('MUSIC_FORMATS');
+        $php = array_values($formats);
+        sort($php);
+        sort($jsMusic);
+        self::assertSame($jsMusic, $php, 'a music import must accept exactly the music formats the UI offers');
+    }
 }

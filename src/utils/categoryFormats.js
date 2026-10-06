@@ -40,7 +40,7 @@ export const FORMAT_GROUPS = {
     },
     {
       label: 'Disc',
-      formats: ['CD', 'SACD', 'CD-R', 'SHM-CD', 'HDCD', 'CDV', 'Blu-ray Audio', 'DVD-Audio', 'LaserDisc', 'MiniDisc'],
+      formats: ['CD', 'SACD', 'CD-R', 'SHM-CD', 'HDCD', 'Blu-ray Audio', 'DVD-Audio', 'MiniDisc'],
     },
   ],
   film: [

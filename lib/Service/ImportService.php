@@ -19,9 +19,12 @@ class ImportService
      * exactly, so an imported value is stored in the canonical spelling rather
      * than whatever casing the spreadsheet used. The canonical spellings must
      * stay in step with FORMAT_GROUPS in src/utils/categoryFormats.js.
+     *
+     * Music rows accept only MUSIC_FORMATS, so a video or game format can't be
+     * filed as an album; the other categories accept any VALID_FORMATS entry.
      */
-    private const VALID_FORMATS = [
-        // Music — Vinyl
+    private const MUSIC_FORMATS = [
+        // Vinyl
         'vinyl'                 => 'Vinyl',
         '7" single'             => '7" Single',
         '10"'                   => '10"',
@@ -30,7 +33,7 @@ class ImportService
         'flexi-disc'            => 'Flexi-disc',
         'shellac'               => 'Shellac',
         'lathe cut'             => 'Lathe Cut',
-        // Music — Tape
+        // Tape
         'cassette'              => 'Cassette',
         '8-track'               => '8-Track',
         'reel-to-reel'          => 'Reel-to-Reel',
@@ -38,17 +41,20 @@ class ImportService
         'dcc'                   => 'DCC',
         '4-track cartridge'     => '4-Track Cartridge',
         'microcassette'         => 'Microcassette',
-        // Music — Disc
+        // Disc
         'cd'                    => 'CD',
         'sacd'                  => 'SACD',
         'cd-r'                  => 'CD-R',
         'shm-cd'                => 'SHM-CD',
         'hdcd'                  => 'HDCD',
-        'cdv'                   => 'CDV',
         'blu-ray audio'         => 'Blu-ray Audio',
         'dvd-audio'             => 'DVD-Audio',
-        'laserdisc'             => 'LaserDisc',
         'minidisc'              => 'MiniDisc',
+    ];
+
+    /** Every recognised format: MUSIC_FORMATS plus the other categories'. */
+    private const VALID_FORMATS = [
+        ...self::MUSIC_FORMATS,
         // Films
         'blu-ray'               => 'Blu-ray',
         '4k uhd'                => '4K UHD',
@@ -56,6 +62,7 @@ class ImportService
         'dvd'                   => 'DVD',
         'hd dvd'                => 'HD DVD',
         'vhs'                   => 'VHS',
+        'laserdisc'             => 'LaserDisc',
         'vcd'                   => 'VCD',
         'betamax'               => 'Betamax',
         // Books
@@ -203,11 +210,13 @@ class ImportService
         // Format / platform
         'format'          => 'format',
         'platform'        => 'format',
-        // Year
+        // Year — Discogs collection exports call it "Released"
         'year'            => 'year',
+        'released'        => 'year',
         // Notes
         'notes'           => 'notes',
         'note'            => 'notes',
+        'collection notes' => 'notes',
         // Status
         'status'          => 'status',
         // Enrichment ID (stored in discogsId regardless of source)
@@ -217,6 +226,7 @@ class ImportService
         'enrichmentid'    => 'discogsId',
         'enrichment_id'   => 'discogsId',
         'enrichment id'   => 'discogsId',
+        'release_id'      => 'discogsId', // Discogs collection export
         // Barcode / ISBN
         'barcode'         => 'barcode',
         'isbn'            => 'barcode',
@@ -1087,14 +1097,25 @@ class ImportService
                 continue;
             }
 
-            // Validate format value, then adopt the canonical spelling
-            $formatKey = strtolower(trim($format));
-            if (!isset(self::VALID_FORMATS[$formatKey])) {
+            // Validate format value, then adopt the canonical spelling. The
+            // length check below measures the canonical value, since that is
+            // what gets stored — not a long Discogs format string.
+            $canonicalFormat = self::resolveFormat($format, $category);
+            if ($canonicalFormat === null) {
                 $skipped++;
                 $errors[] = "Row {$rowNum}: unrecognised format \"{$format}\" - skipped";
                 continue;
             }
-            $format = self::VALID_FORMATS[$formatKey];
+            $format = $canonicalFormat;
+            $row['format'] = $format;
+
+            // Discogs tells same-named artists apart with a " (2)" suffix,
+            // which DiscogsService also drops from the artists it returns. A
+            // multi-artist row carries one per artist ("Eat (2), Die Warzau").
+            if ($category === CrateCategories::MUSIC) {
+                $artist = (string)preg_replace('/\s\(\d+\)(?![\p{L}\p{N}])/u', '', $artist);
+                $row['artist'] = $artist;
+            }
 
             // Length validation — the DB truncates silently, so reject up-front
             // to make the user aware of the data loss. The caps are column
@@ -1124,7 +1145,8 @@ class ImportService
             // Parse optional fields
             $year      = null;
             $yearRaw   = trim((string)($row['year'] ?? ''));
-            if ($yearRaw !== '') {
+            // Discogs exports an unknown year as 0.
+            if ($yearRaw !== '' && $yearRaw !== '0') {
                 // Only a plausible 4-digit year is stored: casting free text
                 // ("unknown", "c. 1985", "?") yields year 0, which renders as
                 // "0" and adds a bogus decade to the filter list.
@@ -1239,6 +1261,20 @@ class ImportService
             'errors'     => $errors,
             'itemIds'    => $itemIds,
         ];
+    }
+
+    /**
+     * Canonical spelling of an imported format, or null when it isn't one the
+     * row's category accepts. A music row may also carry the format string of
+     * a Discogs collection export ("2xLP, Album, RE").
+     */
+    public static function resolveFormat(string $format, string $category): ?string
+    {
+        $key = strtolower(trim($format));
+        if ($category === CrateCategories::MUSIC) {
+            return self::MUSIC_FORMATS[$key] ?? DiscogsFormat::fromExportString($format);
+        }
+        return self::VALID_FORMATS[$key] ?? null;
     }
 
     private function dupKey(string $artist, string $title, string $format, string $category): string

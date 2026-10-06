@@ -410,7 +410,7 @@ const mappableFields = computed(() => {
 // column-mapper uses, so the required-columns list always matches what the
 // mapping step will accept.
 const HINT_LEAD = {
-  music: 'One row per album. If you own the same album on multiple formats, add a row for each.',
+  music: 'One row per album. If you own the same album on multiple formats, add a row for each. A Discogs collection export (CSV) imports as it is.',
   film:  'One row per film. If you own the same film on multiple formats (Blu-ray, DVD, etc.), add a row for each.',
   book:  'One row per book.',
   game:  'One row per game. If you own the same game on multiple platforms, add a row for each.',

@@ -35,7 +35,7 @@ Rich, category-aware detail with auto-fetched metadata, tracklists, market value
 - **Wishlist** alongside your owned collection
 - **Playlists** — mixed-category groups of items
 - **Sharing** with other users on the same Nextcloud instance
-- **CSV / XLSX export**
+- **CSV / XLSX import and export**, including importing a Discogs collection export as it is
 - A native [**Android companion app**](https://github.com/megamaced/crate-android)
 
 ## Requirements

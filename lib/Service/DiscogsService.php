@@ -9,6 +9,9 @@ class DiscogsService extends AbstractApiService
     private const API_BASE = 'https://api.discogs.com';
     private const USER_AGENT = 'CrateNextcloudApp/0.4 +https://github.com/megamaced/crate';
 
+    /** Format suggested for a release whose formats don't map — a sensible default for music. */
+    private const DEFAULT_FORMAT = 'Vinyl';
+
     /**
      * Discogs' fixed top-level genre vocabulary. The stored `genres` column
      * merges genres and styles into one list (see normaliseRelease), so this
@@ -341,8 +344,8 @@ class DiscogsService extends AbstractApiService
         $artist   = trim($parts[0] ?? '');
         $album    = trim($parts[1] ?? $rawTitle);
 
-        $formats = array_map('strtolower', (array)($result['format'] ?? []));
-        $format  = $this->mapFormat($formats);
+        $format = DiscogsFormat::fromTokens(array_map('strval', (array)($result['format'] ?? [])))
+            ?? self::DEFAULT_FORMAT;
 
         $year = isset($result['year']) ? (int)$result['year'] : null;
         if ($year === 0) {
@@ -423,15 +426,16 @@ class DiscogsService extends AbstractApiService
             }
         }
 
-        // Combine format name + descriptions for more precise mapping
-        $fmtTokens = [];
-        if (!empty($r['formats'][0]['name'])) {
-            $fmtTokens[] = strtolower((string)$r['formats'][0]['name']);
+        // Every format as [name, ...descriptions]: a box set lists the discs
+        // it holds as further formats after its own "Box Set" entry
+        $segments = [];
+        foreach ((array)($r['formats'] ?? []) as $fmt) {
+            $segments[] = [
+                (string)($fmt['name'] ?? ''),
+                ...array_map('strval', array_values((array)($fmt['descriptions'] ?? []))),
+            ];
         }
-        foreach ((array)($r['formats'][0]['descriptions'] ?? []) as $desc) {
-            $fmtTokens[] = strtolower((string)$desc);
-        }
-        $format = $this->mapFormat($fmtTokens);
+        $format = DiscogsFormat::fromSegments($segments) ?? self::DEFAULT_FORMAT;
 
         $year = isset($r['year']) ? (int)$r['year'] : null;
         if ($year === 0) {
@@ -476,86 +480,5 @@ class DiscogsService extends AbstractApiService
             'bio'             => trim($a['profile'] ?? '') ?: null,
             'members'         => $members ?: null,
         ];
-    }
-
-    /**
-     * Ordered lookup table for mapping Discogs format tokens to canonical names.
-     * Order matters — more specific formats must appear before generic ones
-     * (e.g. "flexi-disc" before "vinyl").
-     */
-    private const FORMAT_MAP = [
-        // Vinyl sub-types (before generic 'vinyl')
-        'flexi-disc'               => 'Flexi-disc',
-        'flexi disc'               => 'Flexi-disc',
-        'lathe cut'                => 'Lathe Cut',
-        'picture disc'             => 'Picture Disc',
-        '7"'                       => '7" Single',
-        "7''"                      => '7" Single',
-        '7-inch'                   => '7" Single',
-        '10"'                      => '10"',
-        "10''"                     => '10"',
-        '12"'                      => '12" Single',
-        "12''"                     => '12" Single',
-        'vinyl'                    => 'Vinyl',
-        'lp'                       => 'Vinyl',
-        // Tape formats
-        '8-track'                  => '8-Track',
-        '8 track'                  => '8-Track',
-        '8track'                   => '8-Track',
-        'reel-to-reel'             => 'Reel-to-Reel',
-        'reel to reel'             => 'Reel-to-Reel',
-        'open reel'                => 'Reel-to-Reel',
-        'dat'                      => 'DAT',
-        'dcc'                      => 'DCC',
-        'digital compact cassette' => 'DCC',
-        'microcassette'            => 'Microcassette',
-        '4-track'                  => '4-Track Cartridge',
-        '4 track'                  => '4-Track Cartridge',
-        'cassette'                 => 'Cassette',
-        // Optical disc formats
-        'sacd'                     => 'SACD',
-        'sacd hybrid'              => 'SACD',
-        'shm-cd'                   => 'SHM-CD',
-        'shm cd'                   => 'SHM-CD',
-        'hdcd'                     => 'HDCD',
-        'cd-r'                     => 'CD-R',
-        'cd r'                     => 'CD-R',
-        'blu-ray'                  => 'Blu-ray Audio',
-        'blu ray'                  => 'Blu-ray Audio',
-        'blu-ray audio'            => 'Blu-ray Audio',
-        'dvd-audio'                => 'DVD-Audio',
-        'dvd audio'                => 'DVD-Audio',
-        'cdv'                      => 'CDV',
-        'laserdisc'                => 'LaserDisc',
-        'laser disc'               => 'LaserDisc',
-        'cd'                       => 'CD',
-        // Other digital carriers
-        'minidisc'                 => 'MiniDisc',
-        'mini disc'                => 'MiniDisc',
-    ];
-
-    /**
-     * Map an array of Discogs format tokens (name + descriptions, lowercased)
-     * to our canonical format string.
-     *
-     * @param string[] $formats
-     */
-    private function mapFormat(array $formats): string
-    {
-        // Shellac: needs substring match (Discogs sometimes uses compound tokens)
-        foreach ($formats as $f) {
-            if (str_contains($f, 'shellac')) {
-                return 'Shellac';
-            }
-        }
-
-        // Exact-match lookup — first match wins (order in FORMAT_MAP is significant)
-        foreach (self::FORMAT_MAP as $token => $canonical) {
-            if (in_array($token, $formats, true)) {
-                return $canonical;
-            }
-        }
-
-        return 'Vinyl'; // sensible default for music
     }
 }
