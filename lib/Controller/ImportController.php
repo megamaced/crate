@@ -37,6 +37,7 @@ class ImportController extends OCSController
         private readonly ImportService $importService,
         private readonly IUserSession $userSession,
         private readonly \OCA\Crate\Db\CrateShareMapper $shareMapper,
+        private readonly ?\OCA\Crate\Service\DiscogsService $discogsService = null,
     ) {
         parent::__construct($appName, $request);
     }
@@ -149,5 +150,35 @@ class ImportController extends OCSController
         $result = $this->importService->import($mappedRows, $importUserId, $category, !$crossUser);
 
         return new DataResponse($result);
+    }
+
+    /**
+     * Import the authenticated user's Discogs collection into Crate.
+     * POST /api/v1/import/discogs
+     */
+    #[NoAdminRequired]
+    #[UserRateLimit(limit: 5, period: 60)]
+    public function discogs(): DataResponse
+    {
+        if ($this->discogsService === null) {
+            return new DataResponse(['error' => 'DiscogsService not available'], Http::STATUS_INTERNAL_SERVER_ERROR);
+        }
+        $importWantlist = (bool) $this->request->getParam('importWantlist', false);
+        try {
+            $result = $this->discogsService->importCollection($this->userId(), $importWantlist);
+            return new DataResponse($result);
+        } catch (\OCA\Crate\Exception\DiscogsRateLimitException $e) {
+            return new DataResponse(
+                ['error' => 'Discogs rate limit exceeded. Please wait a moment and try again.'],
+                Http::STATUS_TOO_MANY_REQUESTS,
+            );
+        } catch (\RuntimeException $e) {
+            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+        } catch (\Throwable $e) {
+            return new DataResponse(
+                ['error' => 'Failed to import collection: ' . $e->getMessage()],
+                Http::STATUS_INTERNAL_SERVER_ERROR,
+            );
+        }
     }
 }
