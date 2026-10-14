@@ -4,8 +4,30 @@ declare(strict_types=1);
 
 namespace OCA\Crate\Service;
 
+use OCA\Crate\CrateCategories;
+use OCA\Crate\CrateImageHosts;
+use OCA\Crate\Db\MediaItem;
+use OCA\Crate\Db\MediaItemMapper;
+use OCP\Files\File;
+use OCP\Files\IRootFolder;
+use OCP\Http\Client\IClientService;
+use OCP\IDBConnection;
+use OCP\Security\ICredentialsManager;
+use Psr\Log\LoggerInterface;
+
 class DiscogsService extends AbstractApiService
 {
+    public function __construct(
+        IClientService $clientService,
+        ICredentialsManager $credentialsManager,
+        LoggerInterface $logger,
+        private readonly ?MediaItemMapper $mapper = null,
+        private readonly ?IDBConnection $db = null,
+        private readonly ?IRootFolder $rootFolder = null,
+    ) {
+        parent::__construct($clientService, $credentialsManager, $logger);
+    }
+
     private const API_BASE = 'https://api.discogs.com';
     private const USER_AGENT = 'CrateNextcloudApp/0.4 +https://github.com/megamaced/crate';
 
@@ -242,6 +264,303 @@ class DiscogsService extends AbstractApiService
         }
 
         return $this->normaliseArtist($body);
+    }
+
+    /**
+     * Import the user's Discogs collection into the Music category.
+     * Skips releases that already exist in the local database matching on
+     * Artist, Album (Title), and Format. Creates an import log file in the
+     * user's personal files.
+     *
+     * @param string $userId
+     * @param bool $importWantlist Whether to also import the user's wantlist as wanted items
+     * @return array{imported: int, skipped: int, total: int, importedAlbums: list<array<string, string>>, skippedAlbums: list<array<string, string>>, logFile: string}
+     * @throws \RuntimeException if no token is configured or username cannot be determined
+     * @throws \OCA\Crate\Exception\DiscogsRateLimitException on rate limit
+     */
+    public function importCollection(string $userId, bool $importWantlist = false): array
+    {
+        $token = $this->getToken($userId);
+        if ($token === '') {
+            throw new \RuntimeException('No Discogs token configured.');
+        }
+
+        // 1. Fetch authenticated user's Discogs username
+        $identity = $this->discogsGet($token, self::API_BASE . '/oauth/identity');
+        $username = trim((string)($identity['username'] ?? ''));
+        if ($username === '') {
+            throw new \RuntimeException('Failed to retrieve Discogs username.');
+        }
+
+        // 2. Retrieve all releases from folder 0 (the full collection)
+        $perPage = 100;
+        $entries = [];
+
+        $page = 1;
+        do {
+            $url = self::API_BASE . '/users/' . rawurlencode($username) . '/collection/folders/0/releases';
+            $data = $this->discogsGet($token, $url, [
+                'page'     => (string)$page,
+                'per_page' => (string)$perPage,
+            ]);
+
+            $pageReleases = (array)($data['releases'] ?? []);
+            if (empty($pageReleases)) {
+                break;
+            }
+
+            foreach ($pageReleases as $r) {
+                if (is_array($r)) {
+                    $entries[] = [
+                        'release' => $r,
+                        'status'  => CrateCategories::STATUS_OWNED,
+                    ];
+                }
+            }
+
+            $totalPages = (int)($data['pagination']['pages'] ?? 1);
+            $page++;
+        } while ($page <= $totalPages);
+
+        // 2b. Retrieve releases from the user's wantlist if requested
+        if ($importWantlist) {
+            $page = 1;
+            do {
+                $url = self::API_BASE . '/users/' . rawurlencode($username) . '/wants';
+                $data = $this->discogsGet($token, $url, [
+                    'page'     => (string)$page,
+                    'per_page' => (string)$perPage,
+                ]);
+
+                $pageWants = (array)($data['wants'] ?? []);
+                if (empty($pageWants)) {
+                    break;
+                }
+
+                foreach ($pageWants as $w) {
+                    if (is_array($w)) {
+                        $entries[] = [
+                            'release' => $w,
+                            'status'  => CrateCategories::STATUS_WANTED,
+                        ];
+                    }
+                }
+
+                $totalPages = (int)($data['pagination']['pages'] ?? 1);
+                $page++;
+            } while ($page <= $totalPages);
+        }
+
+        // 3. Load existing items for duplicate detection
+        $existingKeys = [];
+        if ($this->mapper !== null) {
+            $existing = $this->mapper->findAll($userId);
+            foreach ($existing as $item) {
+                $key = $this->dupKey(
+                    (string)$item->getArtist(),
+                    (string)$item->getTitle(),
+                    (string)$item->getFormat(),
+                );
+                $existingKeys[$key] = true;
+            }
+        }
+
+        $importedCount  = 0;
+        $skippedCount   = 0;
+        $importedAlbums = [];
+        $skippedAlbums  = [];
+
+        if ($this->db !== null) {
+            $this->db->beginTransaction();
+        }
+
+        try {
+            foreach ($entries as $entry) {
+                $release = (array)($entry['release'] ?? []);
+                $status  = (string)($entry['status'] ?? CrateCategories::STATUS_OWNED);
+                $info    = (array)($release['basic_information'] ?? $release);
+
+                $album = trim((string)($info['title'] ?? ''));
+
+                $artists = (array)($info['artists'] ?? []);
+                if (!empty($artists) && isset($artists[0]['name'])) {
+                    $artist = (string)preg_replace('/\s*\(\d+\)$/', '', trim((string)$artists[0]['name']));
+                } else {
+                    $artist = trim((string)($info['artist'] ?? ''));
+                }
+
+                if ($artist === '' && str_contains($album, ' - ')) {
+                    $parts  = explode(' - ', $album, 2);
+                    $artist = trim($parts[0]);
+                    $album  = trim($parts[1]);
+                }
+
+                // Resolve format
+                $segments = [];
+                foreach ((array)($info['formats'] ?? []) as $fmt) {
+                    if (is_array($fmt)) {
+                        $segments[] = [
+                            (string)($fmt['name'] ?? ''),
+                            ...array_map('strval', array_values((array)($fmt['descriptions'] ?? []))),
+                        ];
+                    } elseif (is_string($fmt)) {
+                        $segments[] = [$fmt];
+                    }
+                }
+                $format = DiscogsFormat::fromSegments($segments);
+                if ($format === null && !empty($info['format'])) {
+                    if (is_string($info['format'])) {
+                        $format = DiscogsFormat::fromExportString($info['format']);
+                    } elseif (is_array($info['format'])) {
+                        $format = DiscogsFormat::fromTokens(array_map('strval', $info['format']));
+                    }
+                }
+                $format = $format ?? self::DEFAULT_FORMAT;
+
+                if ($artist === '' || $album === '') {
+                    $skippedCount++;
+                    $skippedAlbums[] = [
+                        'artist' => $artist ?: '(Unknown Artist)',
+                        'album'  => $album ?: '(Unknown Title)',
+                        'format' => $format,
+                        'status' => $status,
+                        'reason' => 'Missing artist or album title',
+                    ];
+                    continue;
+                }
+
+                // Duplicate check: matched on Artist, Album, and Format
+                $key = $this->dupKey($artist, $album, $format);
+                if (isset($existingKeys[$key])) {
+                    $skippedCount++;
+                    $skippedAlbums[] = [
+                        'artist' => $artist,
+                        'album'  => $album,
+                        'format' => $format,
+                        'status' => $status,
+                        'reason' => 'Already in collection',
+                    ];
+                    continue;
+                }
+
+                $item = new MediaItem();
+                $item->setUserId($userId);
+                $item->setArtist($artist);
+                $item->setTitle($album);
+                $item->setFormat($format);
+                $item->setCategory(CrateCategories::MUSIC);
+                $item->setStatus($status);
+
+                $year = isset($info['year']) ? (int)$info['year'] : null;
+                if ($year === 0) {
+                    $year = null;
+                }
+                $item->setYear($year);
+
+                $discogsId = (string)($info['id'] ?? $release['id'] ?? '');
+                if ($discogsId !== '') {
+                    $item->setDiscogsId($discogsId);
+                }
+
+                // Labels
+                $labels = (array)($info['labels'] ?? []);
+                $labelParts = array_map(
+                    fn(array $l) => trim(
+                        ($l['name'] ?? '')
+                        . (!empty($l['catno']) && $l['catno'] !== 'none' ? ' – ' . $l['catno'] : '')
+                    ),
+                    array_slice($labels, 0, 4),
+                );
+                $label = implode(', ', array_filter($labelParts)) ?: null;
+                $item->setLabel($label);
+
+                // Artwork
+                $artworkUrl = $info['cover_image'] ?? $info['thumb'] ?? null;
+                if ($artworkUrl !== null && CrateImageHosts::isValidArtworkPath($artworkUrl)) {
+                    $item->setArtworkPath($artworkUrl);
+                }
+
+                if (!empty($release['notes'])) {
+                    if (is_array($release['notes'])) {
+                        $noteValues = array_filter(array_column($release['notes'], 'value'));
+                        if (!empty($noteValues)) {
+                            $item->setNotes(implode("\n", $noteValues));
+                        }
+                    } elseif (is_string($release['notes'])) {
+                        $notes = trim($release['notes']);
+                        if ($notes !== '') {
+                            $item->setNotes($notes);
+                        }
+                    }
+                }
+
+                $now = (new \DateTime())->format('Y-m-d H:i:s');
+                $item->setCreatedAt($now);
+                $item->setUpdatedAt($now);
+
+                if ($this->mapper !== null) {
+                    if ($this->db !== null) {
+                        $this->db->executeStatement('SAVEPOINT crate_discogs_import_row');
+                    }
+                    try {
+                        $this->mapper->insert($item);
+                        if ($this->db !== null) {
+                            $this->db->executeStatement('RELEASE SAVEPOINT crate_discogs_import_row');
+                        }
+                        $existingKeys[$key] = true;
+                        $importedCount++;
+                        $importedAlbums[] = [
+                            'artist' => $artist,
+                            'album'  => $album,
+                            'format' => $format,
+                            'status' => $status,
+                        ];
+                    } catch (\Throwable $e) {
+                        if ($this->db !== null) {
+                            $this->db->executeStatement('ROLLBACK TO SAVEPOINT crate_discogs_import_row');
+                        }
+                        $skippedCount++;
+                        $skippedAlbums[] = [
+                            'artist' => $artist,
+                            'album'  => $album,
+                            'format' => $format,
+                            'status' => $status,
+                            'reason' => 'Database error: ' . $e->getMessage(),
+                        ];
+                    }
+                } else {
+                    $existingKeys[$key] = true;
+                    $importedCount++;
+                    $importedAlbums[] = [
+                        'artist' => $artist,
+                        'album'  => $album,
+                        'format' => $format,
+                        'status' => $status,
+                    ];
+                }
+            }
+
+            if ($this->db !== null) {
+                $this->db->commit();
+            }
+        } catch (\Throwable $e) {
+            if ($this->db !== null) {
+                $this->db->rollBack();
+            }
+            throw $e;
+        }
+
+        $totalCount  = $importedCount + $skippedCount;
+        $logFileName = $this->writeImportLog($userId, $importedCount, $skippedCount, $totalCount, $importedAlbums, $skippedAlbums);
+
+        return [
+            'imported'       => $importedCount,
+            'skipped'        => $skippedCount,
+            'total'          => $totalCount,
+            'importedAlbums' => $importedAlbums,
+            'skippedAlbums'  => $skippedAlbums,
+            'logFile'        => $logFileName,
+        ];
     }
 
     // -------------------------------------------------------------------------
@@ -481,4 +800,89 @@ class DiscogsService extends AbstractApiService
             'members'         => $members ?: null,
         ];
     }
+
+    private function dupKey(string $artist, string $album, string $format): string
+    {
+        return mb_strtolower(trim($artist), 'UTF-8') . '||'
+            . mb_strtolower(trim($album), 'UTF-8') . '||'
+            . mb_strtolower(trim($format), 'UTF-8');
+    }
+
+    /**
+     * Write an import log file to the user's personal files.
+     * The filename is discogs-import-log-YYYYMMDD.txt. If that file already exists,
+     * appends -1, -2, -3, etc. to the end before the extension.
+     *
+     * @param list<array<string, string>> $importedAlbums
+     * @param list<array<string, string>> $skippedAlbums
+     * @return string The filename of the log file written
+     */
+    private function writeImportLog(
+        string $userId,
+        int $importedCount,
+        int $skippedCount,
+        int $totalCount,
+        array $importedAlbums,
+        array $skippedAlbums,
+    ): string {
+        $baseName = 'discogs-import-log-' . date('Ymd');
+        $fileName = $baseName . '.txt';
+
+        $lines = [];
+        $lines[] = 'Discogs Collection Import Log';
+        $lines[] = "Import results: {$importedCount} imported, {$skippedCount} skipped, {$totalCount} total.";
+        $lines[] = '';
+        $lines[] = 'Successfully imported albums:';
+        if (empty($importedAlbums)) {
+            $lines[] = 'None';
+        } else {
+            foreach ($importedAlbums as $item) {
+                $statusSuffix = ($item['status'] ?? CrateCategories::STATUS_OWNED) === CrateCategories::STATUS_WANTED ? ' [Wanted]' : '';
+                $lines[] = "- {$item['artist']} - {$item['album']} ({$item['format']}){$statusSuffix}";
+            }
+        }
+        $lines[] = '';
+        $lines[] = 'Skipped albums:';
+        if (empty($skippedAlbums)) {
+            $lines[] = 'None';
+        } else {
+            foreach ($skippedAlbums as $item) {
+                $statusSuffix = ($item['status'] ?? CrateCategories::STATUS_OWNED) === CrateCategories::STATUS_WANTED ? ' [Wanted]' : '';
+                $entry = "- {$item['artist']} - {$item['album']} ({$item['format']}){$statusSuffix}";
+                if (!empty($item['reason'])) {
+                    $entry .= ": {$item['reason']}";
+                }
+                $lines[] = $entry;
+            }
+        }
+        $lines[] = '';
+        $lines[] = "Summary: {$importedCount} records imported, {$skippedCount} skipped out of {$totalCount} records.";
+        $content = implode("\n", $lines) . "\n";
+
+        if ($this->rootFolder === null) {
+            return $fileName;
+        }
+
+        try {
+            $userFolder = $this->rootFolder->getUserFolder($userId);
+
+            if ($userFolder->nodeExists($fileName)) {
+                $i = 1;
+                while ($userFolder->nodeExists("{$baseName}-{$i}.txt")) {
+                    $i++;
+                }
+                $fileName = "{$baseName}-{$i}.txt";
+            }
+
+            $userFolder->newFile($fileName, $content);
+        } catch (\Throwable $e) {
+            $this->logger->error('Failed to write Discogs import log file: ' . $e->getMessage(), [
+                'app'  => 'crate',
+                'user' => $userId,
+            ]);
+        }
+
+        return $fileName;
+    }
 }
+

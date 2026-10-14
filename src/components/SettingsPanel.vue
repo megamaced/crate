@@ -155,6 +155,82 @@
           </EnrichProviderRow>
         </div>
       </div>
+
+      <div class="settings-group">
+        <h4 class="settings-group__label">
+          Discogs collection
+        </h4>
+        <div class="settings-actions">
+          <NcButton
+            variant="secondary"
+            :disabled="!discogs.hasValue.value || importingDiscogs"
+            @click="openDiscogsImportDialog"
+          >
+            {{ importingDiscogs ? 'Importing from Discogs…' : 'Import Discogs collection' }}
+          </NcButton>
+          <span
+            v-if="discogsImportMessage"
+            class="settings-saved"
+          >{{ discogsImportMessage }}</span>
+        </div>
+        <p
+          v-if="!discogs.hasValue.value"
+          class="settings-hint settings-hint--tight"
+        >
+          Add a Discogs personal access token under API keys to enable collection import.
+        </p>
+        <p
+          v-else
+          class="settings-hint settings-hint--tight"
+        >
+          Import records from your Discogs collection into Music. Existing records will be skipped, and an import log will be saved to your personal files.
+        </p>
+      </div>
+
+      <NcDialog
+        v-if="confirmDiscogsImport"
+        name="Import from Discogs"
+        size="normal"
+        dialog-classes="discogs-import-dialog"
+        :open="confirmDiscogsImport"
+        @closing="confirmDiscogsImport = false"
+      >
+        <p>
+          What do you want to import?
+        </p>
+        <p class="settings-hint settings-hint--tight">
+          Discogs collection items will be added to your Music collection as "Owned". <br>
+          Items from your Wantlist will be added as "Wanted".
+        </p>
+        <p class="settings-hint settings-hint--tight">
+          Existing records in your library matching Artist, Album, and Format will be skipped.
+        </p>
+        <template #actions>
+          <NcButton
+            type="button"
+            variant="primary"
+            :disabled="importingDiscogs"
+            @click="importDiscogsCollection(true)"
+          >
+            Collection &amp; Wantlist
+          </NcButton>
+          <NcButton
+            type="button"
+            variant="secondary"
+            :disabled="importingDiscogs"
+            @click="importDiscogsCollection(false)"
+          >
+            Collection only
+          </NcButton>
+          <NcButton
+            type="button"
+            variant="tertiary"
+            @click="confirmDiscogsImport = false"
+          >
+            Cancel
+          </NcButton>
+        </template>
+      </NcDialog>
     </NcAppSettingsSection>
 
     <!-- ── Recommendations ── -->
@@ -418,7 +494,7 @@ import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { NcAppSettingsDialog, NcAppSettingsSection, NcButton, NcCheckboxRadioSwitch, NcDialog } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
-import { showError } from '@nextcloud/dialogs'
+import { showError, showInfo, showSuccess } from '@nextcloud/dialogs'
 import EnrichProviderRow from './settings/EnrichProviderRow.vue'
 import TokenField from './settings/TokenField.vue'
 import { useEnrichQueue } from '../composables/useEnrichQueue.js'
@@ -429,7 +505,7 @@ import { useTokenSetting } from '../composables/useTokenSetting.js'
 defineProps({
   open: { type: Boolean, required: true },
 })
-const emit = defineEmits(['update:open', 'token-changed', 'tmdb-token-changed', 'rawg-key-changed', 'comicvine-key-changed', 'pricecharting-token-changed', 'collection-wiped'])
+const emit = defineEmits(['update:open', 'token-changed', 'tmdb-token-changed', 'rawg-key-changed', 'comicvine-key-changed', 'pricecharting-token-changed', 'collection-wiped', 'collection-imported'])
 
 const enrich = useEnrichQueue()
 const marketQueue = useMarketValueQueue()
@@ -478,7 +554,16 @@ const wipedMessage = ref('')
 // One handle, so a second wipe's message isn't cleared by the first wipe's
 // timer and nothing fires after the panel is gone.
 let wipedTimer = null
-onBeforeUnmount(() => clearTimeout(wipedTimer))
+
+const confirmDiscogsImport = ref(false)
+const importingDiscogs = ref(false)
+const discogsImportMessage = ref('')
+let discogsImportTimer = null
+
+onBeforeUnmount(() => {
+  clearTimeout(wipedTimer)
+  clearTimeout(discogsImportTimer)
+})
 
 const wipeScopes = [
   { value: 'music',     label: 'Music' },
@@ -529,6 +614,38 @@ async function saveDiscogsToken() {
 async function clearDiscogsToken() {
   await discogs.clear()
   emit('token-changed', false)
+}
+
+function openDiscogsImportDialog() {
+  confirmDiscogsImport.value = true
+}
+
+async function importDiscogsCollection(importWantlist = false) {
+  confirmDiscogsImport.value = false
+  if (importingDiscogs.value) return
+  importingDiscogs.value = true
+  clearTimeout(discogsImportTimer)
+  discogsImportMessage.value = ''
+  try {
+    const res = await axios.post(generateOcsUrl('/apps/crate/api/v1/discogs/import'), {
+      importWantlist,
+    })
+    const data = res.data?.ocs?.data ?? {}
+    const msg = `Import complete: ${data.imported ?? 0} imported, ${data.skipped ?? 0} skipped (${data.total ?? 0} total). Log saved to ${data.logFile ?? 'Files'}.`
+    discogsImportMessage.value = msg
+    showSuccess(msg)
+    emit('collection-imported')
+  } catch (e) {
+    console.error('Failed to import Discogs collection', e)
+    const errorMsg = e.response?.data?.ocs?.data?.error || e.response?.data?.error || 'Failed to import Discogs collection'
+    showError(errorMsg)
+    discogsImportMessage.value = errorMsg
+  } finally {
+    importingDiscogs.value = false
+    discogsImportTimer = setTimeout(() => {
+      discogsImportMessage.value = ''
+    }, 5000)
+  }
 }
 
 async function saveTmdbToken() {
@@ -630,12 +747,22 @@ async function enrichAll(category = null) {
       params: category ? { category } : {},
     })
     const all = res.data.ocs?.data ?? []
-    const needsEnrich = all.filter(item =>
-      !item.genres && !item.artistBio
-      && !(Array.isArray(item.tracklist) && item.tracklist.length > 0),
-    ).map(item => item.id)
+    if (all.length === 0) {
+      showInfo(category ? `No ${category} items found to enrich.` : 'No items found to enrich.')
+      return
+    }
+    const needsEnrich = all.filter(item => {
+      const cat = item.category ?? 'music'
+      if (cat === 'music') {
+        return !(Array.isArray(item.tracklist) && item.tracklist.length > 0) && !item.artistBio && !item.pressingNotes
+      }
+      return !item.genres && !item.artistBio && !item.pressingNotes
+    }).map(item => item.id)
+
     if (needsEnrich.length > 0) {
       enrich.start(needsEnrich)
+    } else {
+      showInfo(category ? `All ${category} items are already enriched.` : 'All items are already enriched.')
     }
   } catch (e) {
     console.error('Failed to load items for enrichment', e)
@@ -754,5 +881,13 @@ onMounted(load)
 .settings-currency-select:focus {
   border-color: var(--color-primary-element);
   outline: none;
+}
+
+:global(.discogs-import-dialog .dialog__actions) {
+  flex-wrap: wrap;
+}
+
+:global(.discogs-import-dialog .dialog__actions button) {
+  flex-shrink: 0;
 }
 </style>
