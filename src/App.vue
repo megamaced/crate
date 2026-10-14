@@ -71,6 +71,7 @@
       @comicvine-key-changed="v => hasComicVineKey = v"
       @pricecharting-token-changed="v => hasPriceChartingToken = v"
       @collection-wiped="handleCollectionWiped"
+      @collection-imported="handleCollectionImported"
     />
 
     <NcAppContent ref="appContentRef">
@@ -636,6 +637,11 @@ function handleCollectionWiped() {
   if (homeView.value?.load) homeView.value.load()
 }
 
+function handleCollectionImported() {
+  collectionViewRef.value?.reload()
+  if (homeView.value?.load) homeView.value.load()
+}
+
 // Mutation responses (enrich POST, PUT save) don't echo the shared-status
 // flags the server only sets on GET /media/{id}. Carry them over from the
 // previous selectedItem when the ids match so a read/write sharee editing a
@@ -698,9 +704,10 @@ function showDetail(item) {
   setHash(hashForView('detail', item.id))
   // Auto-enrich items that haven't been enriched yet — having a discogsId
   // (external API key from search) doesn't mean enrichment data was fetched.
-  const notEnriched = !item.genres && !item.artistBio && !item.pressingNotes &&
-    !(Array.isArray(item.tracklist) && item.tracklist.length > 0)
   const cat = item.category ?? 'music'
+  const notEnriched = cat === 'music'
+    ? (!(Array.isArray(item.tracklist) && item.tracklist.length > 0) && !item.artistBio && !item.pressingNotes)
+    : (!item.genres && !item.artistBio && !item.pressingNotes)
   const canAutoEnrich =
     (cat === 'music' && hasDiscogsToken.value) ||
     (cat === 'film' && hasTmdbToken.value) ||

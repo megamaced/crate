@@ -52,6 +52,7 @@ return [
 		// ── Discogs API proxy ──────────────────────────────────────────────────
 		['name' => 'discogs#search',       'url' => '/api/v1/discogs/search',            'verb' => 'GET'],
 		['name' => 'discogs#barcodeSearch', 'url' => '/api/v1/discogs/barcode/{barcode}', 'verb' => 'GET'],
+		['name' => 'discogs#import',       'url' => '/api/v1/discogs/import',            'verb' => 'POST'],
 
 		// ── TMDB API proxy (films) ─────────────────────────────────────────────
 		['name' => 'tmdb#search',    'url' => '/api/v1/tmdb/search',     'verb' => 'GET'],
@@ -73,6 +74,7 @@ return [
 		// ── Import ─────────────────────────────────────────────────────────────
 		['name' => 'import#preview', 'url' => '/api/v1/import/preview', 'verb' => 'POST'],
 		['name' => 'import#commit',  'url' => '/api/v1/import/commit',  'verb' => 'POST'],
+		['name' => 'import#discogs', 'url' => '/api/v1/import/discogs', 'verb' => 'POST'],
 
 		// ── Playlists ──────────────────────────────────────────────────────────
 		['name' => 'playlist#index',      'url' => '/api/v1/playlists',                         'verb' => 'GET'],
