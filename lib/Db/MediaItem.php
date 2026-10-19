@@ -73,6 +73,12 @@ use OCP\AppFramework\Db\Entity;
  * @method void setPhoto1Path(?string $photo1Path)
  * @method string|null getPhoto2Path()
  * @method void setPhoto2Path(?string $photo2Path)
+ * @method int getArtworkRev()
+ * @method void setArtworkRev(int $artworkRev)
+ * @method int getPhoto1Rev()
+ * @method void setPhoto1Rev(int $photo1Rev)
+ * @method int getPhoto2Rev()
+ * @method void setPhoto2Rev(int $photo2Rev)
  * @method string getCategory()
  * @method void setCategory(string $category)
  * @method string|null getCreatedAt()
@@ -115,6 +121,10 @@ class MediaItem extends Entity implements \JsonSerializable
     protected ?string $purchasePriceCurrency = null;
     protected ?string $photo1Path = null;
     protected ?string $photo2Path = null;
+    /** The file generation each image slot points at; see ItemImageSlot. */
+    protected int $artworkRev = 0;
+    protected int $photo1Rev = 0;
+    protected int $photo2Rev = 0;
     protected string $category = 'music';
     protected ?string $createdAt = null;
     protected ?string $updatedAt = null;
@@ -127,6 +137,9 @@ class MediaItem extends Entity implements \JsonSerializable
         $this->addType('marketValueLoose', 'float');
         $this->addType('marketValueNew', 'float');
         $this->addType('purchasePrice', 'float');
+        $this->addType('artworkRev', 'integer');
+        $this->addType('photo1Rev', 'integer');
+        $this->addType('photo2Rev', 'integer');
     }
 
     /**

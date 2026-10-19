@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace OCA\Crate\Controller;
 
+use OCA\Crate\Db\MediaItem;
 use OCA\Crate\Db\MediaItemMapper;
+use OCA\Crate\ItemImageSlot;
+use OCA\Crate\Service\ItemFileWriter;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
@@ -15,7 +18,6 @@ use OCP\AppFramework\Http\FileDisplayResponse;
 use OCP\AppFramework\Http\Response;
 use OCP\Files\AppData\IAppDataFactory;
 use OCP\Files\NotFoundException;
-use OCP\IDBConnection;
 use OCP\IRequest;
 use OCP\IUserSession;
 use Psr\Log\LoggerInterface;
@@ -27,7 +29,8 @@ use Psr\Log\LoggerInterface;
  * come from a remote URL — so there is no SSRF surface here.
  *
  * Each item gets exactly two slots (1 and 2). Files are stored under
- * appdata `photos/photo_{itemId}_{slot}.{ext}` and surfaced via the same
+ * appdata `photos/photo_{itemId}_{slot}_g{generation}.{ext}` (see
+ * ItemImageSlot) and surfaced via the same
  * thumbnail pipeline used by ArtworkController.
  */
 class PhotoController extends Controller
@@ -36,9 +39,6 @@ class PhotoController extends Controller
 
     /** Slot values accepted on every endpoint. */
     private const SLOTS = [1, 2];
-
-    /** File extensions considered when reading/clearing a slot. */
-    private const PHOTO_EXTENSIONS = ['.jpg', '.png', '.webp', '.gif'];
 
     /** Mime types accepted on upload. */
     private const ALLOWED_MIMES = [
@@ -58,7 +58,7 @@ class PhotoController extends Controller
         private readonly MediaItemMapper $mapper,
         private readonly IUserSession $userSession,
         private readonly IAppDataFactory $appDataFactory,
-        private readonly IDBConnection $db,
+        private readonly ItemFileWriter $files,
         private readonly LoggerInterface $logger,
     ) {
         parent::__construct($appName, $request);
@@ -102,10 +102,11 @@ class PhotoController extends Controller
             return new Response(Http::STATUS_NOT_FOUND);
         }
 
-        foreach (self::PHOTO_EXTENSIONS as $ext) {
+        // The name of the generation the row points at; see ItemImageSlot.
+        foreach (ItemImageSlot::photo($slot)->uploadNames($item) as $name) {
             try {
-                $file = $folder->getFile($this->fileName($itemId, $slot, $ext));
-                $mime = self::EXT_TO_MIME[$ext];
+                $file = $folder->getFile($name);
+                $mime = self::EXT_TO_MIME[strrchr($name, '.')] ?? 'image/jpeg';
                 if ($size === 'thumb') {
                     return $this->thumbResponse((string) $file->getContent(), $mime, 3600);
                 }
@@ -136,7 +137,7 @@ class PhotoController extends Controller
         $userId = $user->getUID();
 
         try {
-            $item = $this->mapper->findWritableForUser($itemId, $userId);
+            $this->mapper->findWritableForUser($itemId, $userId);
         } catch (\OCP\AppFramework\Db\DoesNotExistException) {
             return new DataResponse(['error' => 'Not found'], Http::STATUS_NOT_FOUND);
         }
@@ -196,40 +197,25 @@ class PhotoController extends Controller
             $folder = $appData->newFolder('photos');
         }
 
-        $fileName = $this->fileName($itemId, $slot, $ext);
-
-        // Same ordering as ArtworkController::upload, and for the same two
-        // reasons: the row UPDATE runs first because that is what actually
-        // takes the write lock (a plain SELECT serialises nothing under MVCC),
-        // and no file is removed until the transaction has committed, so a
-        // failed write rolls back with the previous photo still in place.
-        $this->db->beginTransaction();
-        try {
-            $item = $this->mapper->findWritableForUser($itemId, $userId);
-
-            if ($slot === 1) {
-                $item->setPhoto1Path('local');
-            } else {
-                $item->setPhoto2Path('local');
-            }
-            $item->setUpdatedAt(date('Y-m-d H:i:s'));
-            $this->mapper->update($item);
-
-            try {
-                $file = $folder->getFile($fileName);
-            } catch (NotFoundException) {
-                $file = $folder->newFile($fileName);
-            }
-            $file->putContent($bytes);
-
-            $this->db->commit();
-        } catch (\Throwable $e) {
-            $this->db->rollBack();
-            throw $e;
-        }
-
-        // Committed: drop whatever this slot held at another extension.
-        $this->deleteSlotFiles($itemId, $slot, $fileName);
+        // Same scheme as ArtworkController::upload: a new generation of the
+        // slot written under the item's row lock, and everything the row no
+        // longer points at removed afterwards. See ItemFileWriter.
+        $this->files->write(
+            $itemId,
+            $userId,
+            $folder,
+            ItemImageSlot::photo($slot),
+            static function (MediaItem $item) use ($slot): void {
+                if ($slot === 1) {
+                    $item->setPhoto1Path('local');
+                } else {
+                    $item->setPhoto2Path('local');
+                }
+                $item->setUpdatedAt(date('Y-m-d H:i:s'));
+            },
+            $ext,
+            $bytes,
+        );
 
         return new DataResponse(['status' => 'ok', 'slot' => $slot]);
     }
@@ -251,68 +237,34 @@ class PhotoController extends Controller
         $userId = $user->getUID();
 
         try {
-            $item = $this->mapper->findWritableForUser($itemId, $userId);
+            $this->mapper->findWritableForUser($itemId, $userId);
         } catch (\OCP\AppFramework\Db\DoesNotExistException) {
             return new DataResponse(['error' => 'Not found'], Http::STATUS_NOT_FOUND);
         }
 
-        // Commit the cleared marker first; unlink afterwards. A file deleted
-        // inside a transaction that then rolls back is gone regardless, leaving
-        // the row pointing at a photo that no longer exists.
-        $this->db->beginTransaction();
-        try {
-            $item = $this->mapper->findWritableForUser($itemId, $userId);
-            if ($slot === 1) {
-                $item->setPhoto1Path(null);
-            } else {
-                $item->setPhoto2Path(null);
-            }
-            $item->setUpdatedAt(date('Y-m-d H:i:s'));
-            $this->mapper->update($item);
-            $this->db->commit();
-        } catch (\Throwable $e) {
-            $this->db->rollBack();
-            throw $e;
-        }
-
-        $this->deleteSlotFiles($itemId, $slot, null);
-
-        return new DataResponse(['status' => 'ok']);
-    }
-
-    /**
-     * Remove the files held in one photo slot, at every extension except
-     * $keepName. Best-effort and post-commit: a file left behind costs disk,
-     * not correctness, because the read path only looks at a slot the row
-     * still marks 'local'.
-     */
-    private function deleteSlotFiles(int $itemId, int $slot, ?string $keepName): void
-    {
         try {
             $folder = $this->appDataFactory->get('crate')->getFolder('photos');
         } catch (NotFoundException) {
-            return;
+            $folder = null;
         }
-        foreach (self::PHOTO_EXTENSIONS as $ext) {
-            $name = $this->fileName($itemId, $slot, $ext);
-            if ($name === $keepName) {
-                continue;
-            }
-            try {
-                $folder->getFile($name)->delete();
-            } catch (NotFoundException) {
-            } catch (\Throwable $e) {
-                $this->logger->warning('Could not remove photo {name}: {msg}', [
-                    'name' => $name,
-                    'msg'  => $e->getMessage(),
-                    'app'  => 'crate',
-                ]);
-            }
-        }
-    }
 
-    private function fileName(int $itemId, int $slot, string $ext): string
-    {
-        return 'photo_' . $itemId . '_' . $slot . $ext;
+        // The cleared marker commits first and the files go afterwards, and
+        // only those the row no longer points at. See ItemFileWriter.
+        $this->files->remove(
+            $itemId,
+            $userId,
+            $folder,
+            ItemImageSlot::photo($slot),
+            static function (MediaItem $item) use ($slot): void {
+                if ($slot === 1) {
+                    $item->setPhoto1Path(null);
+                } else {
+                    $item->setPhoto2Path(null);
+                }
+                $item->setUpdatedAt(date('Y-m-d H:i:s'));
+            },
+        );
+
+        return new DataResponse(['status' => 'ok']);
     }
 }

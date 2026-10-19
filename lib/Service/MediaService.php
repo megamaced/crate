@@ -13,8 +13,10 @@ use OCA\Crate\Db\MediaItemMapper;
 use OCA\Crate\Db\PlaylistItemMapper;
 use OCA\Crate\Db\PlaylistMapper;
 use OCA\Crate\Dto\MediaItemData;
+use OCA\Crate\ItemImageSlot;
 use OCP\Files\AppData\IAppDataFactory;
 use OCP\Files\NotFoundException;
+use OCP\Files\NotPermittedException;
 use OCP\IConfig;
 use OCP\IDBConnection;
 use Psr\Log\LoggerInterface;
@@ -292,7 +294,35 @@ class MediaService
         if ($previousPath === 'local' || $previousPath === $currentPath) {
             return;
         }
-        $this->deleteArtworkFiles($itemId);
+        $this->removeUnreferencedArtwork($itemId);
+    }
+
+    /**
+     * Remove the item's artwork files that its row does not point at, under
+     * the row lock and against the row as it stands then: an upload that
+     * committed after the write that called this is what the row points at by
+     * then, and keeps its file (see ItemImageSlot). Best-effort.
+     */
+    private function removeUnreferencedArtwork(int $itemId): void
+    {
+        try {
+            $folder = $this->appDataFactory->get('crate')->getFolder('artwork');
+        } catch (NotFoundException) {
+            return;
+        }
+        $this->db->beginTransaction();
+        try {
+            $this->mapper->lockRow($itemId);
+            ItemImageSlot::artwork()->removeUnreferenced($folder, $this->mapper->findById($itemId));
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            $this->logger->warning('Could not purge superseded artwork for item {id}: {msg}', [
+                'id'  => $itemId,
+                'msg' => $e->getMessage(),
+                'app' => 'crate',
+            ]);
+        }
     }
 
     public function delete(int $id, string $userId): void
@@ -348,15 +378,16 @@ class MediaService
     {
         try {
             $folder = $this->appDataFactory->get('crate')->getFolder('photos');
-            foreach ([1, 2] as $slot) {
-                foreach (['.jpg', '.png', '.webp', '.gif'] as $ext) {
-                    try {
-                        $folder->getFile('photo_' . $itemId . '_' . $slot . $ext)->delete();
-                    } catch (NotFoundException) {
-                    }
+        } catch (NotFoundException) {
+            return;
+        }
+        foreach ([1, 2] as $slot) {
+            foreach (ItemImageSlot::photo($slot)->files($folder, $itemId) as $file) {
+                try {
+                    $file->delete();
+                } catch (NotPermittedException) {
                 }
             }
-        } catch (NotFoundException) {
         }
     }
 
@@ -744,13 +775,17 @@ class MediaService
         PricingIdentity::retireIfChanged($item, $pricedAs);
         $item->setUpdatedAt((new \DateTime())->format('Y-m-d H:i:s'));
 
-        // Delete cached artwork files so stale images are not served when the
-        // item is re-enriched with a different artwork URL.
+        $item = $this->mapper->update($item);
+
+        // Drop the artwork files the stripped item no longer points at, so
+        // stale images are not served when it is re-enriched with a different
+        // artwork URL. After the update, and against the row under its lock, so
+        // an upload that lands meanwhile keeps its file.
         if ($shouldDeleteFiles) {
-            $this->deleteArtworkFiles($id);
+            $this->removeUnreferencedArtwork($id);
         }
 
-        return $this->mapper->update($item);
+        return $item;
     }
 
     /**

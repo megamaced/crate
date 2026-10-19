@@ -12,6 +12,7 @@ use OCA\Crate\Db\MediaItemMapper;
 use OCA\Crate\Db\PlaylistItemMapper;
 use OCA\Crate\Db\PlaylistMapper;
 use OCA\Crate\Dto\MediaItemData;
+use OCA\Crate\ItemImageSlot;
 use OCA\Crate\Service\ActivityService;
 use OCA\Crate\Service\MediaService;
 use OCP\Files\AppData\IAppDataFactory;
@@ -40,10 +41,14 @@ class ArtworkPathTest extends TestCase
     private MediaItemMapper&MockObject $mapper;
     private ISimpleFolder&MockObject $folder;
 
+    /** What the row holds when the purge re-reads it under the lock. */
+    private ?MediaItem $stored = null;
+
     protected function setUp(): void
     {
         $this->mapper = $this->createMock(MediaItemMapper::class);
         $this->folder = $this->createMock(ISimpleFolder::class);
+        $this->mapper->method('findById')->willReturnCallback(fn() => $this->stored);
     }
 
     /** @return list<array{0: string, 1: bool}> */
@@ -171,6 +176,28 @@ class ArtworkPathTest extends TestCase
         self::assertSame(['artwork_5.jpg'], $deleted->names);
     }
 
+    public function testAnUploadThatCommitsBeforeThePurgeKeepsItsFile(): void
+    {
+        // Re-enrichment moves the cover to a new URL; before its purge runs, an
+        // upload commits and the row becomes 'local'. That upload's file is
+        // not the enrichment's to remove.
+        $item = $this->item('https://i.discogs.com/old.jpg');
+        $this->mapper->method('findWritableForUser')->willReturn($item);
+        $this->mapper->method('update')->willReturnCallback(function (MediaItem $saved): MediaItem {
+            $uploaded = clone $saved;
+            $uploaded->setArtworkPath('local');
+            $this->stored = $uploaded;
+            return $saved;
+        });
+        $this->mapper->expects(self::once())->method('lockRow')->with(5);
+        $deleted = $this->listFolder(['artwork_5.jpg', 'artwork_5_00ff00ff00ff00ff.jpg']);
+
+        $this->service()->applyReleaseData(5, 'alice', ['artworkUrl' => 'https://i.discogs.com/new.jpg']);
+
+        // The upload the row now points at stays; the stale cache entry goes.
+        self::assertSame(['artwork_5_00ff00ff00ff00ff.jpg'], $deleted->names);
+    }
+
     public function testEnrichmentThatLeavesTheCoverAloneKeepsTheCache(): void
     {
         $item = $this->item('https://i.discogs.com/same.jpg');
@@ -273,7 +300,10 @@ class ArtworkPathTest extends TestCase
         self::assertSame($one, CrateArtworkFiles::cachePrefix(5, 'https://i.discogs.com/old.jpg'));
         // And neither can be mistaken for another item's, nor for an upload.
         self::assertNotSame($one, CrateArtworkFiles::cachePrefix(50, 'https://i.discogs.com/old.jpg'));
-        self::assertNotSame($one . '.jpg', CrateArtworkFiles::uploadName(5, '.jpg'));
+        $upload = $this->item('local');
+        self::assertNotContains($one . '.jpg', ItemImageSlot::artwork()->uploadNames($upload));
+        $upload->setArtworkRev(3);
+        self::assertNotContains($one . '.jpg', ItemImageSlot::artwork()->uploadNames($upload));
     }
 
     /**
@@ -312,6 +342,7 @@ class ArtworkPathTest extends TestCase
         $item->setUserId('alice');
         $item->setTitle('Kind of Blue');
         $item->setArtworkPath($artworkPath);
+        $this->stored = $item;
         return $item;
     }
 

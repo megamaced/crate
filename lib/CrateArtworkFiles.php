@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Crate;
 
 use OCP\Files\NotPermittedException;
+use OCP\Files\SimpleFS\ISimpleFile;
 use OCP\Files\SimpleFS\ISimpleFolder;
 
 /**
@@ -12,8 +13,10 @@ use OCP\Files\SimpleFS\ISimpleFolder;
  *
  * Two kinds of file live in the `artwork` folder, and the difference matters:
  *
- *  - an upload, `artwork_<itemId>.<ext>`, which *is* the artwork. The item's
- *    `artwork_path` is the literal 'local', so the item id alone identifies it.
+ *  - an upload, `artwork_<itemId>_g<generation>.<ext>`, which *is* the
+ *    artwork. The item's `artwork_path` is the literal 'local' and its
+ *    `artwork_rev` the generation, so the row alone identifies the file (see
+ *    ItemImageSlot). Uploads from before generations are `artwork_<itemId>.<ext>`.
  *  - a proxy cache entry, `artwork_<itemId>_<digest>.<ext>`, which is a copy of
  *    the remote cover at `artwork_path`. The digest is of that URL, so the name
  *    identifies the image and not merely the item that asked for it.
@@ -25,22 +28,13 @@ use OCP\Files\SimpleFS\ISimpleFolder;
  * a file any of the best-effort purge paths (all of which run after the commit
  * and swallow their own failures) did not manage to remove. Every one of those
  * shows one item's picture on another. With the source URL in the name a stale
- * file simply never matches, and the purge below is a tidy-up rather than the
- * only thing standing between two items' covers.
+ * file simply never matches, and a purge is a tidy-up rather than the only
+ * thing standing between two items' covers.
  */
 final class CrateArtworkFiles
 {
-    /** Extensions an artwork file can carry. */
-    public const EXTENSIONS = ['.jpg', '.png', '.webp', '.gif'];
-
     /** Every file in the folder that belongs to a media item's artwork. */
-    private const NAME_PATTERN = '/^artwork_(\d+)(?:_[0-9a-f]+)?\.(?:jpg|png|webp|gif)$/';
-
-    /** Name a user-uploaded cover for $itemId is stored under. */
-    public static function uploadName(int $itemId, string $ext): string
-    {
-        return 'artwork_' . $itemId . $ext;
-    }
+    private const NAME_PATTERN = '/^artwork_(\d+)(?:_[0-9a-f]+|_g\d+)?\.(?:jpg|png|webp|gif)$/';
 
     /**
      * Name prefix the artwork proxy caches $sourceUrl under for $itemId. The
@@ -63,41 +57,15 @@ final class CrateArtworkFiles
      */
     public static function deleteAll(ISimpleFolder $folder, int ...$itemIds): void
     {
-        self::deleteMatching($folder, $itemIds, null);
-    }
-
-    /**
-     * Delete every artwork file belonging to $itemId except $keepName — the
-     * post-commit tidy-up after a replacement, which runs once the file the
-     * item now points at is the committed one. Anything it fails to remove is
-     * a stale file the naming scheme above already prevents from being served.
-     */
-    public static function deleteOthers(ISimpleFolder $folder, int $itemId, string $keepName): void
-    {
-        self::deleteMatching($folder, [$itemId], $keepName);
+        self::deleteMatching($folder, $itemIds);
     }
 
     /**
      * @param list<int> $itemIds
      */
-    private static function deleteMatching(ISimpleFolder $folder, array $itemIds, ?string $keepName): void
+    private static function deleteMatching(ISimpleFolder $folder, array $itemIds): void
     {
-        if (empty($itemIds)) {
-            return;
-        }
-        $wanted = array_flip(array_map(static fn(int $id): string => (string)$id, $itemIds));
-
-        foreach ($folder->getDirectoryListing() as $file) {
-            $name = $file->getName();
-            if ($name === $keepName) {
-                continue;
-            }
-            if (!preg_match(self::NAME_PATTERN, $name, $m)) {
-                continue;
-            }
-            if (!isset($wanted[$m[1]])) {
-                continue;
-            }
+        foreach (self::matching($folder, $itemIds) as $file) {
             try {
                 $file->delete();
             } catch (NotPermittedException) {
@@ -105,6 +73,26 @@ final class CrateArtworkFiles
                 // the delete or the enrichment that triggered the sweep.
             }
         }
+    }
+
+    /**
+     * @param list<int> $itemIds
+     * @return list<ISimpleFile>
+     */
+    private static function matching(ISimpleFolder $folder, array $itemIds): array
+    {
+        if (empty($itemIds)) {
+            return [];
+        }
+        $wanted = array_flip(array_map(static fn(int $id): string => (string)$id, $itemIds));
+
+        $files = [];
+        foreach ($folder->getDirectoryListing() as $file) {
+            if (preg_match(self::NAME_PATTERN, $file->getName(), $m) && isset($wanted[$m[1]])) {
+                $files[] = $file;
+            }
+        }
+        return $files;
     }
 
     private function __construct()

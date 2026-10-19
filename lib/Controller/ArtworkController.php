@@ -6,7 +6,10 @@ namespace OCA\Crate\Controller;
 
 use OCA\Crate\CrateArtworkFiles;
 use OCA\Crate\CrateImageHosts;
+use OCA\Crate\Db\MediaItem;
 use OCA\Crate\Db\MediaItemMapper;
+use OCA\Crate\ItemImageSlot;
+use OCA\Crate\Service\ItemFileWriter;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
@@ -19,7 +22,6 @@ use OCP\Files\AppData\IAppDataFactory;
 use OCP\Files\NotFoundException;
 use OCP\Http\Client\IClientService;
 use OCP\Http\Client\IResponse;
-use OCP\IDBConnection;
 use OCP\IRequest;
 use OCP\IUserSession;
 use Psr\Log\LoggerInterface;
@@ -33,9 +35,6 @@ class ArtworkController extends Controller
         'image/jpeg', 'image/png', 'image/webp', 'image/gif',
     ];
 
-    /** File extensions considered when locating a user-uploaded cover. */
-    private const ARTWORK_EXTENSIONS = CrateArtworkFiles::EXTENSIONS;
-
     /** Byte cap for a remote artwork fetch and for an upload. */
     private const MAX_REMOTE_IMAGE_BYTES = 10 * 1024 * 1024;
 
@@ -46,7 +45,7 @@ class ArtworkController extends Controller
         private readonly IUserSession $userSession,
         private readonly IAppDataFactory $appDataFactory,
         private readonly IClientService $clientService,
-        private readonly IDBConnection $db,
+        private readonly ItemFileWriter $files,
         private readonly LoggerInterface $logger,
     ) {
         parent::__construct($appName, $request);
@@ -89,10 +88,11 @@ class ArtworkController extends Controller
             } catch (NotFoundException) {
                 return new Response(Http::STATUS_NOT_FOUND);
             }
-            foreach (self::ARTWORK_EXTENSIONS as $ext) {
+            // The name of the generation the row points at; see ItemImageSlot.
+            foreach (ItemImageSlot::artwork()->uploadNames($item) as $name) {
                 try {
-                    $file = $folder->getFile(CrateArtworkFiles::uploadName($itemId, $ext));
-                    $mime = match ($ext) {
+                    $file = $folder->getFile($name);
+                    $mime = match (strrchr($name, '.')) {
                         '.png'  => 'image/png',
                         '.webp' => 'image/webp',
                         '.gif'  => 'image/gif',
@@ -249,7 +249,7 @@ class ArtworkController extends Controller
         $userId = $user->getUID();
 
         try {
-            $item = $this->mapper->findWritableForUser($itemId, $userId);
+            $this->mapper->findWritableForUser($itemId, $userId);
         } catch (\OCP\AppFramework\Db\DoesNotExistException) {
             return new DataResponse(['error' => 'Not found'], Http::STATUS_NOT_FOUND);
         }
@@ -309,60 +309,28 @@ class ArtworkController extends Controller
             $folder = $appData->newFolder('artwork');
         }
 
-        $uploadName = CrateArtworkFiles::uploadName($itemId, $ext);
-
-        // Serialise concurrent uploads/deletes of the same item's artwork. The
-        // row UPDATE runs first, before any file is touched: that is what takes
-        // the write lock, and it is held until commit, so a second upload of
-        // the same item blocks here rather than interleaving its file ops with
-        // ours. A non-locking SELECT would not have done it — under MVCC two
-        // readers see the row simultaneously and neither waits.
-        //
-        // Nothing is deleted inside the transaction. The replacement is written
-        // over the name it will keep, so a putContent() that throws (quota,
-        // disk, permissions) rolls the row back with the previous file still in
-        // place, rather than leaving a committed 'local' pointing at nothing.
-        $this->db->beginTransaction();
-        try {
-            $item = $this->mapper->findWritableForUser($itemId, $userId);
-
-            $item->setArtworkPath('local');
-            // The user's own cover is what "Remove enrichment data" must
-            // leave in place, so on an enriched item it replaces whatever
-            // artwork the pre-enrichment snapshot recorded.
-            if ($item->getOriginalTitle() !== null) {
-                $item->setOriginalArtworkPath('local');
-            }
-            $item->setUpdatedAt(date('Y-m-d H:i:s'));
-            $this->mapper->update($item);
-
-            try {
-                $file = $folder->getFile($uploadName);
-            } catch (NotFoundException) {
-                $file = $folder->newFile($uploadName);
-            }
-            $file->putContent($bytes);
-
-            $this->db->commit();
-        } catch (\Throwable $e) {
-            $this->db->rollBack();
-            throw $e;
-        }
-
-        // Committed. Everything else the item had can go now: an upload this
-        // replaces at a different extension, and every cover cached from a
-        // remote URL the item used to point at. Best-effort — a file left
-        // behind costs disk, not correctness, because the read path resolves
-        // the name it wants rather than whatever is lying around.
-        try {
-            CrateArtworkFiles::deleteOthers($folder, $itemId, $uploadName);
-        } catch (\Throwable $e) {
-            $this->logger->warning('Could not purge superseded artwork for item {id}: {msg}', [
-                'id'  => $itemId,
-                'msg' => $e->getMessage(),
-                'app' => 'crate',
-            ]);
-        }
+        // Written under the item's row lock as a new generation of the slot,
+        // with everything the row no longer points at removed afterwards: two
+        // uploads, or an upload racing a removal, settle on whichever
+        // committed last. See ItemFileWriter.
+        $this->files->write(
+            $itemId,
+            $userId,
+            $folder,
+            ItemImageSlot::artwork(),
+            static function (MediaItem $item): void {
+                $item->setArtworkPath('local');
+                // The user's own cover is what "Remove enrichment data" must
+                // leave in place, so on an enriched item it replaces whatever
+                // artwork the pre-enrichment snapshot recorded.
+                if ($item->getOriginalTitle() !== null) {
+                    $item->setOriginalArtworkPath('local');
+                }
+                $item->setUpdatedAt(date('Y-m-d H:i:s'));
+            },
+            $ext,
+            $bytes,
+        );
 
         return new DataResponse(['status' => 'ok', 'artworkPath' => 'local']);
     }
@@ -381,43 +349,37 @@ class ArtworkController extends Controller
         $userId = $user->getUID();
 
         try {
-            $item = $this->mapper->findWritableForUser($itemId, $userId);
+            $this->mapper->findWritableForUser($itemId, $userId);
         } catch (\OCP\AppFramework\Db\DoesNotExistException) {
             return new DataResponse(['error' => 'Not found'], Http::STATUS_NOT_FOUND);
         }
 
-        // Commit the null marker first, then unlink. A file removed before the
-        // commit is gone even when the transaction rolls back, which leaves the
-        // row claiming artwork that no longer exists; the other way round the
-        // worst case is an orphaned file the read path never looks at.
-        $this->db->beginTransaction();
-        try {
-            $item = $this->mapper->findWritableForUser($itemId, $userId);
-            $item->setArtworkPath(null);
-            // Removing the cover is as deliberate as uploading one: stripping
-            // enrichment later must not bring back what the snapshot held.
-            if ($item->getOriginalTitle() !== null) {
-                $item->setOriginalArtworkPath(null);
-            }
-            $item->setUpdatedAt(date('Y-m-d H:i:s'));
-            $this->mapper->update($item);
-            $this->db->commit();
-        } catch (\Throwable $e) {
-            $this->db->rollBack();
-            throw $e;
-        }
-
         try {
             $folder = $this->appDataFactory->get('crate')->getFolder('artwork');
-            CrateArtworkFiles::deleteAll($folder, $itemId);
         } catch (NotFoundException) {
-        } catch (\Throwable $e) {
-            $this->logger->warning('Could not remove artwork files for item {id}: {msg}', [
-                'id'  => $itemId,
-                'msg' => $e->getMessage(),
-                'app' => 'crate',
-            ]);
+            $folder = null;
         }
+
+        // The null marker commits first and the files go afterwards, so a
+        // rollback never leaves the row claiming artwork that was unlinked;
+        // and only files the row no longer points at go, so an upload that
+        // commits in between keeps its file. See ItemFileWriter.
+        $this->files->remove(
+            $itemId,
+            $userId,
+            $folder,
+            ItemImageSlot::artwork(),
+            static function (MediaItem $item): void {
+                $item->setArtworkPath(null);
+                // Removing the cover is as deliberate as uploading one:
+                // stripping enrichment later must not bring back what the
+                // snapshot held.
+                if ($item->getOriginalTitle() !== null) {
+                    $item->setOriginalArtworkPath(null);
+                }
+                $item->setUpdatedAt(date('Y-m-d H:i:s'));
+            },
+        );
 
         return new DataResponse(['status' => 'ok']);
     }
