@@ -27,7 +27,7 @@ abstract class AbstractApiService
 
     /**
      * Query parameters that carry a per-user credential. RAWG (`key`),
-     * ComicVine (`api_key`) and PriceCharting (`token`) can only authenticate
+     * ComicVine (`api_key`) and PriceCharting (`t`) can only authenticate
      * in the query string, and an HTTP client's exception message quotes the
      * full effective request URI — so a mistyped key turns every 401 into a
      * plaintext copy of that key in nextcloud.log. Discogs and TMDB use the
@@ -35,7 +35,7 @@ abstract class AbstractApiService
      *
      * @var list<string>
      */
-    private const CREDENTIAL_QUERY_PARAMS = ['key', 'api_key', 'token', 'access_token'];
+    private const CREDENTIAL_QUERY_PARAMS = ['key', 'api_key', 't', 'token', 'access_token'];
 
     public function __construct(
         protected readonly IClientService $clientService,

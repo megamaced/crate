@@ -27,7 +27,9 @@ class ApiCredentialRedactionTest extends TestCase
     {
         return [
             ['Client error: `GET https://api.rawg.io/api/games?key=s3cr3t&page=1` resulted in a `401`'],
-            ['cURL error 28 for https://www.pricecharting.com/api/products?q=Sonic&token=s3cr3t'],
+            ['cURL error 28 for https://www.pricecharting.com/api/products?t=s3cr3t&q=Sonic'],
+            ['`GET https://www.pricecharting.com/api/product?id=6910&t=s3cr3t` resulted in a `401`'],
+            ['cURL error 28 for https://example.org/api?q=Sonic&token=s3cr3t'],
             ['`GET https://comicvine.gamespot.com/api/search/?api_key=s3cr3t&format=json` failed'],
             ['Could not resolve host: https://example.org/x?access_token=s3cr3t'],
         ];

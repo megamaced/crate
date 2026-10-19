@@ -32,9 +32,12 @@ class PriceChartingService extends AbstractApiService
         }
 
         $body = $this->getJson(self::API_BASE . '/products', [
-            'q'     => $query,
-            'token' => $token,
+            't' => $token,
+            'q' => $query,
         ]);
+        if (self::isError($body)) {
+            return [];
+        }
 
         $products = array_slice((array)($body['products'] ?? []), 0, 10);
         return array_values(array_map(fn(array $p) => [
@@ -57,11 +60,12 @@ class PriceChartingService extends AbstractApiService
             return null;
         }
 
-        $body = $this->getJson(self::API_BASE . '/product/' . rawurlencode($productId), [
-            'token' => $token,
+        $body = $this->getJson(self::API_BASE . '/product', [
+            't'  => $token,
+            'id' => $productId,
         ]);
 
-        if (empty($body)) {
+        if (empty($body) || self::isError($body)) {
             return null;
         }
 
@@ -70,6 +74,18 @@ class PriceChartingService extends AbstractApiService
             'cib'   => isset($body['cib-price'])   ? round((int)$body['cib-price']   / 100, 2) : null,
             'new'   => isset($body['new-price'])   ? round((int)$body['new-price']   / 100, 2) : null,
         ];
+    }
+
+    /**
+     * PriceCharting reports a failure in the body as well as the status code:
+     * `status` is `error` and `error-message` says why. A body that says so
+     * carries no products or prices, whatever else it holds.
+     *
+     * @param array<string, mixed> $body
+     */
+    private static function isError(array $body): bool
+    {
+        return ($body['status'] ?? null) === 'error';
     }
 
     /**
