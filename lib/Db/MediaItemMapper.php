@@ -137,7 +137,13 @@ class MediaItemMapper extends QBMapper
         // escalates to a full sweep. The row simply stays stale.
         //
         // `(updated_at, id)` is the cursor that does separate them. A client
-        // that sends back the last row's id gets an exact resume point.
+        // that sends back the last row's id gets an exact resume point — for
+        // the next page of the same sweep. Between sweeps it would not be: an
+        // edit moves a row's timestamp but not its id, so a row at or below
+        // the stored id edited within the stored second matches neither branch
+        // below and is never returned. The next sweep therefore starts from a
+        // timestamp alone, the response's `watermark` (see
+        // MediaService::findPaginated()).
         $ts = $qb->createNamedParameter($updatedSince);
         if ($updatedSinceId === null) {
             // No id: the boundary second has to be re-sent in full, since

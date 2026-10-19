@@ -28,7 +28,8 @@ use Psr\Log\NullLogger;
  * trips a count-drift full sweep.
  *
  * The server issues the cursor instead: the `(updated_at, id)` pair of the last
- * row of the page, which resumes exactly where the page stopped.
+ * row of the page, which resumes exactly where the page stopped — and, for the
+ * next sweep, a watermark taken from its own clock before the query.
  */
 #[AllowMockObjectsWithoutExpectations]
 class DeltaCursorTest extends TestCase
@@ -80,6 +81,41 @@ class DeltaCursorTest extends TestCase
         self::assertSame(
             ['updatedSince' => '2026-08-01 12:00:00', 'updatedSinceId' => 9],
             $result['nextCursor'],
+        );
+    }
+
+    public function testTheWatermarkIsTheServerClockBeforeTheQueryNotARowStamp(): void
+    {
+        // Items 4 and 9 share a second and this page ends on 9. Neither row's
+        // stamp can be the next sweep's start: an edit made mid-sweep to a row
+        // an earlier page returned can sit below a later page's stamps. The
+        // server's clock before the query, less a margin, is below every edit
+        // that query could have missed.
+        $this->mapper->method('findPaginated')->willReturn([
+            $this->item(4, '2026-08-01 12:00:00'),
+            $this->item(9, '2026-08-01 12:00:00'),
+        ]);
+        $this->mapper->method('countAll')->willReturn(2);
+
+        $before = time();
+        $result = $this->service()->findPaginated('alice', null, null, '2026-08-01 11:59:00');
+        $after = time();
+
+        $watermark = strtotime($result['watermark']['updatedSince']);
+        self::assertGreaterThanOrEqual($before - MediaService::WATERMARK_LAG_SECONDS, $watermark);
+        self::assertLessThanOrEqual($after - MediaService::WATERMARK_LAG_SECONDS, $watermark);
+        self::assertArrayNotHasKey('updatedSinceId', $result['watermark']);
+    }
+
+    public function testEveryListingCarriesAWatermarkSoASweepCanStartFromAnyRequest(): void
+    {
+        $this->mapper->method('findPaginated')->willReturn([]);
+        $this->mapper->method('countAll')->willReturn(0);
+
+        self::assertArrayHasKey('watermark', $this->service()->findPaginated('alice'));
+        self::assertArrayHasKey(
+            'watermark',
+            $this->service()->findPaginated('alice', null, null, '2026-08-01 12:00:00'),
         );
     }
 

@@ -26,6 +26,13 @@ class MediaService
     /** Per-user config key holding the timestamp of the last bulk wipe. */
     public const WIPED_AT_KEY = 'wiped_at';
 
+    /**
+     * How far a delta watermark trails the server clock: longer than any
+     * write holds its updated_at stamp before committing. Rows edited in that
+     * window are simply read again by the next sweep.
+     */
+    public const WATERMARK_LAG_SECONDS = 60;
+
     public function __construct(
         private readonly MediaItemMapper $mapper,
         private readonly PlaylistItemMapper $playlistItemMapper,
@@ -69,12 +76,25 @@ class MediaService
     /**
      * Paginated list for the REST API.
      *
-     * Returns ['items' => MediaItem[], 'total' => int], plus 'nextCursor' on a
-     * delta request that returned rows: the `(updated_at, id)` pair of the last
-     * row of this page, which is the resume point a client should send back as
-     * `updatedSince` / `updatedSinceId`. Handing the cursor out rather than
-     * letting the client derive one from max(updatedAt) is what makes the
-     * resume exact — see MediaItemMapper::applyFilters().
+     * Returns ['items' => MediaItem[], 'total' => int, 'watermark' => …], plus
+     * 'nextCursor' on a delta request that returned rows.
+     *
+     *  - 'nextCursor' is the `(updated_at, id)` pair of the last row of this
+     *    page: send it back as `updatedSince` / `updatedSinceId` for the next
+     *    page of the same sweep. Handing it out rather than letting the client
+     *    derive one from max(updatedAt) is what makes paging exact.
+     *  - 'watermark' is where the next sweep starts: this server's clock
+     *    WATERMARK_LAG_SECONDS before the query ran. A client takes it from
+     *    the first request of a sweep, before anything has been read, and
+     *    keeps it once the sweep completes. Every edit made during or after the
+     *    sweep is stamped later than that, so the next sweep, reading from it
+     *    inclusively, returns it. No row timestamp can serve: an edit moves a
+     *    row's timestamp but not its id, so one made mid-sweep to a row an
+     *    earlier page already returned can sit below the timestamps of later
+     *    pages — and below the id half of any pair. The lag covers a write
+     *    whose stamp was taken before its transaction committed.
+     *
+     * See MediaItemMapper::applyFilters().
      */
     public function findPaginated(
         string $userId,
@@ -86,6 +106,8 @@ class MediaService
         ?int $updatedSinceId = null,
     ): array {
         $limit = max(1, min(200, $limit));
+        // Taken before the query, so nothing the query could miss is older.
+        $watermark = (new \DateTime('-' . self::WATERMARK_LAG_SECONDS . ' seconds'))->format('Y-m-d H:i:s');
         $items = $this->mapper->findPaginated(
             $userId,
             $status,
@@ -98,6 +120,7 @@ class MediaService
         $result = [
             'items' => $items,
             'total' => $this->mapper->countAll($userId, $status, $category, $updatedSince, $updatedSinceId),
+            'watermark' => ['updatedSince' => $watermark],
         ];
         if ($updatedSince !== null && $items !== []) {
             $last = $items[array_key_last($items)];

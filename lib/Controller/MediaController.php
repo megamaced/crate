@@ -94,16 +94,18 @@ class MediaController extends OCSController
                 $updatedSinceId,
             );
             $response = [
-                'items'   => $result['items'],
-                'total'   => $result['total'],
-                'limit'   => $limit,
-                'offset'  => $offset,
-                'wipedAt' => $this->mediaService->getWipedAt($this->userId()),
+                'items'     => $result['items'],
+                'total'     => $result['total'],
+                'limit'     => $limit,
+                'offset'    => $offset,
+                'wipedAt'   => $this->mediaService->getWipedAt($this->userId()),
+                // Where the next sweep starts; keep the first request's.
+                'watermark' => $result['watermark'],
             ];
-            // Present on a delta request that returned rows. Sending it back
-            // verbatim as `updatedSince` + `updatedSinceId` resumes exactly
-            // where this page stopped; deriving a cursor from max(updatedAt)
-            // instead loses any row edited within that same second.
+            // Present on a delta request that returned rows: sent back
+            // verbatim as `updatedSince` + `updatedSinceId`, it resumes this
+            // sweep exactly where the page stopped. See
+            // MediaService::findPaginated().
             if (isset($result['nextCursor'])) {
                 $response['nextCursor'] = $result['nextCursor'];
             }
