@@ -79,25 +79,13 @@ class CrateShareMapper extends QBMapper
     }
 
     /**
-     * True if $viewerUserId has been granted a share of the given shape by anyone.
-     * Used for ACL checks on specific item / playlist resources.
-     */
-    public function isSharedWith(
-        string $viewerUserId,
-        string $type,
-        int $shareableId,
-        string $shareableCategory = CrateShare::CATEGORY_NONE,
-    ): bool {
-        return $this->findSharedWith($viewerUserId, $type, $shareableId, $shareableCategory) !== null;
-    }
-
-    /**
      * The share row granting $viewerUserId access to the given shareable, or
      * null when there is none.
      *
-     * Callers that need to describe the access — who shared it, at what
-     * permission — want the row rather than the boolean, so that the response
-     * they build says the same thing wherever it was built.
+     * This is the one access check for a shared item or playlist. It returns
+     * the row, not a boolean, because callers also describe the access — who
+     * shared it, at what permission — and the response they build should say
+     * the same thing wherever it was built.
      */
     public function findSharedWith(
         string $viewerUserId,
