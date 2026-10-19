@@ -1080,18 +1080,19 @@ class ImportService
                 }
             }
 
-            $artist = $row['artist'] ?? '';
-            $title  = $row['title']  ?? '';
-            $format = $row['format'] ?? '';
+            $artist = (string) ($row['artist'] ?? '');
+            $title  = (string) ($row['title']  ?? '');
+            $format = (string) ($row['format'] ?? '');
 
-            // Validate required fields
-            if (empty($artist) || empty($title)) {
+            // Validate required fields. Cells arrive trimmed, so blank is
+            // exactly '' — empty() would also reject a title or artist of '0'.
+            if ($artist === '' || $title === '') {
                 $skipped++;
                 $errors[] = "Row {$rowNum}: missing Artist or Title — skipped";
                 continue;
             }
 
-            if (empty($format)) {
+            if ($format === '') {
                 $skipped++;
                 $errors[] = "Row {$rowNum}: missing Format — skipped";
                 continue;
@@ -1200,11 +1201,11 @@ class ImportService
             $item->setTitle($title);
             $item->setFormat($format);
             $item->setYear($year);
-            $item->setNotes($notes ?: null);
+            $item->setNotes(self::filled($notes));
             $item->setStatus($status);
-            $item->setDiscogsId($discogsId ?: null);
-            $item->setBarcode($barcode ?: null);
-            $item->setLabel($label ?: null);
+            $item->setDiscogsId(self::filled($discogsId));
+            $item->setBarcode(self::filled($barcode));
+            $item->setLabel(self::filled($label));
             $item->setPurchasePrice($purchasePrice);
             $item->setPurchasePriceCurrency($purchaseCurrency);
             $item->setCategory($category);
@@ -1275,6 +1276,12 @@ class ImportService
             return self::MUSIC_FORMATS[$key] ?? DiscogsFormat::fromExportString($format);
         }
         return self::VALID_FORMATS[$key] ?? null;
+    }
+
+    /** An optional cell's value, or null when it is blank. '0' is a value. */
+    private static function filled(?string $value): ?string
+    {
+        return $value === null || trim($value) === '' ? null : $value;
     }
 
     private function dupKey(string $artist, string $title, string $format, string $category): string
