@@ -520,20 +520,32 @@ async function enrich() {
   }
 }
 
+// Set when the item changes what it is priced as while a lookup is out: that
+// lookup answers for the old identity, so another follows it.
+let marketRefetchPending = false
+
 async function fetchMarketValue() {
+  const askedFor = { id: props.item.id, key: marketLookupKey.value }
   fetchingMarket.value = true
   try {
     const res = await axios.post(
-      generateOcsUrl('/apps/crate/api/v1/media/' + props.item.id + '/market-value'),
+      generateOcsUrl('/apps/crate/api/v1/media/' + askedFor.id + '/market-value'),
       { currency: marketCurrency.value },
     )
     const updated = res.data.ocs?.data ?? null
-    if (updated) emit('enriched', updated)
+    // An answer for an item that has since been edited, or navigated away
+    // from, describes what it was; applying it would undo the edit here.
+    const stale = props.item.id !== askedFor.id || marketLookupKey.value !== askedFor.key
+    if (updated && !stale) emit('enriched', updated)
   } catch (e) {
     console.error('Fetch market value failed', e)
     showError('Couldn’t refresh market value')
   } finally {
     fetchingMarket.value = false
+    if (marketRefetchPending) {
+      marketRefetchPending = false
+      if (shouldAutoFetchMarket()) fetchMarketValue()
+    }
   }
 }
 
@@ -818,10 +830,28 @@ watch(() => props.item.id, () => {
   loadRecommendations()
 })
 
-// Fires when enrichment completes and updates props.item — fetch market rate if configured.
-// Music: triggers when discogsId is first set. Games: triggers when discogsId (RAWG ID) is set.
-watch(() => props.item.discogsId, (newId, oldId) => {
-  if (newId && !oldId && !fetchingMarket.value && shouldAutoFetchMarket()) {
+// What a market value is looked up by, plus the enrichment id. The server
+// clears a stored value when the item stops being what it was priced as (a
+// different release, title, platform or category), and enrichment sets the id
+// a lookup needs, so a change here on the same item is when to fetch a value
+// for what it is now. shouldAutoFetchMarket() still declines when a value
+// survived the edit.
+const marketLookupKey = computed(() => {
+  const i = props.item
+  return [i.category, i.discogsId, i.title, i.format, i.year]
+    .map(v => String(v ?? '').trim().toLowerCase())
+    .join('|')
+})
+
+watch(() => [props.item.id, marketLookupKey.value], ([id, key], [oldId, oldKey]) => {
+  if (id !== oldId) {
+    marketRefetchPending = false
+    return
+  }
+  if (key === oldKey) return
+  if (fetchingMarket.value) {
+    marketRefetchPending = true
+  } else if (shouldAutoFetchMarket()) {
     fetchMarketValue()
   }
 })

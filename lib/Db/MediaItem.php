@@ -129,6 +129,21 @@ class MediaItem extends Entity implements \JsonSerializable
         $this->addType('purchasePrice', 'float');
     }
 
+    /**
+     * Clear the stored market value, and write the nulls even where this copy
+     * already holds null. The setters skip an unchanged value, and a copy read
+     * before a concurrent lookup stored a price would then leave that price
+     * standing beside the identity change this write makes.
+     */
+    public function retireMarketValue(): void
+    {
+        $fields = ['marketValue', 'marketValueLoose', 'marketValueNew', 'marketValueCurrency', 'marketValueFetchedAt'];
+        foreach ($fields as $field) {
+            $this->$field = null;
+            $this->markFieldUpdated($field);
+        }
+    }
+
     public function jsonSerialize(): array
     {
         return [

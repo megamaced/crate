@@ -9,6 +9,7 @@ use OCA\Crate\Db\MediaItem;
 use OCA\Crate\Db\MediaItemMapper;
 use OCA\Crate\Exception\DiscogsRateLimitException;
 use OCP\Http\Client\IClientService;
+use OCP\IDBConnection;
 use OCP\Security\ICredentialsManager;
 
 class MarketValueService
@@ -29,6 +30,7 @@ class MarketValueService
         private readonly IClientService $clientService,
         private readonly ICredentialsManager $credentialsManager,
         private readonly PriceChartingService $priceChartingService,
+        private readonly IDBConnection $db,
     ) {
     }
 
@@ -61,6 +63,7 @@ class MarketValueService
         if (empty($item->getDiscogsId())) {
             return null;
         }
+        $pricedAs = PricingIdentity::of($item);
 
         $currency = in_array(strtoupper($currency), self::SUPPORTED_CURRENCIES, true)
             ? strtoupper($currency)
@@ -71,19 +74,17 @@ class MarketValueService
             return null;
         }
 
-        $now = (new \DateTime())->format('Y-m-d H:i:s');
-        $item->setMarketValue($this->clampValue($stats['value']));
-        $item->setMarketValueLoose(null);
-        $item->setMarketValueNew(null);
-        $item->setMarketValueCurrency($stats['currency']);
-        $item->setMarketValueFetchedAt($now);
-        $item->setUpdatedAt($now);
-
-        return $this->mapper->update($item);
+        return $this->storeIfStillPricedAs($item, $userId, $pricedAs, [
+            'value'    => $this->clampValue($stats['value']),
+            'loose'    => null,
+            'new'      => null,
+            'currency' => $stats['currency'],
+        ]);
     }
 
     private function fetchAndStorePriceCharting(MediaItem $item, string $userId): ?MediaItem
     {
+        $pricedAs = PricingIdentity::of($item);
         $query  = trim($item->getTitle());
         if ($query === '') {
             return null;
@@ -104,15 +105,51 @@ class MarketValueService
             return null;
         }
 
-        $now = (new \DateTime())->format('Y-m-d H:i:s');
-        $item->setMarketValue($this->clampValue($prices['cib']));
-        $item->setMarketValueLoose($this->clampValue($prices['loose']));
-        $item->setMarketValueNew($this->clampValue($prices['new']));
-        $item->setMarketValueCurrency('USD');
-        $item->setMarketValueFetchedAt($now);
-        $item->setUpdatedAt($now);
+        return $this->storeIfStillPricedAs($item, $userId, $pricedAs, [
+            'value'    => $this->clampValue($prices['cib']),
+            'loose'    => $this->clampValue($prices['loose']),
+            'new'      => $this->clampValue($prices['new']),
+            'currency' => 'USD',
+        ]);
+    }
 
-        return $this->mapper->update($item);
+    /**
+     * Store a looked-up price, unless the item stopped being what was looked
+     * up while the request was out. A lookup takes seconds — PriceCharting's
+     * pacing alone spaces its two calls by one — and an edit in that window
+     * (release 101 to 102, say) has already retired the old price; writing
+     * this one would put release 101's value back on release 102.
+     *
+     * The row is locked and re-read before the comparison, so an edit that
+     * commits first is seen, and one that commits later waits for this write
+     * and then retires it. The current row is returned either way, so a client
+     * shows what the item now is.
+     *
+     * @param list<string|int|null> $pricedAs PricingIdentity::of() at lookup time
+     * @param array{value: float|null, loose: float|null, new: float|null, currency: string} $price
+     */
+    private function storeIfStillPricedAs(MediaItem $item, string $userId, array $pricedAs, array $price): MediaItem
+    {
+        $this->db->beginTransaction();
+        try {
+            $this->mapper->lockRow($item->getId());
+            $current = $this->mapper->findWritableForUser($item->getId(), $userId);
+            if (PricingIdentity::of($current) === $pricedAs) {
+                $now = (new \DateTime())->format('Y-m-d H:i:s');
+                $current->setMarketValue($price['value']);
+                $current->setMarketValueLoose($price['loose']);
+                $current->setMarketValueNew($price['new']);
+                $current->setMarketValueCurrency($price['currency']);
+                $current->setMarketValueFetchedAt($now);
+                $current->setUpdatedAt($now);
+                $current = $this->mapper->update($current);
+            }
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+        return $current;
     }
 
     /**

@@ -9,6 +9,7 @@ use OCA\Crate\Db\MediaItemMapper;
 use OCA\Crate\Service\MarketValueService;
 use OCA\Crate\Service\PriceChartingService;
 use OCP\Http\Client\IClientService;
+use OCP\IDBConnection;
 use OCP\Security\ICredentialsManager;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -99,6 +100,7 @@ class MarketValueDispatchTest extends TestCase
             $this->createMock(IClientService::class),
             $this->createMock(ICredentialsManager::class),
             $priceCharting,
+            $this->createMock(IDBConnection::class),
         );
     }
 }

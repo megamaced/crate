@@ -346,6 +346,21 @@ class MediaItemMapper extends QBMapper
         $qb->executeStatement();
     }
 
+    /**
+     * Take the item row's write lock for the rest of the current transaction.
+     * A no-op UPDATE is what locks portably: a plain SELECT does not under
+     * MVCC, and SELECT … FOR UPDATE is not in the query builder before
+     * Nextcloud 34. Anything else that writes the row waits for the commit.
+     */
+    public function lockRow(int $id): void
+    {
+        $qb = $this->db->getQueryBuilder();
+        $qb->update($this->getTableName())
+            ->set('updated_at', 'updated_at')
+            ->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)));
+        $qb->executeStatement();
+    }
+
     /** Find by id without user ownership check — used for shared-item access. */
     public function findById(int $id): MediaItem
     {

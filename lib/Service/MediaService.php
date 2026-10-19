@@ -213,6 +213,7 @@ class MediaService
         // Owner or a read/write sharee may edit. (Delete stays owner-only.)
         $item = $this->mapper->findWritableForUser($id, $userId);
         $previousArtworkPath = $item->getArtworkPath();
+        $pricedAs = PricingIdentity::of($item);
         $item->setTitle($data->title);
         $item->setArtist($data->artist);
         $item->setFormat($data->format);
@@ -242,6 +243,7 @@ class MediaService
         if ($data->category !== null) {
             $item->setCategory($data->category);
         }
+        PricingIdentity::retireIfChanged($item, $pricedAs);
         $item->setUpdatedAt((new \DateTime())->format('Y-m-d H:i:s'));
         $item = $this->mapper->update($item);
         $this->purgeStaleArtworkCache($id, $previousArtworkPath, $item->getArtworkPath());
@@ -514,7 +516,9 @@ class MediaService
     public function patchDiscogsId(int $id, string $userId, string $discogsId): MediaItem
     {
         $item = $this->mapper->findWritableForUser($id, $userId);
+        $pricedAs = PricingIdentity::of($item);
         $item->setDiscogsId($discogsId);
+        PricingIdentity::retireIfChanged($item, $pricedAs);
         $item->setUpdatedAt((new \DateTime())->format('Y-m-d H:i:s'));
         return $this->mapper->update($item);
     }
@@ -620,6 +624,7 @@ class MediaService
     {
         $item = $this->mapper->findWritableForUser($id, $userId);
         $previousArtworkPath = $item->getArtworkPath();
+        $pricedAs = PricingIdentity::of($item);
         $this->snapshotOriginals($item);
 
         $map = [
@@ -655,6 +660,7 @@ class MediaService
             $item->setArtistMembers(json_encode($fields['artistMembers']));
         }
 
+        PricingIdentity::retireIfChanged($item, $pricedAs);
         $item->setUpdatedAt((new \DateTime())->format('Y-m-d H:i:s'));
         $item = $this->mapper->update($item);
         $this->purgeStaleArtworkCache($id, $previousArtworkPath, $item->getArtworkPath());
@@ -688,6 +694,7 @@ class MediaService
     public function stripEnrichment(int $id, string $userId): MediaItem
     {
         $item = $this->mapper->findWritableForUser($id, $userId);
+        $pricedAs = PricingIdentity::of($item);
 
         // Determine whether the pre-enrichment state had user-uploaded artwork.
         // If so, preserve the file on disk. Otherwise, delete stale cache files
@@ -725,6 +732,7 @@ class MediaService
         $item->setArtistBio(null);
         $item->setArtistMembers(null);
         $item->setDiscogsId(null);
+        PricingIdentity::retireIfChanged($item, $pricedAs);
         $item->setUpdatedAt((new \DateTime())->format('Y-m-d H:i:s'));
 
         // Delete cached artwork files so stale images are not served when the
