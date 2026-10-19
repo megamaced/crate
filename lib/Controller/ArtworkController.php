@@ -327,6 +327,12 @@ class ArtworkController extends Controller
             $item = $this->mapper->findWritableForUser($itemId, $userId);
 
             $item->setArtworkPath('local');
+            // The user's own cover is what "Remove enrichment data" must
+            // leave in place, so on an enriched item it replaces whatever
+            // artwork the pre-enrichment snapshot recorded.
+            if ($item->getOriginalTitle() !== null) {
+                $item->setOriginalArtworkPath('local');
+            }
             $item->setUpdatedAt(date('Y-m-d H:i:s'));
             $this->mapper->update($item);
 
@@ -388,6 +394,11 @@ class ArtworkController extends Controller
         try {
             $item = $this->mapper->findWritableForUser($itemId, $userId);
             $item->setArtworkPath(null);
+            // Removing the cover is as deliberate as uploading one: stripping
+            // enrichment later must not bring back what the snapshot held.
+            if ($item->getOriginalTitle() !== null) {
+                $item->setOriginalArtworkPath(null);
+            }
             $item->setUpdatedAt(date('Y-m-d H:i:s'));
             $this->mapper->update($item);
             $this->db->commit();

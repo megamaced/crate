@@ -689,12 +689,19 @@ class MediaService
      * Strip all enrichment fields from an item, preserving the
      * user-entered fields (title, artist, format, year, notes, status, artwork,
      * label, country). The discogsId is also cleared so the item is treated
-     * as unenriched.
+     * as unenriched. A cover the user uploaded stays, including one uploaded
+     * after enrichment.
      */
     public function stripEnrichment(int $id, string $userId): MediaItem
     {
         $item = $this->mapper->findWritableForUser($id, $userId);
         $pricedAs = PricingIdentity::of($item);
+
+        // A cover the user uploaded is theirs, not enrichment's: if the item
+        // shows one now, it stays, whatever the snapshot says. Uploads made
+        // since enrichment record themselves in the snapshot, but one made
+        // before that was tracked would otherwise be deleted here.
+        $keepsUpload = $item->getArtworkPath() === 'local';
 
         // Determine whether the pre-enrichment state had user-uploaded artwork.
         // If so, preserve the file on disk. Otherwise, delete stale cache files
@@ -702,14 +709,16 @@ class MediaService
         // Only the owner may reach the file deletion: a read/write sharee may
         // add and edit, and removing the owner's uploaded artwork is neither.
         $originalArtwork = $item->getOriginalArtworkPath();
-        $shouldDeleteFiles = ($originalArtwork !== 'local') && ($item->getUserId() === $userId);
+        $shouldDeleteFiles = !$keepsUpload && ($originalArtwork !== 'local') && ($item->getUserId() === $userId);
 
         // Restore pre-enrichment values if a snapshot was taken, then clear it.
         if ($item->getOriginalTitle() !== null) {
             $item->setTitle($item->getOriginalTitle());
             $item->setArtist($item->getOriginalArtist());
             $item->setYear($item->getOriginalYear());
-            $item->setArtworkPath($item->getOriginalArtworkPath());
+            if (!$keepsUpload) {
+                $item->setArtworkPath($item->getOriginalArtworkPath());
+            }
             $item->setLabel($item->getOriginalLabel());
             $item->setCountry($item->getOriginalCountry());
             $item->setOriginalTitle(null);

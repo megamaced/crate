@@ -217,6 +217,49 @@ class ArtworkPathTest extends TestCase
         self::assertSame(['artwork_5_00ff00ff00ff00ff.jpg'], $deleted->names);
     }
 
+    public function testACoverUploadedAfterEnrichmentSurvivesStrippingIt(): void
+    {
+        // Enriched from no artwork, then given the user's own cover: the
+        // snapshot still says "no artwork", but the upload is not enrichment's.
+        $item = $this->item('local');
+        $item->setOriginalTitle('Kind of Blue');
+        $item->setOriginalArtist('Miles Davis');
+        $item->setOriginalArtworkPath(null);
+        $this->mapper->method('findWritableForUser')->willReturn($item);
+        $this->mapper->method('update')->willReturnArgument(0);
+        $this->folder->expects(self::never())->method('getDirectoryListing');
+
+        $stripped = $this->service()->stripEnrichment(5, 'alice');
+
+        self::assertSame('local', $stripped->getArtworkPath());
+        self::assertNull($stripped->getOriginalArtworkPath());
+    }
+
+    public function testStrippingAnUnsnapshottedItemLeavesItsUploadAlone(): void
+    {
+        // No snapshot (never enriched, or enriched before snapshots existed):
+        // the row keeps 'local', so its file has to stay too.
+        $item = $this->item('local');
+        $this->mapper->method('findWritableForUser')->willReturn($item);
+        $this->mapper->method('update')->willReturnArgument(0);
+        $this->folder->expects(self::never())->method('getDirectoryListing');
+
+        self::assertSame('local', $this->service()->stripEnrichment(5, 'alice')->getArtworkPath());
+    }
+
+    public function testStrippingStillRestoresAnUploadEnrichmentReplaced(): void
+    {
+        $item = $this->item('https://i.discogs.com/enriched.jpg');
+        $item->setOriginalTitle('Kind of Blue');
+        $item->setOriginalArtist('Miles Davis');
+        $item->setOriginalArtworkPath('local');
+        $this->mapper->method('findWritableForUser')->willReturn($item);
+        $this->mapper->method('update')->willReturnArgument(0);
+        $this->folder->expects(self::never())->method('getDirectoryListing');
+
+        self::assertSame('local', $this->service()->stripEnrichment(5, 'alice')->getArtworkPath());
+    }
+
     public function testACacheEntryIsNamedAfterTheCoverItHolds(): void
     {
         // Two covers for the same item never share a file name, which is what
