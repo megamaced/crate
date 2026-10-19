@@ -34,7 +34,9 @@ class PriceChartingService extends AbstractApiService
 
     /**
      * Search PriceCharting for a product by title.
-     * Returns up to 10 results: [{priceChartingId, title, platform}]
+     * Returns the first page of up to 20 results: [{priceChartingId, title, platform}].
+     * The whole page is kept for the matchers below, which need the other
+     * platforms, issues and variants of a title in view to pick the right one.
      *
      * @return array<int, array<string, mixed>>
      * @throws PriceChartingRateLimitException
@@ -47,7 +49,7 @@ class PriceChartingService extends AbstractApiService
         }
 
         $body = $this->call('/products', $token, ['q' => $query]);
-        $products = array_slice((array)($body['products'] ?? []), 0, 10);
+        $products = array_slice((array)($body['products'] ?? []), 0, 20);
         return array_values(array_map(fn(array $p) => [
             'priceChartingId' => (string)($p['id'] ?? ''),
             'title'           => (string)($p['product-name'] ?? ''),
@@ -129,12 +131,36 @@ class PriceChartingService extends AbstractApiService
             return null;
         }
 
-        $match = self::pickByPlatform($results, $format);
-        if ($match === null) {
+        return $this->pricesFor($userId, self::pickByPlatform($results, $format));
+    }
+
+    /**
+     * Search for the comic $title names and return its prices. Comics are
+     * matched on series, issue, variant and year (see pickComic()); the
+     * item's format is a physical format, not anything PriceCharting files a
+     * comic under, so it only ever says which binding is meant.
+     *
+     * @return array{loose: float|null, cib: float|null, new: float|null}|null
+     * @throws PriceChartingRateLimitException
+     */
+    public function searchAndFetchComicPrices(string $userId, string $title, ?string $format, ?int $year): ?array
+    {
+        $results = $this->search($userId, $title);
+        if (empty($results)) {
             return null;
         }
 
-        $productId = (string) $match['priceChartingId'];
+        return $this->pricesFor($userId, self::pickComic($results, $title, $format, $year));
+    }
+
+    /**
+     * @param array<string, mixed>|null $match
+     * @return array{loose: float|null, cib: float|null, new: float|null}|null
+     * @throws PriceChartingRateLimitException
+     */
+    private function pricesFor(string $userId, ?array $match): ?array
+    {
+        $productId = (string) ($match['priceChartingId'] ?? '');
         if ($productId === '') {
             return null;
         }
@@ -238,6 +264,123 @@ class PriceChartingService extends AbstractApiService
             }
         }
         return array_values(array_unique($names));
+    }
+
+    /**
+     * The binding a comic format names, as PriceCharting marks it on a
+     * collected edition ("Watchmen [Hardcover] (2009)"). Only formats that are
+     * a binding appear: an omnibus or a graphic novel comes in either.
+     *
+     * @var array<string, string>
+     */
+    private const COMIC_FORMAT_BINDINGS = [
+        'hardcover'       => 'hardcover',
+        'trade paperback' => 'paperback',
+    ];
+
+    /**
+     * Pick the comic $title names out of a PriceCharting search.
+     *
+     * PriceCharting files a comic under its series — console-name "Comic
+     * Books Spawn" — and names each product "Series [Variant] #Issue (Year)",
+     * e.g. "Spawn [Newsstand] #1 (1992)". The item's title is read the same
+     * way, so "Spawn #1" asks for series Spawn, issue 1 and no variant.
+     *
+     * Identity comes first. A product must be a comic with the title's series
+     * and issue; its year must be the year the title gives, or failing that
+     * the item's own, when either is known; and it must carry exactly the
+     * variants the title names. A title that names none accepts no special
+     * variant (Newsstand, Misprint), only the binding the format names, if it
+     * names one — so a Trade Paperback never takes a [Hardcover] product's
+     * price. Among what remains, the edition marked with that binding is
+     * preferred to an unmarked one. Anything still ambiguous yields null, the
+     * same honest "no match" pickByPlatform() gives, rather than the first
+     * result: a search page is truncated, so being the only product on it
+     * that fits loosely says nothing about identity.
+     *
+     * @param list<array<string, mixed>> $results
+     * @return array<string, mixed>|null
+     */
+    public static function pickComic(array $results, string $title, ?string $format, ?int $year): ?array
+    {
+        $wanted = self::comicName($title);
+        if ($wanted['series'] === '') {
+            return null;
+        }
+        $year = $wanted['year'] ?? $year;
+        $binding = self::COMIC_FORMAT_BINDINGS[strtolower(trim((string) $format))] ?? null;
+        $allowed = $wanted['variants'] !== [] ? null : ($binding === null ? [] : [$binding]);
+
+        $candidates = [];
+        foreach ($results as $result) {
+            if (!str_starts_with(strtolower(trim((string) ($result['platform'] ?? ''))), 'comic books')) {
+                continue;
+            }
+            $name = self::comicName((string) ($result['title'] ?? ''));
+            $variantsFit = $allowed === null
+                ? $name['variants'] === $wanted['variants']
+                : array_diff($name['variants'], $allowed) === [];
+            if (
+                $name['series'] === $wanted['series']
+                && $name['issue'] === $wanted['issue']
+                && ($year === null || $name['year'] === $year)
+                && $variantsFit
+            ) {
+                $candidates[] = ['result' => $result, 'variants' => $name['variants']];
+            }
+        }
+
+        if ($binding !== null && $allowed !== null) {
+            $marked = array_filter($candidates, fn(array $c) => $c['variants'] === [$binding]);
+            if ($marked !== []) {
+                $candidates = $marked;
+            }
+        }
+
+        return count($candidates) === 1 ? reset($candidates)['result'] : null;
+    }
+
+    /**
+     * Split a comic's name into its comparable parts: "Spawn [Newsstand] #1
+     * (1992)" gives series "spawn", issue "1", variants ["newsstand"] and year
+     * 1992. Series and variants are squashed like platform names, and an
+     * issue loses its leading zeros. PriceCharting's [KEY] marker is not a
+     * variant.
+     *
+     * @return array{series: string, issue: string|null, variants: list<string>, year: int|null}
+     */
+    private static function comicName(string $name): array
+    {
+        $year = null;
+        if (preg_match_all('/\((\d{4})\)/', $name, $years) > 0) {
+            $year = (int) end($years[1]);
+            $name = (string) preg_replace('/\(\d{4}\)/', ' ', $name);
+        }
+
+        $variants = [];
+        if (preg_match_all('/\[([^\]]*)\]/', $name, $brackets) > 0) {
+            foreach ($brackets[1] as $bracket) {
+                $variant = self::squash($bracket);
+                if ($variant !== '' && $variant !== 'key') {
+                    $variants[] = $variant;
+                }
+            }
+            $name = (string) preg_replace('/\[[^\]]*\]/', ' ', $name);
+        }
+        sort($variants);
+
+        $issue = null;
+        if (preg_match('/#\s*([0-9]+(?:\.[0-9]+)?[a-z]?)\b/i', $name, $match) === 1) {
+            $issue = strtolower(ltrim($match[1], '0')) ?: '0';
+            $name = (string) preg_replace('/#\s*[0-9]+(?:\.[0-9]+)?[a-z]?\b/i', ' ', $name, 1);
+        }
+
+        return [
+            'series'   => self::squash($name),
+            'issue'    => $issue,
+            'variants' => array_values(array_unique($variants)),
+            'year'     => $year,
+        ];
     }
 
     /** Lowercase alphanumerics only, so spacing and punctuation stop mattering. */

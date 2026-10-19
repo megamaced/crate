@@ -49,15 +49,6 @@ class PriceChartingPlatformTest extends TestCase
         self::assertNull(PriceChartingService::pickByPlatform($this->results(), 'Dreamcast'));
     }
 
-    public function testComicPrintingsAreDistinguishedTheSameWay(): void
-    {
-        $comics = [
-            ['priceChartingId' => '10', 'title' => 'Saga', 'platform' => 'Omnibus'],
-            ['priceChartingId' => '11', 'title' => 'Saga', 'platform' => 'Single Issue'],
-        ];
-        self::assertSame('11', PriceChartingService::pickByPlatform($comics, 'Single Issue')['priceChartingId']);
-    }
-
     public function testWithoutAFormatTheFirstResultStands(): void
     {
         self::assertSame('1', PriceChartingService::pickByPlatform($this->results(), null)['priceChartingId']);

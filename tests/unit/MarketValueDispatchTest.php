@@ -24,24 +24,32 @@ use PHPUnit\Framework\TestCase;
 #[AllowMockObjectsWithoutExpectations]
 class MarketValueDispatchTest extends TestCase
 {
-    /**
-     * @return array<string, array{0: string}>
-     */
-    public static function priceChartingCategoryProvider(): array
-    {
-        return ['game' => ['game'], 'comic' => ['comic']];
-    }
-
-    #[DataProvider('priceChartingCategoryProvider')]
-    public function testGamesAndComicsGoToPriceCharting(string $category): void
+    public function testGamesGoToPriceChartingByPlatform(): void
     {
         $priceCharting = $this->createMock(PriceChartingService::class);
         $priceCharting->expects(self::once())
             ->method('searchAndFetchPrices')
             ->with('alice', 'Chrono Trigger', 'SNES')
             ->willReturn(null);
+        $priceCharting->expects(self::never())->method('searchAndFetchComicPrices');
 
-        self::assertNull($this->service($category, $priceCharting)->fetchAndStore(1, 'alice', 'GBP'));
+        self::assertNull($this->service('game', $priceCharting)->fetchAndStore(1, 'alice', 'GBP'));
+    }
+
+    /**
+     * A comic's format is a physical format — Single Issue, Omnibus — which
+     * PriceCharting files nothing under, so comics take their own matcher.
+     */
+    public function testComicsGoToPriceChartingBySeriesAndIssue(): void
+    {
+        $priceCharting = $this->createMock(PriceChartingService::class);
+        $priceCharting->expects(self::once())
+            ->method('searchAndFetchComicPrices')
+            ->with('alice', 'Chrono Trigger', 'SNES', 1995)
+            ->willReturn(null);
+        $priceCharting->expects(self::never())->method('searchAndFetchPrices');
+
+        self::assertNull($this->service('comic', $priceCharting)->fetchAndStore(1, 'alice', 'GBP'));
     }
 
     public function testMusicNeverGoesToPriceCharting(): void
@@ -79,6 +87,7 @@ class MarketValueDispatchTest extends TestCase
         $item->setUserId('alice');
         $item->setTitle('Chrono Trigger');
         $item->setFormat('SNES');
+        $item->setYear(1995);
         $item->setCategory($category);
 
         $mapper = $this->createMock(MediaItemMapper::class);

@@ -89,9 +89,17 @@ class MarketValueService
             return null;
         }
 
-        // The format is what tells one platform's release from another's: the
-        // title alone matches a dozen products at unrelated prices.
-        $prices = $this->priceChartingService->searchAndFetchPrices($userId, $query, $item->getFormat());
+        // A game's format is its platform, which tells one release from
+        // another: the title alone matches a dozen products at unrelated
+        // prices. A comic is matched on series, issue and year instead.
+        $prices = $item->getCategory() === CrateCategories::COMIC
+            ? $this->priceChartingService->searchAndFetchComicPrices(
+                $userId,
+                $query,
+                $item->getFormat(),
+                $item->getYear(),
+            )
+            : $this->priceChartingService->searchAndFetchPrices($userId, $query, $item->getFormat());
         if ($prices === null) {
             return null;
         }
