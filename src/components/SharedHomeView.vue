@@ -113,7 +113,16 @@
           <span class="crate-category-heading__count">{{ cat.count }}</span>
           <span class="crate-category-heading__chevron">›</span>
         </div>
-        <div class="crate-card-grid">
+        <p
+          v-if="cat.count === 0"
+          class="crate-status"
+        >
+          Nothing here yet. Open {{ cat.label }} to add the first item.
+        </p>
+        <div
+          v-else
+          class="crate-card-grid"
+        >
           <MediaCard
             v-for="item in cat.items.slice(0, rowCount)"
             :key="item.id"
@@ -181,7 +190,8 @@ const isEmpty = computed(() =>
 
 // One hero item per shared category — the first (most recently touched via the
 // recent-first ordering isn't guaranteed here, so just take the first item).
-const heroItems = computed(() => sharedCategories.value.map(cat => cat.items[0]))
+// A category shared read/write before it has any items has no hero.
+const heroItems = computed(() => sharedCategories.value.map(cat => cat.items[0]).filter(Boolean))
 
 const recentItems = computed(() => recentShared.value.slice(0, rowCount.value))
 

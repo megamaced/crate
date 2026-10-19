@@ -89,19 +89,38 @@ const itemsByCategory = computed(() => {
 })
 
 /**
- * Categories that have at least one shared item, in the app's standard order,
- * each with its display label, count and item list. Drives both the landing
- * sections and the dynamic nav children.
+ * Categories the viewer may add to: the category of each read/write category
+ * share, and every category of a read/write whole-library share. The grant is
+ * what gives the viewer somewhere to add, so it counts before the owner has a
+ * single item there.
+ */
+const writableCategories = computed(() => {
+  const cats = new Set()
+  for (const share of libraries.value) {
+    if (share.canWrite === true) CATEGORY_ORDER.forEach(cat => cats.add(cat))
+  }
+  for (const share of categories.value) {
+    if (share.canWrite === true && share.category) cats.add(share.category)
+  }
+  return cats
+})
+
+/**
+ * Categories with at least one shared item, or that the viewer may add to, in
+ * the app's standard order, each with its display label, count and item list.
+ * Drives both the landing sections and the dynamic nav children — so an empty
+ * collection shared read/write still has an entry, and through it an Add.
  */
 const sharedCategories = computed(() => {
   const map = itemsByCategory.value
+  const writable = writableCategories.value
   return CATEGORY_ORDER
-    .filter(cat => (map[cat]?.length ?? 0) > 0)
+    .filter(cat => (map[cat]?.length ?? 0) > 0 || writable.has(cat))
     .map(cat => ({
       category: cat,
       label: CATEGORY_LABELS[cat] ?? cat,
-      count: map[cat].length,
-      items: map[cat],
+      count: map[cat]?.length ?? 0,
+      items: map[cat] ?? [],
     }))
 })
 
