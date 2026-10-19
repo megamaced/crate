@@ -183,8 +183,17 @@ class ImportService
     /** Cap on the total text held in the shared-string table. */
     private const MAX_SHARED_STRING_BYTES = 8 * 1024 * 1024;
 
-    /** Cap on the text of any single cell. */
-    private const MAX_CELL_BYTES = 32 * 1024;
+    /**
+     * Most characters one cell may hold: the spreadsheet format's own cell
+     * limit, which Excel and LibreOffice both enforce. A longer cell is
+     * refused with its reference rather than cut short, which would lose the
+     * rest of the value silently and could split a multibyte character.
+     * Counted in Unicode characters, not bytes.
+     */
+    private const MAX_CELL_CHARS = 32767;
+
+    /** The most bytes MAX_CELL_CHARS characters of UTF-8 can take. */
+    private const MAX_CELL_BYTES = self::MAX_CELL_CHARS * 4;
 
     /** Column name aliases → canonical field name */
     public const ALIASES = [
@@ -520,9 +529,11 @@ class ImportService
 
     /**
      * Read the shared-string table. Text cells reference it by index, so it
-     * has to be held whole — hence the count and byte ceilings.
+     * has to be held whole — hence the count and byte ceilings. An entry
+     * longer than a cell may be is held as null and refused only if a cell
+     * uses it (see readCellValue()).
      *
-     * @return list<string>
+     * @return list<string|null>
      */
     private function streamSharedStrings(string $path): array
     {
@@ -543,7 +554,7 @@ class ImportService
                     throw new \RuntimeException('Spreadsheet has too many distinct text values to process');
                 }
                 $text   = self::readSharedString($reader);
-                $bytes += strlen($text);
+                $bytes += strlen((string) $text);
                 if ($bytes > self::MAX_SHARED_STRING_BYTES) {
                     throw new \RuntimeException('Spreadsheet contents too large to process');
                 }
@@ -559,9 +570,10 @@ class ImportService
      * Flatten one <si> entry of the shared-string table. A plain string holds a
      * single <t>; a formatted one is split into <r> runs each with their own
      * <t>. Both shapes are just the <t> text in document order, so every <t>
-     * descendant is concatenated.
+     * descendant is concatenated. Null when the text is longer than a cell
+     * may be; the rest of the entry is read past, not kept.
      */
-    private static function readSharedString(\XMLReader $reader): string
+    private static function readSharedString(\XMLReader $reader): ?string
     {
         if ($reader->isEmptyElement) {
             return '';
@@ -569,6 +581,7 @@ class ImportService
         $depth = $reader->depth;
         $text  = '';
         $inT   = false;
+        $tooLong = false;
 
         while ($reader->read()) {
             if (
@@ -586,20 +599,35 @@ class ImportService
                 }
                 continue;
             }
-            if ($inT && self::isTextNode($reader)) {
+            if ($inT && !$tooLong && self::isTextNode($reader)) {
                 $text .= $reader->value;
-                if (strlen($text) > self::MAX_CELL_BYTES) {
-                    return substr($text, 0, self::MAX_CELL_BYTES);
-                }
+                $tooLong = strlen($text) > self::MAX_CELL_BYTES;
             }
         }
-        return $text;
+        return $tooLong || self::exceedsCell($text) ? null : $text;
+    }
+
+    /** Whether $text has more characters than one cell may hold. */
+    private static function exceedsCell(string $text): bool
+    {
+        return strlen($text) > self::MAX_CELL_CHARS
+            && (strlen($text) > self::MAX_CELL_BYTES || mb_strlen($text, 'UTF-8') > self::MAX_CELL_CHARS);
+    }
+
+    /** The error for a cell longer than MAX_CELL_CHARS, naming it when it can. */
+    private static function oversizedCell(string $ref): \RuntimeException
+    {
+        $cell = $ref !== '' ? 'Cell ' . $ref : 'A cell';
+        return new \RuntimeException(
+            $cell . ' holds more than ' . number_format(self::MAX_CELL_CHARS)
+                . ' characters, the most a spreadsheet cell can hold. Shorten it, or import the collection as CSV.',
+        );
     }
 
     /**
      * Walk the worksheet a row at a time.
      *
-     * @param  list<string> $sharedStrings
+     * @param  list<string|null> $sharedStrings
      * @return array{headers: string[], rows: array<int, array<string|null>>}
      */
     private function streamWorksheet(string $path, string $member, array $sharedStrings): array
@@ -661,7 +689,7 @@ class ImportService
      * Read the cells of the <row> the reader is positioned on, leaving it on
      * the row's closing tag.
      *
-     * @param  list<string> $sharedStrings
+     * @param  list<string|null> $sharedStrings
      * @return array<int, string|null>
      */
     private function readRowCells(\XMLReader $reader, array $sharedStrings): array
@@ -695,7 +723,7 @@ class ImportService
                 ? $this->colLetterToIndex($m[1])
                 : count($rowData);
 
-            $val = $this->readCellValue($reader, $type, $sharedStrings);
+            $val = $this->readCellValue($reader, $type, $sharedStrings, $ref);
 
             // Past the width ceiling the cell is dropped rather than padded to.
             if ($colIdx >= self::MAX_XLSX_COLUMNS) {
@@ -717,9 +745,10 @@ class ImportService
      * string is an index into the table, an inline string carries its own
      * <is><t>, and everything else is the literal <v>.
      *
-     * @param list<string> $sharedStrings
+     * @param list<string|null> $sharedStrings
+     * @throws \RuntimeException when the value is longer than a cell may be
      */
-    private function readCellValue(\XMLReader $reader, string $type, array $sharedStrings): ?string
+    private function readCellValue(\XMLReader $reader, string $type, array $sharedStrings, string $ref): ?string
     {
         $v      = null;
         $t      = null;
@@ -754,28 +783,38 @@ class ImportService
                 if ($inside !== null && self::isTextNode($reader)) {
                     if ($inside === 'v') {
                         $v .= $reader->value;
-                        if (strlen((string) $v) > self::MAX_CELL_BYTES) {
-                            $v = substr((string) $v, 0, self::MAX_CELL_BYTES);
-                            $inside = null;
-                        }
                     } else {
                         $t .= $reader->value;
-                        if (strlen((string) $t) > self::MAX_CELL_BYTES) {
-                            $t = substr((string) $t, 0, self::MAX_CELL_BYTES);
-                            $inside = null;
-                        }
+                    }
+                    // Bytes bound what is held while reading; the character
+                    // count is settled once the cell is complete.
+                    if (strlen((string) $v) > self::MAX_CELL_BYTES || strlen((string) $t) > self::MAX_CELL_BYTES) {
+                        throw self::oversizedCell($ref);
                     }
                 }
             }
         }
 
         if ($type === 'inlineStr') {
-            return $t ?? '';
+            $value = $t ?? '';
+        } elseif ($type === 's' && $v !== null) {
+            $index = (int) $v;
+            if (!array_key_exists($index, $sharedStrings)) {
+                return '';
+            }
+            $value = $sharedStrings[$index];
+            if ($value === null) {
+                throw self::oversizedCell($ref);
+            }
+            return $value;
+        } else {
+            $value = $v;
         }
-        if ($type === 's' && $v !== null) {
-            return $sharedStrings[(int) $v] ?? '';
+
+        if ($value !== null && self::exceedsCell($value)) {
+            throw self::oversizedCell($ref);
         }
-        return $v;
+        return $value;
     }
 
     /** True for the node types that carry character data. */
