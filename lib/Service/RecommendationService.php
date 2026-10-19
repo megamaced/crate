@@ -8,6 +8,7 @@ use OCA\Crate\CrateCategories;
 use OCA\Crate\Db\MediaItem;
 use OCA\Crate\Db\MediaItemMapper;
 use OCA\Crate\Exception\DiscogsRateLimitException;
+use OCA\Crate\Exception\RecommendationUnavailableException;
 use OCP\ICacheFactory;
 use OCP\IConfig;
 use Psr\Log\LoggerInterface;
@@ -108,6 +109,10 @@ class RecommendationService
      * render nothing rather than an error: a recommendation rail is a nicety,
      * and a failed one should be invisible.
      *
+     * Only the provider's own answer is cached, empty or not. A missing
+     * credential or a failed call is not an answer about the item, so the
+     * next view, by this user or anyone else, asks again.
+     *
      * @return list<array<string, mixed>>
      */
     public function online(MediaItem $item, string $userId, int $limit = 6): array
@@ -133,6 +138,11 @@ class RecommendationService
 
         try {
             $results = $this->fetchOnline($item, $userId);
+        } catch (RecommendationUnavailableException) {
+            // This user has no credential for the provider. That is about the
+            // user, not the item: cached, it would hide suggestions from every
+            // user with a credential, and from this one once they add theirs.
+            return [];
         } catch (DiscogsRateLimitException $e) {
             // Expected under load, and not worth surfacing: the rail just
             // doesn't appear this time. Not cached, so the next view retries.
@@ -142,15 +152,19 @@ class RecommendationService
             ]);
             return [];
         } catch (\Exception $e) {
+            // Not cached either, so the next view retries. The message is
+            // redacted: RAWG authenticates in the query string, and an HTTP
+            // client quotes the request URI in its errors.
             $this->logger->warning('Crate: recommendation lookup failed: {msg}', [
                 'app' => 'crate',
                 'itemId' => $item->getId(),
-                'msg' => $e->getMessage(),
+                'msg' => AbstractApiService::redactCredentials($e->getMessage()),
             ]);
             return [];
         }
 
-        // Cached even when empty, so an item with no suggestions doesn't
+        // Only an answer the provider actually gave reaches this point, and it
+        // is cached even when empty, so an item with no suggestions doesn't
         // re-ask upstream on every view.
         $cache->set($key, $results, self::CACHE_TTL);
 

@@ -89,11 +89,13 @@ abstract class AbstractApiService
     /**
      * Perform a GET and return the JSON-decoded body, letting a failed request
      * throw — for a caller that has to tell one failure from another. A body
-     * that is not a JSON object still reads as empty.
+     * that is not a JSON object is a failure too: truncated or garbled, it is
+     * not an answer.
      *
      * @param array<string, string|int> $query
      * @param array<string, string>     $headers
      * @return array<string, mixed>
+     * @throws \UnexpectedValueException when the body is not a JSON object
      */
     protected function fetchJson(string $url, array $query = [], array $headers = []): array
     {
@@ -107,7 +109,66 @@ abstract class AbstractApiService
 
         $response = $this->clientService->newClient()->get($url, $options);
         $body = json_decode((string) $response->getBody(), true);
-        return is_array($body) ? $body : [];
+        if (!is_array($body)) {
+            throw new \UnexpectedValueException($this->serviceName() . ' returned a body that is not a JSON object');
+        }
+        return $body;
+    }
+
+    /**
+     * GET $url and return the list of objects under $key in its JSON body —
+     * for callers that must not mistake a broken answer for an empty one.
+     * See listIn().
+     *
+     * @param array<string, string|int> $query
+     * @param array<string, string>     $headers
+     * @return list<array<string, mixed>>
+     * @throws \UnexpectedValueException when the body holds no such list
+     */
+    protected function fetchList(string $url, string $key, array $query = [], array $headers = []): array
+    {
+        $options = [
+            'headers' => array_merge(['Accept' => 'application/json'], $headers),
+            'timeout' => static::DEFAULT_TIMEOUT,
+        ];
+        if (!empty($query)) {
+            $options['query'] = $query;
+        }
+
+        $response = $this->clientService->newClient()->get($url, $options);
+        return $this->listIn((string) $response->getBody(), $key);
+    }
+
+    /**
+     * The list of objects under $key in the JSON $body. Anything else — a
+     * body that does not decode, a missing key, a JSON object where the list
+     * should be, or an entry that is not an object — is an error or an
+     * unexpected shape, not an empty result, so it throws.
+     *
+     * Decoded with objects kept as objects first: once decoded to PHP arrays,
+     * `{}` and `[]` are both `[]`, and an error object under the key would
+     * pass for an empty list.
+     *
+     * @return list<array<string, mixed>>
+     * @throws \UnexpectedValueException
+     */
+    protected function listIn(string $body, string $key): array
+    {
+        $decoded = json_decode($body, false);
+        if (!$decoded instanceof \stdClass) {
+            throw new \UnexpectedValueException($this->serviceName() . ' returned a body that is not a JSON object');
+        }
+        $list = $decoded->{$key} ?? null;
+        if (!is_array($list) || !array_is_list($list)) {
+            throw new \UnexpectedValueException($this->serviceName() . ' response has no "' . $key . '" list');
+        }
+        foreach ($list as $entry) {
+            if (!$entry instanceof \stdClass) {
+                throw new \UnexpectedValueException($this->serviceName() . ' "' . $key . '" list holds a non-object');
+            }
+        }
+        /** @var list<array<string, mixed>> */
+        return json_decode((string) json_encode($list), true);
     }
 
     /**

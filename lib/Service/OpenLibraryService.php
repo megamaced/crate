@@ -91,7 +91,9 @@ class OpenLibraryService extends AbstractApiService
             return [];
         }
 
-        $body = $this->getJson(self::SEARCH_URL, [
+        // fetchList, not getJson: a failed or malformed search must not read
+        // as "no suggestions", which the caller would keep for a week.
+        $docs = $this->fetchList(self::SEARCH_URL, 'docs', [
             // Quoted so multi-word subjects match as a phrase.
             'q'      => 'subject:"' . $subject . '"',
             'sort'   => 'readinglog',
@@ -100,7 +102,7 @@ class OpenLibraryService extends AbstractApiService
         ]);
 
         $out = [];
-        foreach ((array)($body['docs'] ?? []) as $doc) {
+        foreach ($docs as $doc) {
             if (!is_array($doc)) {
                 continue;
             }

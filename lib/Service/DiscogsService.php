@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace OCA\Crate\Service;
 
+use OCA\Crate\Exception\RecommendationUnavailableException;
+
 class DiscogsService extends AbstractApiService
 {
     private const API_BASE = 'https://api.discogs.com';
@@ -72,7 +74,7 @@ class DiscogsService extends AbstractApiService
     ): array {
         $token = $this->getToken($userId);
         if ($token === '') {
-            return [];
+            throw new RecommendationUnavailableException('Discogs suggestions need a personal access token.');
         }
 
         [$genre, $styles] = $this->splitGenresAndStyles($genres);
@@ -104,9 +106,11 @@ class DiscogsService extends AbstractApiService
             $params['style'] = $styles[0];
         }
 
-        $body = $this->discogsGet($token, self::API_BASE . '/database/search', $params);
+        $body = $this->discogsGetBody($token, self::API_BASE . '/database/search', $params);
 
-        return $this->dedupeByMaster((array)($body['results'] ?? []), $excludeId, $limit);
+        // A body without a results list — an error object, or one that did not
+        // decode — is not "no suggestions", and must not be cached as one.
+        return $this->dedupeByMaster($this->listIn($body, 'results'), $excludeId, $limit);
     }
 
     /**
@@ -260,6 +264,19 @@ class DiscogsService extends AbstractApiService
      */
     private function discogsGet(string $token, string $url, array $query = []): array
     {
+        return json_decode($this->discogsGetBody($token, $url, $query), true) ?? [];
+    }
+
+    /**
+     * discogsGet() before decoding, for a caller that validates the shape
+     * itself (listIn()).
+     *
+     * @param array<string, string> $query
+     * @throws \OCA\Crate\Exception\DiscogsRateLimitException
+     * @throws \Exception for other HTTP errors
+     */
+    private function discogsGetBody(string $token, string $url, array $query = []): string
+    {
         $options = [
             'headers' => [
                 'User-Agent'    => self::USER_AGENT,
@@ -285,7 +302,7 @@ class DiscogsService extends AbstractApiService
             throw $e;
         }
 
-        return json_decode($response->getBody(), true) ?? [];
+        return (string) $response->getBody();
     }
 
     /**

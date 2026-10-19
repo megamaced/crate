@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace OCA\Crate\Service;
 
+use OCA\Crate\Exception\RecommendationUnavailableException;
+
 class RawgService extends AbstractApiService
 {
     private const API_BASE = 'https://api.rawg.io/api';
@@ -119,22 +121,23 @@ class RawgService extends AbstractApiService
     {
         $key = $this->getCredential($userId);
         if ($key === '') {
-            return [];
+            throw new RecommendationUnavailableException('RAWG suggestions need an API key.');
         }
 
         $out  = [];
         $seen = [$gameId => true];
 
-        $series = $this->getJson(
+        $series = $this->fetchList(
             self::API_BASE . '/games/' . rawurlencode($gameId) . '/game-series',
+            'results',
             ['key' => $key, 'page_size' => (string)$limit],
         );
-        $this->collect((array)($series['results'] ?? []), $seen, $out, $limit);
+        $this->collect($series, $seen, $out, $limit);
 
         if (count($out) < $limit) {
             $slug = $this->genreSlug($genres);
             if ($slug !== null) {
-                $byGenre = $this->getJson(self::API_BASE . '/games', [
+                $byGenre = $this->fetchList(self::API_BASE . '/games', 'results', [
                     'key' => $key,
                     'genres' => $slug,
                     // "-added" is RAWG's popularity proxy: how many users have
@@ -143,7 +146,7 @@ class RawgService extends AbstractApiService
                     'ordering' => '-added',
                     'page_size' => (string)($limit * 2),
                 ]);
-                $this->collect((array)($byGenre['results'] ?? []), $seen, $out, $limit);
+                $this->collect($byGenre, $seen, $out, $limit);
             }
         }
 

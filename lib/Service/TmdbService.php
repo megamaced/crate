@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace OCA\Crate\Service;
 
+use OCA\Crate\Exception\RecommendationUnavailableException;
+
 class TmdbService extends AbstractApiService
 {
     private const API_BASE  = 'https://api.themoviedb.org/3';
@@ -75,27 +77,44 @@ class TmdbService extends AbstractApiService
      * actually watch together) and falls back to /similar, which TMDB
      * documents as genre + plot-keyword matching only.
      *
+     * An empty list is TMDB's answer. When there is no answer — no token, or
+     * a request that failed with nothing else to show — this throws instead,
+     * so the caller does not keep the silence as if it were one.
+     *
      * @return array<int, array<string, mixed>>
+     * @throws RecommendationUnavailableException without a token
+     * @throws \Exception when a lookup failed and none found anything
      */
     public function similar(string $userId, string $movieId, int $limit = 8): array
     {
         $token = $this->getCredential($userId);
         if ($token === '') {
-            return [];
+            throw new RecommendationUnavailableException('TMDB suggestions need an API token.');
         }
 
+        $failure = null;
         foreach (['recommendations', 'similar'] as $endpoint) {
-            $body = $this->getJson(
-                self::API_BASE . '/movie/' . rawurlencode($movieId) . '/' . $endpoint,
-                ['language' => 'en-US', 'page' => '1'],
-                ['Authorization' => 'Bearer ' . $token],
-            );
-            $results = array_slice((array)($body['results'] ?? []), 0, $limit);
+            $url = self::API_BASE . '/movie/' . rawurlencode($movieId) . '/' . $endpoint;
+            try {
+                $results = $this->fetchList(
+                    $url,
+                    'results',
+                    ['language' => 'en-US', 'page' => '1'],
+                    ['Authorization' => 'Bearer ' . $token],
+                );
+            } catch (\Exception $e) {
+                $failure = $e;
+                continue;
+            }
+            $results = array_slice($results, 0, $limit);
             if (!empty($results)) {
                 return array_values(array_map(fn(array $r) => $this->normaliseResult($r), $results));
             }
         }
 
+        if ($failure !== null) {
+            throw $failure;
+        }
         return [];
     }
 
