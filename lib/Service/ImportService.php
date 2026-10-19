@@ -1050,16 +1050,18 @@ class ImportService
         }
 
         // Load existing items once for duplicate detection
-        $existing = $this->mapper->findAll($userId);
-        $existingKeys = [];
-        foreach ($existing as $item) {
-            $key = $this->dupKey(
-                $item->getArtist(),
-                $item->getTitle(),
-                $item->getFormat(),
-                (string)$item->getCategory(),
+        $seen = self::emptySeen();
+        foreach ($this->mapper->findAll($userId) as $item) {
+            self::remember(
+                $seen,
+                $this->dupKey(
+                    $item->getArtist(),
+                    $item->getTitle(),
+                    $item->getFormat(),
+                    (string)$item->getCategory(),
+                ),
+                self::releaseKey((string)$item->getCategory(), $item->getDiscogsId()),
             );
-            $existingKeys[$key] = true;
         }
 
         // Wrap the insert loop in a transaction. Big imports go from N
@@ -1138,7 +1140,8 @@ class ImportService
             // Duplicate check (scoped by category — the same release can
             // legitimately exist in more than one category)
             $key = $this->dupKey($artist, $title, $format, $category);
-            if (isset($existingKeys[$key])) {
+            $releaseKey = self::releaseKey($category, $row['discogsId'] ?? null);
+            if (self::isDuplicate($seen, $key, $releaseKey)) {
                 $duplicates++;
                 continue;
             }
@@ -1231,7 +1234,7 @@ class ImportService
                 continue;
             }
             $this->db->executeStatement('RELEASE SAVEPOINT crate_import_row');
-            $existingKeys[$key] = true;
+            self::remember($seen, $key, $releaseKey);
             $itemIds[] = $saved->getId();
             $created++;
         }
@@ -1276,6 +1279,76 @@ class ImportService
             return self::MUSIC_FORMATS[$key] ?? DiscogsFormat::fromExportString($format);
         }
         return self::VALID_FORMATS[$key] ?? null;
+    }
+
+    /**
+     * What duplicate detection has seen so far: every descriptive key, the
+     * descriptive keys of entries without a release id, and release ids.
+     *
+     * @return array{
+     *     keys: array<string, true>,
+     *     keysWithoutRelease: array<string, true>,
+     *     releases: array<string, true>,
+     * }
+     */
+    private static function emptySeen(): array
+    {
+        return ['keys' => [], 'keysWithoutRelease' => [], 'releases' => []];
+    }
+
+    /**
+     * @param array{
+     *     keys: array<string, true>,
+     *     keysWithoutRelease: array<string, true>,
+     *     releases: array<string, true>,
+     * } $seen
+     */
+    private static function remember(array &$seen, string $key, ?string $releaseKey): void
+    {
+        $seen['keys'][$key] = true;
+        if ($releaseKey === null) {
+            $seen['keysWithoutRelease'][$key] = true;
+        } else {
+            $seen['releases'][$releaseKey] = true;
+        }
+    }
+
+    /**
+     * Whether an entry duplicates one already seen. A Discogs release id
+     * identifies a pressing, so two music entries that both carry one are the
+     * same only when the ids are — two pressings of Kind of Blue on vinyl are
+     * two records, while a repeated id is one. When either side has no release
+     * id, there is nothing finer than artist, title and format to go on, and
+     * those decide as they always have.
+     *
+     * @param array{
+     *     keys: array<string, true>,
+     *     keysWithoutRelease: array<string, true>,
+     *     releases: array<string, true>,
+     * } $seen
+     */
+    private static function isDuplicate(array $seen, string $key, ?string $releaseKey): bool
+    {
+        if ($releaseKey === null) {
+            return isset($seen['keys'][$key]);
+        }
+        return isset($seen['releases'][$releaseKey]) || isset($seen['keysWithoutRelease'][$key]);
+    }
+
+    /**
+     * A music entry's Discogs release id, or null when it has none — and for
+     * every other category. Only a Discogs release names a pressing: the id a
+     * film, game, book or comic carries names the work or the series (a TMDB
+     * film, a ComicVine volume), which its DVD and Blu-ray, or issues #1 and
+     * #2, share. Those stay distinguished by title and format alone.
+     */
+    private static function releaseKey(string $category, ?string $releaseId): ?string
+    {
+        $releaseId = trim((string) $releaseId);
+        if ($category !== CrateCategories::MUSIC || $releaseId === '') {
+            return null;
+        }
+        return strtolower($releaseId);
     }
 
     /** An optional cell's value, or null when it is blank. '0' is a value. */
