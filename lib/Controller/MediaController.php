@@ -467,6 +467,11 @@ class MediaController extends OCSController
                 ['error' => 'Discogs rate limit exceeded. Try again shortly.'],
                 Http::STATUS_TOO_MANY_REQUESTS,
             );
+        } catch (\OCA\Crate\Exception\PriceChartingRateLimitException) {
+            return new DataResponse(
+                ['error' => 'PriceCharting rate limit reached. Try again shortly.'],
+                Http::STATUS_TOO_MANY_REQUESTS,
+            );
         }
     }
 

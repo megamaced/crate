@@ -4,9 +4,23 @@ declare(strict_types=1);
 
 namespace OCA\Crate\Service;
 
+use OCA\Crate\Exception\PriceChartingRateLimitException;
+use OCP\Http\Client\IClientService;
+use OCP\Security\ICredentialsManager;
+use Psr\Log\LoggerInterface;
+
 class PriceChartingService extends AbstractApiService
 {
     private const API_BASE = 'https://www.pricecharting.com/api';
+
+    public function __construct(
+        IClientService $clientService,
+        ICredentialsManager $credentialsManager,
+        LoggerInterface $logger,
+        private readonly PriceChartingThrottle $throttle,
+    ) {
+        parent::__construct($clientService, $credentialsManager, $logger);
+    }
 
     protected function serviceName(): string
     {
@@ -23,6 +37,7 @@ class PriceChartingService extends AbstractApiService
      * Returns up to 10 results: [{priceChartingId, title, platform}]
      *
      * @return array<int, array<string, mixed>>
+     * @throws PriceChartingRateLimitException
      */
     public function search(string $userId, string $query): array
     {
@@ -31,14 +46,7 @@ class PriceChartingService extends AbstractApiService
             return [];
         }
 
-        $body = $this->getJson(self::API_BASE . '/products', [
-            't' => $token,
-            'q' => $query,
-        ]);
-        if (self::isError($body)) {
-            return [];
-        }
-
+        $body = $this->call('/products', $token, ['q' => $query]);
         $products = array_slice((array)($body['products'] ?? []), 0, 10);
         return array_values(array_map(fn(array $p) => [
             'priceChartingId' => (string)($p['id'] ?? ''),
@@ -52,6 +60,7 @@ class PriceChartingService extends AbstractApiService
      * Prices are stored in cents USD; we return them as dollars (float).
      *
      * @return array{loose: float|null, cib: float|null, new: float|null}|null
+     * @throws PriceChartingRateLimitException
      */
     public function getPrices(string $userId, string $productId): ?array
     {
@@ -60,12 +69,8 @@ class PriceChartingService extends AbstractApiService
             return null;
         }
 
-        $body = $this->getJson(self::API_BASE . '/product', [
-            't'  => $token,
-            'id' => $productId,
-        ]);
-
-        if (empty($body) || self::isError($body)) {
+        $body = $this->call('/product', $token, ['id' => $productId]);
+        if (empty($body)) {
             return null;
         }
 
@@ -77,22 +82,45 @@ class PriceChartingService extends AbstractApiService
     }
 
     /**
-     * PriceCharting reports a failure in the body as well as the status code:
-     * `status` is `error` and `error-message` says why. A body that says so
-     * carries no products or prices, whatever else it holds.
+     * One paced call to PriceCharting, authenticated with the `t` parameter.
      *
-     * @param array<string, mixed> $body
+     * Every call waits for the token's next slot first (see
+     * PriceChartingThrottle). A 429 holds the token back and is reported as
+     * rate limiting rather than as no data, so a bulk refresh pauses instead
+     * of carrying on into further excess. Any other failure — including a body
+     * whose `status` is `error`, which is how PriceCharting reports one — is
+     * no data.
+     *
+     * @param array<string, string> $query
+     * @return array<string, mixed>
+     * @throws PriceChartingRateLimitException
      */
-    private static function isError(array $body): bool
+    private function call(string $path, string $token, array $query): array
     {
-        return ($body['status'] ?? null) === 'error';
+        $this->throttle->acquire($token);
+
+        $url = self::API_BASE . $path;
+        try {
+            $body = $this->fetchJson($url, ['t' => $token] + $query);
+        } catch (\Exception $e) {
+            $this->logWarning($url, $e);
+            if ($e->getCode() === 429) {
+                $this->throttle->backOff($token);
+                throw new PriceChartingRateLimitException('PriceCharting rate limit exceeded.', 429, $e);
+            }
+            return [];
+        }
+
+        return ($body['status'] ?? null) === 'error' ? [] : $body;
     }
 
     /**
      * Search for the product matching $query on $format and return its prices.
      * Returns null if no token, no results, no platform match, or API failure.
+     * The search and the price fetch are two calls, spaced like any others.
      *
      * @return array{loose: float|null, cib: float|null, new: float|null}|null
+     * @throws PriceChartingRateLimitException
      */
     public function searchAndFetchPrices(string $userId, string $query, ?string $format = null): ?array
     {

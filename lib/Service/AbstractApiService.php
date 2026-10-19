@@ -78,6 +78,25 @@ abstract class AbstractApiService
      */
     protected function getJson(string $url, array $query = [], array $headers = []): array
     {
+        try {
+            return $this->fetchJson($url, $query, $headers);
+        } catch (\Exception $e) {
+            $this->logWarning($url, $e);
+            return [];
+        }
+    }
+
+    /**
+     * Perform a GET and return the JSON-decoded body, letting a failed request
+     * throw — for a caller that has to tell one failure from another. A body
+     * that is not a JSON object still reads as empty.
+     *
+     * @param array<string, string|int> $query
+     * @param array<string, string>     $headers
+     * @return array<string, mixed>
+     */
+    protected function fetchJson(string $url, array $query = [], array $headers = []): array
+    {
         $options = [
             'headers' => array_merge(['Accept' => 'application/json'], $headers),
             'timeout' => static::DEFAULT_TIMEOUT,
@@ -86,13 +105,9 @@ abstract class AbstractApiService
             $options['query'] = $query;
         }
 
-        try {
-            $response = $this->clientService->newClient()->get($url, $options);
-            return json_decode($response->getBody(), true) ?? [];
-        } catch (\Exception $e) {
-            $this->logWarning($url, $e);
-            return [];
-        }
+        $response = $this->clientService->newClient()->get($url, $options);
+        $body = json_decode((string) $response->getBody(), true);
+        return is_array($body) ? $body : [];
     }
 
     /**

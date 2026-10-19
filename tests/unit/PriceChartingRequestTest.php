@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Crate\Tests\Unit;
 
+use OCA\Crate\Exception\PriceChartingRateLimitException;
 use OCA\Crate\Service\PriceChartingService;
 use OCP\Http\Client\IClient;
 use OCP\Http\Client\IClientService;
@@ -23,11 +24,21 @@ use Psr\Log\LoggerInterface;
 #[AllowMockObjectsWithoutExpectations]
 class PriceChartingRequestTest extends TestCase
 {
-    /** @var list<array{url: string, options: array<string, mixed>}> */
+    /** @var list<array{url: string, options: array<string, mixed>, at: int}> */
     private array $requests = [];
 
-    /** @var list<string> */
+    /** @var list<string|\Exception> */
     private array $bodies = [];
+
+    private \stdClass $clock;
+    private FakeApiSlotStore $slots;
+
+    protected function setUp(): void
+    {
+        $this->clock = new \stdClass();
+        $this->clock->now = 1_000_000_000;
+        $this->slots = new FakeApiSlotStore();
+    }
 
     public function testSearchSendsTheTokenAsT(): void
     {
@@ -79,13 +90,60 @@ class PriceChartingRequestTest extends TestCase
         self::assertSame([], $this->requests);
     }
 
+    public function testALookupSpacesItsSearchAndPriceCalls(): void
+    {
+        $this->bodies = [
+            json_encode(['status' => 'success', 'products' => [
+                ['id' => '6910', 'product-name' => 'Chrono Trigger', 'console-name' => 'Super Nintendo'],
+            ]]),
+            json_encode(['status' => 'success', 'id' => '6910', 'cib-price' => 24999]),
+        ];
+
+        $prices = $this->service()->searchAndFetchPrices('alice', 'Chrono Trigger', 'SNES');
+
+        self::assertSame(249.99, $prices['cib']);
+        self::assertCount(2, $this->requests);
+        self::assertGreaterThanOrEqual(1_000_000, $this->requests[1]['at'] - $this->requests[0]['at']);
+    }
+
+    public function testA429IsReportedAsRateLimitingAndHoldsTheTokenBack(): void
+    {
+        $this->bodies = [new \RuntimeException('Too Many Requests', 429)];
+        $service = $this->service();
+
+        try {
+            $service->search('alice', 'Chrono Trigger');
+            self::fail('A 429 must not read as "no results".');
+        } catch (PriceChartingRateLimitException) {
+        }
+
+        // The next lookup is refused before it reaches PriceCharting.
+        $this->expectException(PriceChartingRateLimitException::class);
+        try {
+            $service->search('alice', 'Chrono Trigger');
+        } finally {
+            self::assertCount(1, $this->requests);
+        }
+    }
+
+    public function testOtherFailuresAreNoData(): void
+    {
+        $this->bodies = [new \RuntimeException('Unauthorized', 401)];
+
+        self::assertSame([], $this->service()->search('alice', 'Chrono Trigger'));
+    }
+
     private function service(string $token = 'tok'): PriceChartingService
     {
         $client = $this->createMock(IClient::class);
         $client->method('get')->willReturnCallback(function (string $url, array $options): IResponse {
-            $this->requests[] = ['url' => $url, 'options' => $options];
+            $this->requests[] = ['url' => $url, 'options' => $options, 'at' => $this->clock->now];
+            $body = array_shift($this->bodies) ?? '';
+            if ($body instanceof \Exception) {
+                throw $body;
+            }
             $response = $this->createMock(IResponse::class);
-            $response->method('getBody')->willReturn(array_shift($this->bodies) ?? '');
+            $response->method('getBody')->willReturn($body);
             return $response;
         });
         $clients = $this->createMock(IClientService::class);
@@ -96,6 +154,11 @@ class PriceChartingRequestTest extends TestCase
             fn(string $user, string $key) => $user === 'alice' && $key === 'crate/pricecharting_token' ? $token : null,
         );
 
-        return new PriceChartingService($clients, $credentials, $this->createMock(LoggerInterface::class));
+        return new PriceChartingService(
+            $clients,
+            $credentials,
+            $this->createMock(LoggerInterface::class),
+            new VirtualClockThrottle($this->slots, $this->clock),
+        );
     }
 }
