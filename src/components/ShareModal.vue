@@ -88,7 +88,7 @@ import { ref, watch, computed, onBeforeUnmount } from 'vue'
 import { NcModal, NcButton, NcCheckboxRadioSwitch } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
-import { showError } from '@nextcloud/dialogs'
+import { showError } from '../utils/toast.js'
 import UserSearchField from './UserSearchField.vue'
 
 const props = defineProps({

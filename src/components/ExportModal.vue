@@ -168,7 +168,7 @@ import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { NcModal, NcButton } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateUrl, generateOcsUrl } from '@nextcloud/router'
-import { showError } from '@nextcloud/dialogs'
+import { showError } from '../utils/toast.js'
 
 const props = defineProps({
   show:                   { type: Boolean, required: true },

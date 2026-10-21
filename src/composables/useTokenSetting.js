@@ -1,7 +1,7 @@
 import { onBeforeUnmount, ref } from 'vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
-import { showError } from '@nextcloud/dialogs'
+import { showError } from '../utils/toast.js'
 
 /**
  * Reusable composable for managing a single API token/key setting.

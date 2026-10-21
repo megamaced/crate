@@ -90,7 +90,7 @@
 import { computed, ref } from 'vue'
 import { NcButton } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
-import { showError, showWarning } from '@nextcloud/dialogs'
+import { showError, showWarning } from '../utils/toast.js'
 
 const props = defineProps({
   /** A descriptor from utils/enrichmentProviders.js. */

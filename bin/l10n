@@ -1,0 +1,188 @@
+#!/usr/bin/env bash
+#
+# Crate's translation tooling: Nextcloud's translationtool and GNU gettext, run
+# in a pinned container so every machine extracts the same template.
+#
+#   bin/l10n pot     Regenerate translationfiles/templates/crate.pot.
+#   bin/l10n check   Fail when that template is stale, the extraction fixtures
+#                    drift, extraction depends on where the app is checked out,
+#                    or a translation file is broken.
+#   bin/l10n build   Write l10n/<lang>.js and .json from the translated,
+#                    reviewed entries of translationfiles/<lang>/crate.po.
+#
+# Needs podman or docker.
+
+set -euo pipefail
+
+IMAGE='docker.io/library/php:8.4-cli@sha256:e2432ac85c3454004d89e3d75615abd2d205b7ffb9590e586fad1a053f016bb3'
+GETTEXT_VERSION='0.23.1-2'
+TOOL_COMMIT='5ed96fa6f9535415f9da1e672f38d7f7c659b2ee'
+TOOL_SHA256='667ca0a3d7ca8858f66f72007792d5bbab867dba6b1bb458d95ec7a74f17385f'
+TOOL_URL="https://raw.githubusercontent.com/nextcloud/docker-ci/$TOOL_COMMIT/translations/translationtool/translationtool.phar"
+
+usage() {
+	sed -n '3,13p' "$0" | sed -E 's/^# ?//' >&2
+	exit 2
+}
+
+# --- Inside the container -----------------------------------------------------
+
+# The tool treats every folder holding an l10n/ as an app and scans all of it,
+# so it gets a copy of the app's own sources only: not vendor/, the built js/
+# bundle, node_modules/ or the tests. The copy sits in a folder named after the
+# app id, which is how the tool works out a .vue file's path for the
+# translator hint.
+stage() {
+	local from=$1 to=$2 dir
+	rm -rf "$to"
+	mkdir -p "$to/l10n"
+	for dir in appinfo lib src templates; do
+		if [[ -d "$from/$dir" ]]; then
+			cp -r "$from/$dir" "$to/"
+		fi
+	done
+}
+
+# The tool's template varies by run and by where the app sits: it stamps the
+# creation time, and refers to sources by absolute path, including the
+# throwaway files it generates from info.xml and the .vue templates. Strip
+# those, make the paths relative, and fix the order and line wrapping.
+normalise() {
+	local pot=$1 prefix=$2 out=$3
+	sed -E \
+		-e '/^"POT-Creation-Date: /d' \
+		-e 's/charset=CHARSET/charset=UTF-8/' \
+		-e "/^#: /s|$prefix||g" \
+		-e '/^#: /s/ ?special[A-Za-z]+FakeDummyForL10nScript\.[a-z]+:[0-9]+//g' \
+		-e '/^#:$/d' \
+		"$pot" | msgcat --no-wrap --sort-output -o "$out" -
+}
+
+extract() {
+	local from=$1 work=$2 out=$3
+	stage "$from" "$work"
+	(cd "$work" && php /opt/translationtool.phar create-pot-files >/dev/null)
+	normalise "$work/translationfiles/templates/crate.pot" "$work/" "$out"
+}
+
+# What may ship from a translation file: a fuzzy entry is a guess nobody
+# confirmed, and an obsolete one no longer matches any source string.
+shippable() {
+	msgattrib --no-fuzzy --no-obsolete --translated -o "$2" "$1"
+}
+
+# Builds l10n/ for the app at $1 in the staged copy at $2. Filters copies: the
+# committed .po files belong to Weblate and stay exactly as they are.
+convert() {
+	local from=$1 work=$2 po lang
+	stage "$from" "$work"
+	for po in "$from"/translationfiles/*/crate.po; do
+		[[ -e "$po" ]] || continue
+		lang=$(basename "$(dirname "$po")")
+		mkdir -p "$work/translationfiles/$lang"
+		shippable "$po" "$work/translationfiles/$lang/crate.po"
+	done
+	(cd "$work" && php /opt/translationtool.phar convert-po-files >/dev/null)
+}
+
+# Every {placeholder} the source string names must survive translation, or the
+# UI shows the bare token. msgfmt can't check these: they aren't printf-style.
+placeholders() {
+	local shipped
+	shipped=$(mktemp)
+	shippable "$1" "$shipped"
+	# shellcheck disable=SC2016 # expanded by the inner sh, once per entry
+	msgexec -i "$shipped" sh -c '
+		[ -n "${MSGEXEC_MSGID:-}" ] || exit 0
+		translation=$(cat)
+		[ -n "$translation" ] || exit 0
+		want=$(printf "%s %s" "$MSGEXEC_MSGID" "${MSGEXEC_MSGID_PLURAL:-}" | grep -o "{[A-Za-z0-9_]*}" | sort -u)
+		got=$(printf "%s" "$translation" | grep -o "{[A-Za-z0-9_]*}" | sort -u)
+		[ "$want" = "$got" ] && exit 0
+		printf "%s: \"%s\" needs %s, translation has %s\n" "$0" "$MSGEXEC_MSGID" "$(echo $want)" "$(echo $got)" >&2
+		exit 1
+	' "$1"
+}
+
+task_pot() {
+	mkdir -p /src/translationfiles/templates
+	extract /src /work/pot/crate /src/translationfiles/templates/crate.pot
+	chown -R "$owner" /src/translationfiles
+}
+
+task_check() {
+	local failed=0 po fixture=/src/tests/l10n
+	extract /src /work/a/crate /tmp/a.pot
+	extract /src /work/b/another/checkout/crate /tmp/b.pot
+	if ! diff -u /tmp/a.pot /tmp/b.pot; then
+		echo "::error::Extraction depends on where the app is checked out." >&2
+		failed=1
+	fi
+	if ! diff -u /src/translationfiles/templates/crate.pot /tmp/a.pot; then
+		echo "::error file=translationfiles/templates/crate.pot::The template is stale: run bin/l10n pot." >&2
+		failed=1
+	fi
+
+	extract "$fixture/app" /work/fixture/crate /tmp/fixture.pot
+	if ! diff -u "$fixture/expected/crate.pot" /tmp/fixture.pot; then
+		echo "::error file=tests/l10n/expected/crate.pot::The extractor no longer finds exactly the fixture strings." >&2
+		failed=1
+	fi
+	convert "$fixture/app" /work/fixture-build/crate
+	if ! diff -u "$fixture/expected/fr.json" /work/fixture-build/crate/l10n/fr.json; then
+		echo "::error file=tests/l10n/expected/fr.json::The runtime catalogue built from the fixture changed." >&2
+		failed=1
+	fi
+
+	for po in /src/translationfiles/*/crate.po "$fixture"/app/translationfiles/*/crate.po; do
+		[[ -e "$po" ]] || continue
+		msgfmt --check -o /dev/null "$po" || failed=1
+		placeholders "$po" || failed=1
+	done
+	return "$failed"
+}
+
+task_build() {
+	convert /src /work/build/crate
+	mkdir -p /src/l10n
+	find /src/l10n -maxdepth 1 -type f \( -name '*.js' -o -name '*.json' \) -delete
+	find /work/build/crate/l10n -maxdepth 1 -type f \( -name '*.js' -o -name '*.json' \) -exec cp {} /src/l10n/ \;
+	# Which languages were built, possibly none: it also keeps the directory
+	# from being empty, so CI always has an artifact to hand the release job.
+	find /src/l10n -maxdepth 1 -name '*.json' -printf '%f\n' | sed 's/\.json$//' | sort >/src/l10n/.languages
+	chown -R "$owner" /src/l10n
+}
+
+inside() {
+	export DEBIAN_FRONTEND=noninteractive LC_ALL=C.UTF-8
+	apt-get update -qq >/dev/null
+	apt-get install -y -qq --no-install-recommends "gettext=$GETTEXT_VERSION" >/dev/null
+	# shellcheck disable=SC2016 # PHP's $argv, not the shell's
+	php -r 'copy($argv[1], $argv[2]) || exit(1);' "$TOOL_URL" /opt/translationtool.phar
+	echo "$TOOL_SHA256  /opt/translationtool.phar" | sha256sum --check --quiet
+	owner=$(stat -c %u:%g /src)
+	"task_$1"
+}
+
+# --- On the host --------------------------------------------------------------
+
+[[ $# -eq 1 ]] || usage
+case $1 in
+pot | check | build) ;;
+*) usage ;;
+esac
+
+if [[ ${CRATE_L10N_INSIDE:-} == 1 ]]; then
+	inside "$1"
+	exit
+fi
+
+root=$(cd "$(dirname "$0")/.." && pwd)
+engine=$(command -v podman || command -v docker || true)
+if [[ -z $engine ]]; then
+	echo "bin/l10n needs podman or docker." >&2
+	exit 1
+fi
+exec "$engine" run --rm --security-opt label=disable \
+	-v "$root:/src" -e CRATE_L10N_INSIDE=1 \
+	"$IMAGE" bash /src/bin/l10n "$1"

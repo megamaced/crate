@@ -410,7 +410,7 @@ import { ref, computed, defineAsyncComponent, nextTick, watch, onMounted, onBefo
 import { NcButton } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
-import { showError } from '@nextcloud/dialogs'
+import { showError } from '../utils/toast.js'
 import { decadeBuckets, decadeOf, genreBuckets, hasGenre } from '../utils/genres.js'
 import { sortItems, stripArticle } from '../utils/sortItems.js'
 import MediaCard from './MediaCard.vue'

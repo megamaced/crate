@@ -220,7 +220,7 @@ import { NcButton, NcDialog } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
 import { artworkStyleForId } from '../composables/useArtworkStyle.js'
-import { showError } from '@nextcloud/dialogs'
+import { showError } from '../utils/toast.js'
 import { playlistCountLabel } from '../utils/categoryFormats.js'
 
 defineEmits(['open'])

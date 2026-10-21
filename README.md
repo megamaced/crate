@@ -97,7 +97,23 @@ Tests:
 vendor/bin/phpcs --standard=PSR12 lib/
 vendor/bin/phpunit --testsuite unit
 npm run lint
+npm test
+bin/l10n check
 ```
+
+## Translations
+
+The source strings are the `t()` and `n()` calls in `src/` and `lib/`, gathered into `translationfiles/templates/crate.pot`. Each language is a gettext file, `translationfiles/<language>/crate.po`.
+
+`bin/l10n` (needs podman or docker) runs Nextcloud's translationtool in a pinned container:
+
+```bash
+bin/l10n pot     # regenerate the template after adding or changing strings
+bin/l10n check   # what CI checks: template current, fixtures, valid translations
+bin/l10n build   # write l10n/<language>.js|json for a local install
+```
+
+`l10n/` is built, not committed. It holds only translated, non-fuzzy entries, so nothing unreviewed reaches users; release archives include it.
 
 ## Releases
 

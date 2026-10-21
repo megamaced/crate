@@ -1,0 +1,79 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the Nextcloud package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Nextcloud 3.14159\n"
+"Report-Msgid-Bugs-To: translations\\@example.com\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: lib/Activity/Filter.php:27 lib/Activity/Setting.php:35
+msgid "Crate"
+msgstr ""
+
+msgid ""
+"Crate is a personal physical media catalogue for Nextcloud — browse and manage your music, films, books, games and comics in one place, with everything stored on your own server.\n"
+"\n"
+"Add items manually or by barcode scan. Pull rich metadata automatically from Discogs (music), TMDB (films), Open Library (books), RAWG (games) and ComicVine (comics). Track market values from Discogs and PriceCharting alongside what you originally paid. Attach the cover art plus two extra user photos per item (receipts, sleevenotes, disc shots).\n"
+"\n"
+"Owned vs. wanted, playlists, sharing with other Nextcloud users, full CSV and XLSX import / export. There's a native Android companion at https://github.com/megamaced/crate-android."
+msgstr ""
+
+#: lib/Activity/Setting.php:25
+msgid "Crate media collection changes"
+msgstr ""
+
+#: lib/Search/Provider.php:34
+msgid "Crate — Physical Media"
+msgstr ""
+
+msgid "Physical media catalogue"
+msgstr ""
+
+#: lib/Activity/Provider.php:62
+#, php-format
+msgid "You added %1$s to your %2$s collection"
+msgstr ""
+
+#: lib/Activity/Provider.php:58
+#, php-format
+msgid "You added {item} to your %s collection"
+msgstr ""
+
+#: lib/Activity/Provider.php:92
+#, php-format
+msgid "You enriched %1$s with metadata"
+msgstr ""
+
+#: lib/Activity/Provider.php:88
+msgid "You enriched {item} with metadata"
+msgstr ""
+
+#: lib/Activity/Provider.php:82
+#, php-format
+msgid "You removed %1$s from your %2$s collection"
+msgstr ""
+
+#: lib/Activity/Provider.php:78
+#, php-format
+msgid "You removed {item} from your %s collection"
+msgstr ""
+
+#: lib/Activity/Provider.php:72
+#, php-format
+msgid "You updated %1$s in your %2$s collection"
+msgstr ""
+
+#: lib/Activity/Provider.php:68
+#, php-format
+msgid "You updated {item} in your %s collection"
+msgstr ""

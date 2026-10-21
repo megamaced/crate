@@ -1,0 +1,76 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the Nextcloud package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Nextcloud 3.14159\n"
+"Report-Msgid-Bugs-To: translations\\@example.com\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+
+#. TRANSLATORS src/components/Fixture.vue:8
+msgid "%n record"
+msgid_plural "%n records"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "%n script item"
+msgid_plural "%n script items"
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/Fixture.php:19
+msgid "%n server item"
+msgid_plural "%n server items"
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRANSLATORS src/components/Fixture.vue:4
+msgid "Attribute text"
+msgstr ""
+
+#. TRANSLATORS src/components/Fixture.vue:9
+msgid "Don't panic"
+msgstr ""
+
+msgid "Fixture"
+msgstr ""
+
+msgid "Fixture description"
+msgstr ""
+
+msgid "Fixture summary"
+msgstr ""
+
+#. TRANSLATORS src/components/Fixture.vue:5
+msgid "Hello {name}"
+msgstr ""
+
+#: src/fixture.js:3
+msgid "Module text {count}"
+msgstr ""
+
+#. TRANSLATORS shown when a shelf has nothing on it (src/components/Fixture.vue:7)
+msgid "Nothing here yet"
+msgstr ""
+
+msgid "Script text"
+msgstr ""
+
+#: lib/Fixture.php:18
+#, php-format
+msgid "Server text %s"
+msgstr ""
+
+#. TRANSLATORS src/components/Fixture.vue:3
+msgid "Template text"
+msgstr ""

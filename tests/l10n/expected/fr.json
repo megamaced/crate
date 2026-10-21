@@ -1,0 +1,7 @@
+{ "translations": {
+    "Template text" : "Texte du modèle",
+    "Hello {name}" : "Bonjour {name}",
+    "_%n record_::_%n records_" : ["%n disque","%n disques"],
+    "Don't panic" : "Pas de panique"
+},"pluralForm" :"nplurals=2; plural=(n > 1);"
+}

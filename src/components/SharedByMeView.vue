@@ -57,7 +57,7 @@
 import { ref, onMounted } from 'vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
-import { showError } from '@nextcloud/dialogs'
+import { showError } from '../utils/toast.js'
 import { NcButton } from '@nextcloud/vue'
 import { CATEGORY_LABELS } from '../utils/categoryFormats.js'
 

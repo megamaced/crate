@@ -205,7 +205,7 @@ import { NcButton, NcDialog } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
 import { artworkStyleFor } from '../composables/useArtworkStyle.js'
-import { showError } from '@nextcloud/dialogs'
+import { showError } from '../utils/toast.js'
 import MediaThumb from './MediaThumb.vue'
 import { CATEGORY_LABELS, playlistCountLabel } from '../utils/categoryFormats.js'
 

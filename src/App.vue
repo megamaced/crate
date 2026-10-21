@@ -291,7 +291,7 @@ import {
 } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl, generateUrl } from '@nextcloud/router'
-import { showError } from '@nextcloud/dialogs'
+import { showError } from './utils/toast.js'
 import CollectionView from './components/CollectionView.vue'
 import HomeView from './components/HomeView.vue'
 import ItemDetailView from './components/ItemDetailView.vue'

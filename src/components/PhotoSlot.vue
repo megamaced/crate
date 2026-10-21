@@ -51,7 +51,7 @@ import { ref, computed, onBeforeUnmount, watch } from 'vue'
 import { NcButton } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateUrl } from '@nextcloud/router'
-import { showError } from '@nextcloud/dialogs'
+import { showError } from '../utils/toast.js'
 import { cssUrl } from '../utils/artworkUrl.js'
 
 const props = defineProps({

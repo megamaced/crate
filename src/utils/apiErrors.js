@@ -10,7 +10,7 @@
  * message shown for this call.
  */
 import axios from '@nextcloud/axios'
-import { showError, showWarning } from '@nextcloud/dialogs'
+import { showError, showWarning } from './toast.js'
 
 export function installErrorInterceptor() {
   axios.interceptors.response.use(
