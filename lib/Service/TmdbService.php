@@ -5,12 +5,39 @@ declare(strict_types=1);
 namespace OCA\Crate\Service;
 
 use OCA\Crate\Exception\RecommendationUnavailableException;
+use OCP\Http\Client\IClientService;
+use OCP\Security\ICredentialsManager;
+use Psr\Log\LoggerInterface;
 
+/**
+ * Films from TMDB, in the requesting user's language where TMDB has it (see
+ * EnrichmentLanguage).
+ *
+ * Search and suggestion lists ask TMDB for that language and show its titles
+ * as TMDB gives them: TMDB falls back to a film's original title, not to
+ * English, when it has no translation. A film's details — what enrichment
+ * stores — are asked for in English, as they always were, and overlaid with
+ * the user's translation where one exists, so a missing translation leaves
+ * English text rather than another language's. Genres, studio and country
+ * stay English: genre names are what the filters and suggestions match on.
+ */
 class TmdbService extends AbstractApiService
 {
     private const API_BASE  = 'https://api.themoviedb.org/3';
     private const IMG_THUMB = 'https://image.tmdb.org/t/p/w185';
     private const IMG_FULL  = 'https://image.tmdb.org/t/p/w500';
+
+    /** What every request asked for before languages, and still does for English. */
+    private const ENGLISH = 'en-US';
+
+    public function __construct(
+        IClientService $clientService,
+        ICredentialsManager $credentialsManager,
+        LoggerInterface $logger,
+        private readonly EnrichmentLanguage $language,
+    ) {
+        parent::__construct($clientService, $credentialsManager, $logger);
+    }
 
     protected function serviceName(): string
     {
@@ -36,7 +63,7 @@ class TmdbService extends AbstractApiService
 
         $body = $this->getJson(
             self::API_BASE . '/search/movie',
-            ['query' => $query, 'language' => 'en-US', 'page' => '1'],
+            ['query' => $query, 'language' => $this->language->tmdb() ?? self::ENGLISH, 'page' => '1'],
             ['Authorization' => 'Bearer ' . $token],
         );
 
@@ -56,9 +83,13 @@ class TmdbService extends AbstractApiService
             return [];
         }
 
+        $localised = $this->language->tmdb();
         $body = $this->getJson(
             self::API_BASE . '/movie/' . rawurlencode($movieId),
-            ['language' => 'en-US', 'append_to_response' => 'credits'],
+            [
+                'language'           => self::ENGLISH,
+                'append_to_response' => $localised !== null ? 'credits,translations' : 'credits',
+            ],
             ['Authorization' => 'Bearer ' . $token],
         );
 
@@ -66,7 +97,76 @@ class TmdbService extends AbstractApiService
             return [];
         }
 
-        return $this->normaliseMovie($body);
+        $movie = $this->normaliseMovie($body);
+        return $localised !== null ? self::localise($movie, $body, $localised) : $movie;
+    }
+
+    /**
+     * Put the title and overview of the user's translation over a film's
+     * English details.
+     *
+     * TMDB leaves a translation's title blank when it is the film's original
+     * title, so a blank title in the translation that was found reads as the
+     * original title — the title the film has in that language. With no
+     * translation for the language at all, a film made in it keeps its
+     * original title, and any other keeps its English one. An overview the
+     * translation lacks stays English.
+     *
+     * @param array<string, mixed> $movie normaliseMovie()'s output
+     * @param array<string, mixed> $body  The details response, with translations
+     * @param string $code TMDB language-region code, e.g. "de-DE"
+     * @return array<string, mixed>
+     */
+    public static function localise(array $movie, array $body, string $code): array
+    {
+        [$lang, $region] = explode('-', $code, 2);
+        $original = trim((string)($body['original_title'] ?? ''));
+        $translation = self::pickTranslation((array)($body['translations']['translations'] ?? []), $lang, $region);
+
+        if ($translation === null) {
+            if (($body['original_language'] ?? null) === $lang && $original !== '') {
+                $movie['title'] = $original;
+            }
+            return $movie;
+        }
+
+        $data = (array)($translation['data'] ?? []);
+        $title = trim((string)($data['title'] ?? ''));
+        if ($title !== '') {
+            $movie['title'] = $title;
+        } elseif ($original !== '') {
+            $movie['title'] = $original;
+        }
+        $overview = trim((string)($data['overview'] ?? ''));
+        if ($overview !== '') {
+            $movie['overview'] = $overview;
+        }
+        return $movie;
+    }
+
+    /**
+     * The translation to use for a language: the one for the user's region,
+     * else the language's own country's, else any in the language — a
+     * Brazilian reader is better served by European Portuguese than by
+     * English.
+     *
+     * @param array<int, mixed> $translations
+     * @return array<string, mixed>|null
+     */
+    private static function pickTranslation(array $translations, string $lang, string $region): ?array
+    {
+        $inLanguage = array_values(array_filter(
+            $translations,
+            fn($t) => is_array($t) && ($t['iso_639_1'] ?? null) === $lang,
+        ));
+        foreach ([$region, EnrichmentLanguage::TMDB_PRIMARY_REGION[$lang] ?? null] as $wanted) {
+            foreach ($inLanguage as $t) {
+                if ($wanted !== null && ($t['iso_3166_1'] ?? null) === $wanted) {
+                    return $t;
+                }
+            }
+        }
+        return $inLanguage[0] ?? null;
     }
 
     /**
@@ -99,7 +199,7 @@ class TmdbService extends AbstractApiService
                 $results = $this->fetchList(
                     $url,
                     'results',
-                    ['language' => 'en-US', 'page' => '1'],
+                    ['language' => $this->language->tmdb() ?? self::ENGLISH, 'page' => '1'],
                     ['Authorization' => 'Bearer ' . $token],
                 );
             } catch (\Exception $e) {

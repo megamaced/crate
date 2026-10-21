@@ -629,9 +629,14 @@ class MediaService
             'barcode' => $doc['barcode'] ?? null,
             'genres' => $genres,
             'overview' => $work['overview'] ?? null,
-            // The work carries the better cover, but only the search doc has
-            // one when the work record itself has no `covers` entry.
-            'artworkUrl' => $work['artworkUrl'] ?? $doc['artworkUrl'] ?? null,
+            // The work usually carries the better cover, and the search doc has
+            // one when the work record itself has no `covers` entry. A doc
+            // showing one edition (OpenLibraryService::asEdition) has only
+            // that edition's cover, if any: the work's would contradict its
+            // title.
+            'artworkUrl' => !empty($doc['coverFromEdition'])
+                ? $doc['artworkUrl'] ?? null
+                : $work['artworkUrl'] ?? $doc['artworkUrl'] ?? null,
             'artistBio' => $work['authorBio'] ?? null,
             'enrichmentArtistId' => $work['authorKey'] ?? null,
             'enrichmentId' => $doc['workKey'] ?? null,

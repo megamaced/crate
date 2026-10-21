@@ -7,6 +7,7 @@ namespace OCA\Crate\Tests\Unit;
 use OCA\Crate\Db\MediaItem;
 use OCA\Crate\Db\MediaItemMapper;
 use OCA\Crate\Service\DiscogsService;
+use OCA\Crate\Service\EnrichmentLanguage;
 use OCA\Crate\Service\LocalSimilarityScorer;
 use OCA\Crate\Service\MediaService;
 use OCA\Crate\Service\OpenLibraryService;
@@ -39,6 +40,7 @@ class RecommendationServiceTest extends TestCase
     private RawgService&MockObject $rawg;
     private ICache&MockObject $cache;
     private IConfig&Stub $config;
+    private EnrichmentLanguage $language;
 
     protected function setUp(): void
     {
@@ -50,6 +52,7 @@ class RecommendationServiceTest extends TestCase
         $this->rawg         = $this->createMock(RawgService::class);
         $this->cache        = $this->createMock(ICache::class);
         $this->config       = $this->createStub(IConfig::class);
+        $this->language     = new FixedLanguage();
     }
 
     private function service(): RecommendationService
@@ -68,6 +71,7 @@ class RecommendationServiceTest extends TestCase
             $cacheFactory,
             $this->config,
             $this->createMock(LoggerInterface::class),
+            $this->language,
         );
     }
 
@@ -199,6 +203,54 @@ class RecommendationServiceTest extends TestCase
         );
 
         self::assertSame([], $this->service()->online($this->item('music', '12345'), 'alice'));
+    }
+
+    /**
+     * Film and book suggestions come back in the user's language, so each
+     * language TMDB or Open Library is asked for, region included, has its own
+     * cache entry; anyone they can't serve shares the English one.
+     */
+    public function testSuggestionsAreCachedPerProviderLanguage(): void
+    {
+        $this->optIn(true);
+        $this->cache->method('get')->willReturn(null);
+        $this->tmdb->method('similar')->willReturn([]);
+        $this->openLibrary->method('similarBySubject')->willReturn([]);
+        $this->discogs->method('similarByStyle')->willReturn([]);
+        $keys = [];
+        $this->cache->method('set')->willReturnCallback(function (string $key) use (&$keys): bool {
+            $keys[] = $key;
+            return true;
+        });
+
+        foreach (['en', 'pt_BR', 'pt_PT', 'ast', 'de'] as $language) {
+            $this->language = new FixedLanguage($language);
+            $service = $this->service();
+            foreach (['film', 'book', 'music'] as $category) {
+                $service->online($this->item($category, '12345'), 'alice');
+            }
+        }
+
+        // Each language's keys in order: film, book, music.
+        [$en, $ptBr, $ptPt, $ast, $de] = array_chunk($keys, 3);
+        self::assertNotSame($ptBr[0], $ptPt[0], 'pt-BR and pt-PT film titles differ');
+        self::assertSame($en[0], $ast[0], 'a language TMDB lacks shares the English entry');
+        self::assertSame($en[1], $ast[1], 'a language Open Library lacks shares the English entry');
+        self::assertSame($ptBr[1], $ptPt[1], 'Open Library asks for the language alone');
+        self::assertNotSame($en[1], $de[1]);
+        self::assertSame($en[2], $de[2], 'Discogs suggestions do not depend on a language');
+        self::assertStringEndsWith('-de-DE', $de[0]);
+    }
+
+    public function testAFailedLookupInAnotherLanguageIsNotCachedEither(): void
+    {
+        $this->optIn(true);
+        $this->language = new FixedLanguage('de');
+        $this->cache->method('get')->willReturn(null);
+        $this->tmdb->method('similar')->willThrowException(new \RuntimeException('bad gateway', 502));
+        $this->cache->expects(self::never())->method('set');
+
+        self::assertSame([], $this->service()->online($this->item('film', '12345'), 'alice'));
     }
 
     public function testUpstreamFailureYieldsNoRailAndIsNotCached(): void
