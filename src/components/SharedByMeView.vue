@@ -2,7 +2,7 @@
   <div class="sbm-view">
     <div class="sbm-toolbar">
       <h2 class="sbm-heading">
-        Shared by me
+        {{ t('crate', 'Shared by me') }}
       </h2>
     </div>
 
@@ -10,14 +10,14 @@
       v-if="loading"
       class="sbm-status"
     >
-      Loading…
+      {{ t('crate', 'Loading…') }}
     </p>
 
     <div
       v-else-if="shares.length === 0"
       class="sbm-empty"
     >
-      <p>You haven't shared anything yet.</p>
+      <p>{{ t('crate', 'You haven\'t shared anything yet.') }}</p>
     </div>
 
     <div
@@ -33,11 +33,13 @@
         <div class="sbm-info">
           <span class="sbm-label">{{ share.label }}</span>
           <span class="sbm-meta">
-            Shared with {{ share.sharedWithDisplayName }}
+            {{ t('crate', 'Shared with {user}', { user: share.sharedWithDisplayName }) }}
             <span
               class="sbm-access-badge"
               :class="share.canWrite ? 'sbm-access-badge--write' : ''"
-            >{{ share.canWrite ? 'Can edit' : 'Read-only' }}</span>
+            >{{ share.canWrite
+              ? t('crate', 'Can edit')
+              : t('crate', 'Read-only') }}</span>
           </span>
         </div>
         <NcButton
@@ -46,7 +48,7 @@
           :disabled="removing.includes(share.id)"
           @click="stopSharing(share)"
         >
-          Stop sharing
+          {{ t('crate', 'Stop sharing') }}
         </NcButton>
       </div>
     </div>
@@ -57,15 +59,26 @@
 import { ref, onMounted } from 'vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
-import { showError } from '@nextcloud/dialogs'
+import { showError } from '../utils/toast.js'
 import { NcButton } from '@nextcloud/vue'
-import { CATEGORY_LABELS } from '../utils/categoryFormats.js'
+import { CATEGORY_IDS, categoryLabel } from '../utils/categoryFormats.js'
+import { t } from '../l10n.js'
 
-const TYPE_LABELS = {
-  album:    'Album',
-  playlist: 'Playlist',
-  library:  'Library',
-  category: 'Category',
+/** The badge for a kind of share; an unknown kind shows as it is. */
+function shareTypeLabel(type) {
+  switch (type) {
+    case 'album':
+      return t('crate', 'Album')
+    case 'playlist':
+      return t('crate', 'Playlist')
+    case 'library':
+      // TRANSLATORS: a share of someone's whole collection
+      return t('crate', 'Library')
+    case 'category':
+      return t('crate', 'Category')
+    default:
+      return type
+  }
 }
 
 const shares = ref([])
@@ -78,9 +91,11 @@ const removing = ref([])
 // their plain type label. The badge style already uppercases the text.
 function typeBadge(share) {
   if (share.shareableType === 'album') {
-    return CATEGORY_LABELS[share.itemCategory] ?? 'Item'
+    return CATEGORY_IDS.includes(share.itemCategory)
+      ? categoryLabel(share.itemCategory)
+      : t('crate', 'Item')
   }
-  return TYPE_LABELS[share.shareableType] ?? share.shareableType
+  return shareTypeLabel(share.shareableType)
 }
 
 async function load() {
@@ -90,7 +105,7 @@ async function load() {
     shares.value = res.data.ocs?.data ?? []
   } catch (e) {
     console.error('Failed to load shares', e)
-    showError('Failed to load shares')
+    showError(t('crate', 'Failed to load shares'))
   } finally {
     loading.value = false
   }
@@ -103,7 +118,7 @@ async function stopSharing(share) {
     await load()
   } catch (e) {
     console.error('Failed to stop sharing', e)
-    showError('Failed to stop sharing')
+    showError(t('crate', 'Failed to stop sharing'))
   } finally {
     removing.value = removing.value.filter(id => id !== share.id)
   }

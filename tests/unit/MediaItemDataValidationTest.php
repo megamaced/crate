@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Crate\Tests\Unit;
 
 use OCA\Crate\Dto\MediaItemData;
+use OCA\Crate\Exception\UserFacingException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -43,7 +44,7 @@ class MediaItemDataValidationTest extends TestCase
     #[DataProvider('blankCoreFields')]
     public function testBlankCoreFieldsAreRejected(string $title, string $artist, string $format): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(UserFacingException::class);
         self::data($title, $artist, $format);
     }
 
@@ -72,7 +73,7 @@ class MediaItemDataValidationTest extends TestCase
         $atLimit = str_repeat('a', $max);
         self::assertSame($atLimit, self::data(...[$field => $atLimit])->$field);
 
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(UserFacingException::class);
         self::data(...[$field => str_repeat('a', $max + 1)]);
     }
 
@@ -93,7 +94,7 @@ class MediaItemDataValidationTest extends TestCase
     #[DataProvider('rejectedYears')]
     public function testYearOutsideTheColumnsUsefulRangeIsRejected(int $year): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(UserFacingException::class);
         self::data(year: $year);
     }
 

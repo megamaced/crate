@@ -7,33 +7,34 @@
         class="pd-back"
         @click="$emit('back')"
       >
-        ← Back
+        ← {{ t('crate', 'Back') }}
       </NcButton>
       <div class="pd-topbar-actions">
         <span
           v-if="isShared"
           class="pd-shared-badge"
-        >Shared by {{ playlist.sharedByUser }} · {{ canWrite ? 'can edit' : 'read-only' }}</span>
+        >{{ sharedBadge }}</span>
         <NcButton
           v-if="canWrite"
           variant="tertiary"
           @click="startEdit"
         >
-          Edit
+          {{ t('crate', 'Edit') }}
         </NcButton>
         <NcButton
           v-if="!isShared"
           variant="tertiary"
           @click="$emit('share', playlist)"
         >
-          Share
+          <!-- TRANSLATORS: verb; button that opens the dialog for sharing this playlist with other users -->
+          {{ t('crate', 'Share') }}
         </NcButton>
         <NcButton
           v-if="!isShared"
           variant="error"
           @click="confirmDelete = true"
         >
-          Delete playlist
+          {{ t('crate', 'Delete playlist') }}
         </NcButton>
       </div>
     </div>
@@ -77,7 +78,7 @@
       v-if="!playlist.items || playlist.items.length === 0"
       class="pd-empty"
     >
-      <p>No items in this playlist yet. Open any item and use "Add to playlist" to add it here.</p>
+      <p>{{ t('crate', 'No items in this playlist yet. Open any item and use "Add to playlist" to add it here.') }}</p>
     </div>
 
     <div
@@ -101,14 +102,14 @@
             <span
               v-if="item.category"
               class="pd-badge pd-badge--cat"
-            >{{ CATEGORY_LABELS[item.category] ?? item.category }}</span>
-            <span class="pd-badge">{{ item.format }}</span>
+            >{{ categoryLabel(item.category) }}</span>
+            <span class="pd-badge">{{ formatLabel(item.format) }}</span>
             <template v-if="item.year">&thinsp;{{ item.year }}</template>
             <span
               v-if="item.status"
               class="pd-badge"
               :class="item.status === 'wanted' ? 'pd-badge--wanted' : 'pd-badge--owned'"
-            >{{ item.status === 'wanted' ? 'Wanted' : 'Owned' }}</span>
+            >{{ statusLabel(item.status) }}</span>
           </span>
         </div>
         <div
@@ -118,10 +119,10 @@
         >
           <NcButton
             variant="tertiary"
-            :aria-label="'Remove ' + item.title + ' from playlist'"
+            :aria-label="t('crate', 'Remove {title} from playlist', { title: item.title })"
             @click="removeItem(item)"
           >
-            Remove
+            {{ t('crate', 'Remove') }}
           </NcButton>
         </div>
       </div>
@@ -130,13 +131,13 @@
     <!-- Edit dialog -->
     <NcDialog
       v-if="editOpen"
-      name="Edit playlist"
+      :name="t('crate', 'Edit playlist')"
       :open="editOpen"
       @closing="editOpen = false"
     >
       <div class="pd-dialog-form">
         <div class="pd-dialog-field">
-          <label for="pd-edit-name">Name</label>
+          <label for="pd-edit-name">{{ t('crate', 'Name') }}</label>
           <input
             id="pd-edit-name"
             v-model="editName"
@@ -146,7 +147,7 @@
           >
         </div>
         <div class="pd-dialog-field">
-          <label for="pd-edit-desc">Description (optional)</label>
+          <label for="pd-edit-desc">{{ t('crate', 'Description (optional)') }}</label>
           <input
             id="pd-edit-desc"
             v-model="editDesc"
@@ -161,14 +162,16 @@
           variant="tertiary"
           @click="editOpen = false"
         >
-          Cancel
+          {{ t('crate', 'Cancel') }}
         </NcButton>
         <NcButton
           variant="primary"
           :disabled="!editName.trim() || saving"
           @click="doEdit"
         >
-          {{ saving ? 'Saving…' : 'Save' }}
+          {{ saving
+            ? t('crate', 'Saving…')
+            : t('crate', 'Save') }}
         </NcButton>
       </template>
     </NcDialog>
@@ -176,23 +179,23 @@
     <!-- Delete confirm -->
     <NcDialog
       v-if="confirmDelete"
-      name="Delete playlist"
+      :name="t('crate', 'Delete playlist')"
       :open="confirmDelete"
       @closing="confirmDelete = false"
     >
-      <p>Delete <strong>{{ playlist.name }}</strong>? The albums in it won't be deleted.</p>
+      <p>{{ deletePrompt.before }}<strong>{{ playlist.name }}</strong>{{ deletePrompt.after }}</p>
       <template #actions>
         <NcButton
           variant="tertiary"
           @click="confirmDelete = false"
         >
-          Cancel
+          {{ t('crate', 'Cancel') }}
         </NcButton>
         <NcButton
           variant="error"
           @click="$emit('delete', playlist)"
         >
-          Delete
+          {{ t('crate', 'Delete') }}
         </NcButton>
       </template>
     </NcDialog>
@@ -205,9 +208,10 @@ import { NcButton, NcDialog } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
 import { artworkStyleFor } from '../composables/useArtworkStyle.js'
-import { showError } from '@nextcloud/dialogs'
+import { showError } from '../utils/toast.js'
 import MediaThumb from './MediaThumb.vue'
-import { CATEGORY_LABELS, playlistCountLabel } from '../utils/categoryFormats.js'
+import { categoryLabel, formatLabel, playlistCountLabel, statusLabel } from '../utils/categoryFormats.js'
+import { splitAt, t } from '../l10n.js'
 
 const props = defineProps({
   playlist: { type: Object, required: true },
@@ -220,6 +224,10 @@ const emit = defineEmits(['back', 'detail', 'delete', 'share', 'updated'])
 // they may rename and add/remove tracks. Delete and re-share stay owner-only.
 const isShared = computed(() => !!props.playlist.sharedByUser)
 const canWrite = computed(() => !props.playlist.sharedByUser || props.playlist.canWrite === true)
+
+const sharedBadge = computed(() => canWrite.value
+  ? t('crate', 'Shared by {user} · can edit', { user: props.playlist.sharedByUser })
+  : t('crate', 'Shared by {user} · read-only', { user: props.playlist.sharedByUser }))
 
 // Items reached through a shared playlist are read-only at the item level: a
 // playlist share (even read/write) never grants edit rights on the underlying
@@ -239,6 +247,15 @@ const editOpen = ref(false)
 const editName = ref('')
 const editDesc = ref('')
 const saving = ref(false)
+
+/**
+ * The delete question, cut around its {name} placeholder so the template can
+ * set the playlist's name in bold between the two halves.
+ */
+const deletePrompt = computed(() => {
+  // TRANSLATORS: {name} is the name of the playlist being deleted, shown in bold
+  return splitAt(t('crate', 'Delete {name}? The albums in it won\'t be deleted.'), 'name')
+})
 
 const playlistItemCountLabel = computed(() => {
   const items = props.playlist.items ?? []
@@ -265,7 +282,7 @@ async function doEdit() {
     editOpen.value = false
   } catch (e) {
     console.error('Failed to update playlist', e)
-    showError('Failed to update playlist')
+    showError(t('crate', 'Failed to update playlist'))
   } finally {
     saving.value = false
   }
@@ -298,7 +315,7 @@ async function removeItem(item) {
     if (updated) emit('updated', updated)
   } catch (e) {
     console.error('Failed to remove item from playlist', e)
-    showError('Failed to remove item from playlist')
+    showError(t('crate', 'Failed to remove item from playlist'))
   }
 }
 </script>

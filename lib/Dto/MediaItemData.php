@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace OCA\Crate\Dto;
 
+use OCA\Crate\Exception\UserFacingException;
+use OCA\Crate\Message;
+
 /**
  * Value object for media item create/update payloads.
  *
@@ -79,19 +82,25 @@ class MediaItemData
         // the column is NOT NULL and every form already requires these.
         foreach (['title', 'artist', 'format'] as $field) {
             if ($this->$field === '') {
-                throw new \InvalidArgumentException($field . ' is required');
+                throw new UserFacingException(
+                    // TRANSLATORS: %s is the field's name as the API spells it (title, artist, format)
+                    Message::t('%s is required', [$field]),
+                );
             }
         }
 
         foreach (self::MAX_LEN as $field => $max) {
             $value = $this->$field;
             if (is_string($value) && mb_strlen($value, 'UTF-8') > $max) {
-                throw new \InvalidArgumentException($field . ' exceeds ' . $max . ' characters');
+                throw new UserFacingException(
+                    // TRANSLATORS: %1$s is a field's name as the API spells it, %2$s its maximum length
+                    Message::t('%1$s exceeds %2$s characters', [$field, $max]),
+                );
             }
         }
 
         if ($year !== null && ($year < self::MIN_YEAR || $year > (int) date('Y') + 1)) {
-            throw new \InvalidArgumentException('year out of range');
+            throw new UserFacingException(Message::t('year out of range'));
         }
     }
 }

@@ -15,6 +15,7 @@ use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataDownloadResponse;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\Http\Response;
+use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IUserSession;
 
@@ -26,6 +27,7 @@ class ExportController extends Controller
         private readonly ExportService $exportService,
         private readonly IUserSession $userSession,
         private readonly CrateShareMapper $shareMapper,
+        private readonly IL10N $l,
     ) {
         parent::__construct($appName, $request);
     }
@@ -58,7 +60,7 @@ class ExportController extends Controller
     ): Response {
         $user = $this->userSession->getUser();
         if ($user === null) {
-            return new DataResponse(['error' => 'Not logged in'], Http::STATUS_UNAUTHORIZED);
+            return new DataResponse(['error' => $this->l->t('Not logged in')], Http::STATUS_UNAUTHORIZED);
         }
         $userId = $user->getUID();
 
@@ -71,7 +73,7 @@ class ExportController extends Controller
         if ($owner !== null && $owner !== '' && $owner !== $userId) {
             if (!$this->canReadForExport($userId, $owner, $cat)) {
                 return new DataResponse(
-                    ['error' => 'No read access to that collection'],
+                    ['error' => $this->l->t('No read access to that collection')],
                     Http::STATUS_FORBIDDEN,
                 );
             }

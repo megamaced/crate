@@ -10,6 +10,7 @@ use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\OCSController;
+use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IUserSession;
 
@@ -22,6 +23,7 @@ class OpenLibraryController extends OCSController
         IRequest $request,
         private readonly OpenLibraryService $openLibraryService,
         private readonly IUserSession $userSession,
+        private readonly IL10N $l,
     ) {
         parent::__construct($appName, $request);
     }
@@ -44,11 +46,11 @@ class OpenLibraryController extends OCSController
     {
         $clean = preg_replace('/[^0-9Xx]/', '', $isbn);
         if (strlen($clean) < 10) {
-            return new DataResponse(['error' => 'Invalid ISBN'], Http::STATUS_BAD_REQUEST);
+            return new DataResponse(['error' => $this->l->t('Invalid ISBN')], Http::STATUS_BAD_REQUEST);
         }
         $data = $this->openLibraryService->getByIsbn($clean);
         if (empty($data)) {
-            return new DataResponse(['error' => 'Book not found for ISBN'], Http::STATUS_NOT_FOUND);
+            return new DataResponse(['error' => $this->l->t('Book not found for ISBN')], Http::STATUS_NOT_FOUND);
         }
         return new DataResponse($data);
     }
@@ -61,7 +63,7 @@ class OpenLibraryController extends OCSController
         $data = $this->openLibraryService->getWork($id);
         if (empty($data)) {
             return new DataResponse(
-                ['error' => 'Work not found'],
+                ['error' => $this->l->t('Work not found')],
                 Http::STATUS_NOT_FOUND,
             );
         }

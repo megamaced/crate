@@ -18,6 +18,7 @@ use OCP\AppFramework\Http\FileDisplayResponse;
 use OCP\AppFramework\Http\Response;
 use OCP\Files\AppData\IAppDataFactory;
 use OCP\Files\NotFoundException;
+use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IUserSession;
 use Psr\Log\LoggerInterface;
@@ -60,6 +61,7 @@ class PhotoController extends Controller
         private readonly IAppDataFactory $appDataFactory,
         private readonly ItemFileWriter $files,
         private readonly LoggerInterface $logger,
+        private readonly IL10N $l,
     ) {
         parent::__construct($appName, $request);
     }
@@ -129,7 +131,7 @@ class PhotoController extends Controller
     {
         $user = $this->userSession->getUser();
         if ($user === null) {
-            return new DataResponse(['error' => 'Not authenticated'], Http::STATUS_FORBIDDEN);
+            return new DataResponse(['error' => $this->l->t('Not authenticated')], Http::STATUS_FORBIDDEN);
         }
         if (!in_array($slot, self::SLOTS, true)) {
             return new DataResponse(['error' => 'Invalid slot'], Http::STATUS_BAD_REQUEST);
@@ -139,24 +141,24 @@ class PhotoController extends Controller
         try {
             $this->mapper->findWritableForUser($itemId, $userId);
         } catch (\OCP\AppFramework\Db\DoesNotExistException) {
-            return new DataResponse(['error' => 'Not found'], Http::STATUS_NOT_FOUND);
+            return new DataResponse(['error' => $this->l->t('Not found')], Http::STATUS_NOT_FOUND);
         }
 
         $uploadedFile = $this->request->getUploadedFile('file');
         if (!$uploadedFile || ($uploadedFile['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-            return new DataResponse(['error' => 'No file uploaded'], Http::STATUS_BAD_REQUEST);
+            return new DataResponse(['error' => $this->l->t('No file uploaded')], Http::STATUS_BAD_REQUEST);
         }
 
         // 10 MB cap mirrors ArtworkController + nginx upload limits.
         if (($uploadedFile['size'] ?? 0) > 10 * 1024 * 1024) {
-            return new DataResponse(['error' => 'File too large (max 10 MB)'], 413);
+            return new DataResponse(['error' => $this->l->t('File too large (max 10 MB)')], 413);
         }
 
         $finfo = new \finfo(FILEINFO_MIME_TYPE);
         $mime  = $finfo->file($uploadedFile['tmp_name']);
         if (!in_array($mime, self::ALLOWED_MIMES, true)) {
             return new DataResponse(
-                ['error' => 'Unsupported file type'],
+                ['error' => $this->l->t('Unsupported file type')],
                 Http::STATUS_UNSUPPORTED_MEDIA_TYPE,
             );
         }
@@ -174,7 +176,7 @@ class PhotoController extends Controller
         // would leave neither a commit nor a rollback.
         $bytes = (string) file_get_contents($uploadedFile['tmp_name']);
         if (!$this->gdDimensionsWithinBudget($bytes)) {
-            return new DataResponse(['error' => 'Image dimensions too large'], 413);
+            return new DataResponse(['error' => $this->l->t('Image dimensions too large')], 413);
         }
         // Strip EXIF/IPTC/XMP before persisting. Photos are the "receipts
         // and personal photos" slot — phone-gallery uploads commonly
@@ -184,7 +186,7 @@ class PhotoController extends Controller
         $sanitised = $this->stripImageMetadata($bytes, (string) $mime);
         if ($sanitised === null) {
             return new DataResponse(
-                ['error' => 'This image could not be processed. Re-save it as JPEG or PNG and try again.'],
+                ['error' => $this->l->t('This image could not be processed. Re-save it as JPEG or PNG and try again.')],
                 Http::STATUS_UNSUPPORTED_MEDIA_TYPE,
             );
         }
@@ -229,7 +231,7 @@ class PhotoController extends Controller
     {
         $user = $this->userSession->getUser();
         if ($user === null) {
-            return new DataResponse(['error' => 'Not authenticated'], Http::STATUS_FORBIDDEN);
+            return new DataResponse(['error' => $this->l->t('Not authenticated')], Http::STATUS_FORBIDDEN);
         }
         if (!in_array($slot, self::SLOTS, true)) {
             return new DataResponse(['error' => 'Invalid slot'], Http::STATUS_BAD_REQUEST);
@@ -239,7 +241,7 @@ class PhotoController extends Controller
         try {
             $this->mapper->findWritableForUser($itemId, $userId);
         } catch (\OCP\AppFramework\Db\DoesNotExistException) {
-            return new DataResponse(['error' => 'Not found'], Http::STATUS_NOT_FOUND);
+            return new DataResponse(['error' => $this->l->t('Not found')], Http::STATUS_NOT_FOUND);
         }
 
         try {

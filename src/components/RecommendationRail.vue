@@ -15,7 +15,10 @@
       <span
         v-if="source"
         class="rec-rail-source"
-      >via {{ source }}</span>
+      >
+        <!-- TRANSLATORS: credits the service the suggestions came from, e.g. "via TMDB" -->
+        {{ t('crate', 'via {source}', { source }) }}
+      </span>
     </header>
 
     <ul

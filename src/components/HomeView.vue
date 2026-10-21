@@ -7,17 +7,17 @@
       v-if="loading"
       class="crate-status"
     >
-      Loading…
+      {{ t('crate', 'Loading…') }}
     </p>
 
     <template v-else-if="items.length === 0">
       <div class="crate-home-empty">
-        <p>Your collection is empty.</p>
+        <p>{{ t('crate', 'Your collection is empty.') }}</p>
         <NcButton
           variant="primary"
           @click="$emit('add')"
         >
-          Add your first record
+          {{ t('crate', 'Add your first record') }}
         </NcButton>
       </div>
     </template>
@@ -49,7 +49,7 @@
             </div>
             <div class="crate-hero__info">
               <p class="crate-hero__eyebrow">
-                {{ HERO_EYEBROW[hero.category ?? 'music'] }}
+                {{ heroEyebrow(hero.category ?? 'music') }}
               </p>
               <h2 class="crate-hero__title">
                 {{ hero.title }}
@@ -61,7 +61,7 @@
                 <span
                   v-if="hero.format"
                   class="crate-tag"
-                >{{ hero.format }}</span>
+                >{{ formatLabel(hero.format) }}</span>
                 <span
                   v-if="hero.year"
                   class="crate-tag"
@@ -82,7 +82,7 @@
                 class="crate-hero__btn"
                 @click="$emit('detail', hero)"
               >
-                View details
+                {{ t('crate', 'View details') }}
               </NcButton>
             </div>
           </div>
@@ -90,7 +90,7 @@
       </div>
 
       <section class="crate-home-section">
-        <h3>Recently Added</h3>
+        <h3>{{ t('crate', 'Recently Added') }}</h3>
         <div class="crate-card-grid">
           <MediaCard
             v-for="item in recentItems"
@@ -105,7 +105,7 @@
         v-if="valuableItems.length > 0"
         class="crate-home-section"
       >
-        <h3>Most Valuable</h3>
+        <h3>{{ t('crate', 'Most Valuable') }}</h3>
         <div class="crate-card-grid">
           <MediaCard
             v-for="item in valuableItems.slice(0, rowCount)"
@@ -151,20 +151,30 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { NcButton } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl, generateUrl } from '@nextcloud/router'
-import { showError } from '@nextcloud/dialogs'
+import { showError } from '../utils/toast.js'
 import MediaCard from './MediaCard.vue'
-import { CATEGORY_LABELS, FORMAT_LIST } from '../utils/categoryFormats.js'
+import { FORMAT_LIST, categoryLabel, formatLabel } from '../utils/categoryFormats.js'
+import { t } from '../l10n.js'
 import { genreTokens } from '../utils/genres.js'
 import { useSettings } from '../composables/useSettings.js'
 
 defineEmits(['add', 'detail'])
 
-const HERO_EYEBROW = {
-  music: 'Album of the Day',
-  film:  'Film of the Day',
-  book:  'Book of the Day',
-  game:  'Game of the Day',
-  comic: 'Comic of the Day',
+function heroEyebrow(category) {
+  switch (category) {
+    case 'music':
+      return t('crate', 'Album of the Day')
+    case 'film':
+      return t('crate', 'Film of the Day')
+    case 'book':
+      return t('crate', 'Book of the Day')
+    case 'game':
+      return t('crate', 'Game of the Day')
+    case 'comic':
+      return t('crate', 'Comic of the Day')
+    default:
+      return ''
+  }
 }
 
 const HERO_PLACEHOLDER = {
@@ -216,7 +226,7 @@ async function load() {
     allItems.value = all.filter(i => i.status === 'owned')
   } catch (e) {
     console.error('Failed to load items', e)
-    showError('Failed to load recent items')
+    showError(t('crate', 'Failed to load recent items'))
   } finally {
     loading.value = false
   }
@@ -319,7 +329,7 @@ const categorySections = computed(() => {
 
       return {
         category: cat,
-        label: CATEGORY_LABELS[cat] ?? cat,
+        label: categoryLabel(cat),
         count: bucket.items.length,
         rows,
       }
@@ -336,11 +346,11 @@ const valuableItems = computed(() =>
 )
 
 function pluralLabel(fmt) {
-  // Show the raw format name. Pluralising was inconsistent — some formats are
-  // proper nouns ("PS5", "Xbox", "GameCube") that don't pluralise, others
-  // ended up doubled ("VHS" → "VHSS") or naturally plural ("Cassettes",
-  // "Paperbacks"). Keeping the format label verbatim reads consistently.
-  return fmt
+  // Show the format's display name, unpluralised. Pluralising was inconsistent
+  // — some formats are proper nouns ("PS5", "Xbox", "GameCube") that don't
+  // pluralise, others ended up doubled ("VHS" → "VHSS") or naturally plural
+  // ("Cassettes", "Paperbacks"). The format name as-is reads consistently.
+  return formatLabel(fmt)
 }
 
 function genreList(item) {

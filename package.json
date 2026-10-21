@@ -7,11 +7,13 @@
     "dev": "webpack --node-env development",
     "watch": "webpack --node-env development --watch",
     "lint": "eslint \"src/**/*.{js,vue}\"",
-    "lint:fix": "eslint \"src/**/*.{js,vue}\" --fix"
+    "lint:fix": "eslint \"src/**/*.{js,vue}\" --fix",
+    "test": "vitest run"
   },
   "dependencies": {
     "@nextcloud/axios": "^2.5.0",
     "@nextcloud/dialogs": "^7.5.0",
+    "@nextcloud/l10n": "^3.4.1",
     "@nextcloud/router": "^3.2.0",
     "@nextcloud/vue": "^9.13.1",
     "vue": "^3.5.43"
@@ -21,7 +23,9 @@
     "@nextcloud/webpack-vue-config": "^7.0.4",
     "eslint": "^10.12.0",
     "eslint-plugin-vue": "^10.11.1",
-    "globals": "^17.13.0"
+    "globals": "^17.13.0",
+    "jsdom": "^30.1.2",
+    "vitest": "^5.0.4"
   },
   "overrides": {
     "browserslist": "^4.28.7"

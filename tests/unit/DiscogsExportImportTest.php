@@ -80,7 +80,7 @@ class DiscogsExportImportTest extends TestCase
                 'Row 7: unrecognised format "DVD, NTSC" - skipped',
                 'Row 8: unrecognised format "File, FLAC, Album" - skipped',
             ],
-            $result['errors'],
+            array_map('strval', $result['errors']),
         );
 
         [$floyd, $justice, $beatles, $split, $ween] = $this->inserted;

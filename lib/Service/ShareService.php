@@ -8,7 +8,10 @@ use OCA\Crate\CrateCategories;
 use OCA\Crate\Db\CrateShare;
 use OCA\Crate\Db\CrateShareMapper;
 use OCA\Crate\Db\MediaItemMapper;
+use OCA\Crate\Exception\UserFacingException;
+use OCA\Crate\Message;
 use OCP\AppFramework\Db\DoesNotExistException;
+use OCP\AppFramework\Http;
 use OCP\IUserManager;
 
 class ShareService
@@ -40,7 +43,7 @@ class ShareService
         $this->mediaItemMapper->findByUser($mediaItemId, $ownerUserId);
 
         if ($this->shareMapper->alreadyShared($ownerUserId, $sharedWithUserId, CrateShare::TYPE_ALBUM, $mediaItemId)) {
-            throw new \InvalidArgumentException('Already shared with this user.');
+            throw new UserFacingException(Message::t('Already shared with this user.'), Http::STATUS_CONFLICT);
         }
 
         $share = $this->createShare(
@@ -77,7 +80,7 @@ class ShareService
             $playlistId,
         );
         if ($alreadyShared) {
-            throw new \InvalidArgumentException('Already shared with this user.');
+            throw new UserFacingException(Message::t('Already shared with this user.'), Http::STATUS_CONFLICT);
         }
 
         $share = $this->createShare(
@@ -106,7 +109,10 @@ class ShareService
         $permission = $this->normalisePermission($permission);
 
         if ($this->shareMapper->alreadyShared($ownerUserId, $sharedWithUserId, CrateShare::TYPE_LIBRARY, 0)) {
-            throw new \InvalidArgumentException('Library already shared with this user.');
+            throw new UserFacingException(
+                Message::t('Library already shared with this user.'),
+                Http::STATUS_CONFLICT,
+            );
         }
 
         $share = $this->createShare(
@@ -144,7 +150,10 @@ class ShareService
             $category,
         );
         if ($alreadyShared) {
-            throw new \InvalidArgumentException('Category already shared with this user.');
+            throw new UserFacingException(
+                Message::t('Category already shared with this user.'),
+                Http::STATUS_CONFLICT,
+            );
         }
 
         $share = $this->createShare(
@@ -268,7 +277,9 @@ class ShareService
     /**
      * Everything the current user has shared with others — one row per share,
      * newest first, annotated with the recipient's display name and a human
-     * label for what was shared. Powers the "Shared by me" overview.
+     * label for what was shared. Powers the "Shared by me" overview. The label
+     * is the item's title or the playlist's name, or a Message naming what was
+     * shared, for the caller to translate.
      *
      * @return list<array<string,mixed>>
      */
@@ -308,7 +319,7 @@ class ShareService
     /**
      * Human label + category for what a share points at.
      *
-     * @return array{0: string, 1: ?string} [label, category or null]
+     * @return array{0: string|Message, 1: ?string} [label (a title, a name or a Message), category or null]
      */
     private function describeShareable(CrateShare $share, string $ownerUserId): array
     {
@@ -318,22 +329,35 @@ class ShareService
                     $item = $this->mediaItemMapper->findByUser($share->getShareableId(), $ownerUserId);
                     return [$item->getTitle(), $item->getCategory()];
                 } catch (DoesNotExistException) {
-                    return ['Item', null];
+                    return [Message::t('Item'), null];
                 }
             case CrateShare::TYPE_PLAYLIST:
                 try {
                     $playlist = $this->playlistService->find($share->getShareableId(), $ownerUserId);
-                    return [$playlist['name'] ?? 'Playlist', null];
+                    return [$playlist['name'] ?? Message::t('Playlist'), null];
                 } catch (DoesNotExistException) {
-                    return ['Playlist', null];
+                    return [Message::t('Playlist'), null];
                 }
             case CrateShare::TYPE_LIBRARY:
-                return ['Whole library', null];
+                return [Message::t('Whole library'), null];
             case CrateShare::TYPE_CATEGORY:
-                return [ucfirst($share->getShareableCategory()), $share->getShareableCategory()];
+                return [self::categoryName($share->getShareableCategory()), $share->getShareableCategory()];
             default:
                 return ['', null];
         }
+    }
+
+    /** A category's name as a share label, e.g. "Film". */
+    private static function categoryName(string $category): Message|string
+    {
+        return match ($category) {
+            CrateCategories::MUSIC => Message::t('Music'),
+            CrateCategories::FILM => Message::t('Film'),
+            CrateCategories::BOOK => Message::t('Book'),
+            CrateCategories::GAME => Message::t('Game'),
+            CrateCategories::COMIC => Message::t('Comic'),
+            default => ucfirst($category),
+        };
     }
 
     // ── Deletion ───────────────────────────────────────────────────────────────
@@ -370,7 +394,7 @@ class ShareService
     private function normalisePermission(string $permission): string
     {
         if (!in_array($permission, CrateShare::ALL_PERMISSIONS, true)) {
-            throw new \InvalidArgumentException('Unknown permission.');
+            throw new UserFacingException(Message::t('Unknown permission.'));
         }
         return $permission;
     }
@@ -384,7 +408,7 @@ class ShareService
     private function validateTargetUser(string $targetUserId, string $ownerUserId): void
     {
         if ($targetUserId === $ownerUserId || $this->userManager->get($targetUserId) === null) {
-            throw new \InvalidArgumentException('Cannot share with that user.');
+            throw new UserFacingException(Message::t('Cannot share with that user.'), Http::STATUS_CONFLICT);
         }
     }
 
@@ -392,7 +416,7 @@ class ShareService
     private function validateCategory(string $category): void
     {
         if (!in_array($category, CrateCategories::ALL, true)) {
-            throw new \InvalidArgumentException('Unknown category.');
+            throw new UserFacingException(Message::t('Unknown category.'));
         }
     }
 

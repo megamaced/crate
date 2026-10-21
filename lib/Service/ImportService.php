@@ -7,6 +7,8 @@ namespace OCA\Crate\Service;
 use OCA\Crate\CrateCategories;
 use OCA\Crate\Db\MediaItemMapper;
 use OCA\Crate\Service\MarketValueService;
+use OCA\Crate\Exception\UserFacingException;
+use OCA\Crate\Message;
 use OCP\IDBConnection;
 use Psr\Log\LoggerInterface;
 
@@ -287,7 +289,7 @@ class ImportService
      * Public + static so the unit test suite can exercise it without
      * standing up the full import pipeline.
      *
-     * @return array{price?: ?float, error?: string}
+     * @return array{price?: ?float, error?: Message}
      */
     public static function parsePurchasePriceCell(?string $raw): array
     {
@@ -296,11 +298,11 @@ class ImportService
         }
         $normalised = self::normaliseDecimalString($raw);
         if ($normalised === null || !is_numeric($normalised)) {
-            return ['error' => "unparseable purchase price \"{$raw}\""];
+            return ['error' => Message::t('unparseable purchase price "%s"', [$raw])];
         }
         $val = (float) $normalised;
         if ($val < 0 || $val > 1_000_000) {
-            return ['error' => 'purchase price out of range'];
+            return ['error' => Message::t('purchase price out of range')];
         }
         return ['price' => $val];
     }
@@ -355,18 +357,18 @@ class ImportService
      * MarketValueService::SUPPORTED_CURRENCIES allowlist. Mirror of the
      * controller path, kept here so the import pipeline doesn't reach
      * into MediaController for one helper. Returns ['currency' => string]
-     * on success or ['error' => string] on a missing/unsupported code.
+     * on success or ['error' => Message] on a missing/unsupported code.
      *
-     * @return array{currency?: string, error?: string}
+     * @return array{currency?: string, error?: Message}
      */
     public static function parsePurchaseCurrencyCell(?string $raw): array
     {
         $code = strtoupper(trim((string) ($raw ?? '')));
         if ($code === '') {
-            return ['error' => 'purchase price requires a currency'];
+            return ['error' => Message::t('purchase price requires a currency')];
         }
         if (!in_array($code, MarketValueService::SUPPORTED_CURRENCIES, true)) {
-            return ['error' => "unsupported purchase currency \"{$code}\""];
+            return ['error' => Message::t('unsupported purchase currency "%s"', [$code])];
         }
         return ['currency' => $code];
     }
@@ -398,7 +400,7 @@ class ImportService
             return $this->parseXlsx($tmpPath);
         }
 
-        throw new \RuntimeException("Unsupported file type: .{$ext}");
+        throw new UserFacingException(Message::t('Unsupported file type: .%s', [$ext]));
     }
 
     /** @return array{headers: string[], rows: array<int, array<string|null>>} */
@@ -407,13 +409,13 @@ class ImportService
         // Guard against excessively large files (10 MB limit)
         $size = filesize($path);
         if ($size === false || $size > 10 * 1024 * 1024) {
-            throw new \RuntimeException('File too large (max 10 MB)');
+            throw new UserFacingException(Message::t('File too large (max 10 MB)'));
         }
 
         // Strip UTF-8 BOM if present
         $content = file_get_contents($path);
         if ($content === false) {
-            throw new \RuntimeException('Could not read file');
+            throw new UserFacingException(Message::t('Could not read file'));
         }
         if (str_starts_with($content, "\xEF\xBB\xBF")) {
             $content = substr($content, 3);
@@ -448,8 +450,8 @@ class ImportService
                         // 10 MB cap bounds this far more tightly than it does a
                         // compressed worksheet, but preview applying no row
                         // limit at all was the same gap in both formats.
-                        throw new \RuntimeException(
-                            'Too many rows — the limit is ' . self::MAX_IMPORT_ROWS . ' rows per import',
+                        throw new UserFacingException(
+                            Message::t('Too many rows — the limit is %s rows per import', [self::MAX_IMPORT_ROWS]),
                         );
                     }
                     $rows[$lineNo - 2] = array_map(fn($v) => $v !== '' ? $v : null, $line);
@@ -484,12 +486,12 @@ class ImportService
         // Guard against excessively large files (10 MB limit)
         $size = filesize($path);
         if ($size === false || $size > 10 * 1024 * 1024) {
-            throw new \RuntimeException('File too large (max 10 MB)');
+            throw new UserFacingException(Message::t('File too large (max 10 MB)'));
         }
 
         $zip = new \ZipArchive();
         if ($zip->open($path) !== true) {
-            throw new \RuntimeException('Could not open spreadsheet file');
+            throw new UserFacingException(Message::t('Could not open spreadsheet file'));
         }
 
         try {
@@ -504,7 +506,7 @@ class ImportService
         }
 
         if (!$sheetPresent) {
-            throw new \RuntimeException('Could not read worksheet from spreadsheet');
+            throw new UserFacingException(Message::t('Could not read worksheet from spreadsheet'));
         }
 
         $sharedStrings = $sharedPresent ? $this->streamSharedStrings($path) : [];
@@ -551,12 +553,14 @@ class ImportService
                     continue;
                 }
                 if (count($strings) >= self::MAX_SHARED_STRINGS) {
-                    throw new \RuntimeException('Spreadsheet has too many distinct text values to process');
+                    throw new UserFacingException(
+                        Message::t('Spreadsheet has too many distinct text values to process'),
+                    );
                 }
                 $text   = self::readSharedString($reader);
                 $bytes += strlen((string) $text);
                 if ($bytes > self::MAX_SHARED_STRING_BYTES) {
-                    throw new \RuntimeException('Spreadsheet contents too large to process');
+                    throw new UserFacingException(Message::t('Spreadsheet contents too large to process'));
                 }
                 $strings[] = $text;
             }
@@ -615,13 +619,24 @@ class ImportService
     }
 
     /** The error for a cell longer than MAX_CELL_CHARS, naming it when it can. */
-    private static function oversizedCell(string $ref): \RuntimeException
+    private static function oversizedCell(string $ref): UserFacingException
     {
-        $cell = $ref !== '' ? 'Cell ' . $ref : 'A cell';
-        return new \RuntimeException(
-            $cell . ' holds more than ' . number_format(self::MAX_CELL_CHARS)
-                . ' characters, the most a spreadsheet cell can hold. Shorten it, or import the collection as CSV.',
-        );
+        $max = number_format(self::MAX_CELL_CHARS);
+        if ($ref !== '') {
+            return new UserFacingException(
+                // TRANSLATORS: %1$s is a spreadsheet cell reference such as D2
+                Message::t(
+                    'Cell %1$s holds more than %2$s characters, the most a spreadsheet cell can hold. '
+                        . 'Shorten it, or import the collection as CSV.',
+                    [$ref, $max],
+                ),
+            );
+        }
+        return new UserFacingException(Message::t(
+            'A cell holds more than %s characters, the most a spreadsheet cell can hold. '
+                . 'Shorten it, or import the collection as CSV.',
+            [$max],
+        ));
     }
 
     /**
@@ -634,7 +649,7 @@ class ImportService
     {
         $reader = $this->openZipXml($path, $member);
         if ($reader === null) {
-            throw new \RuntimeException('Could not read worksheet from spreadsheet');
+            throw new UserFacingException(Message::t('Could not read worksheet from spreadsheet'));
         }
 
         $headers  = [];
@@ -664,8 +679,8 @@ class ImportService
                 if ($dataRows > self::MAX_IMPORT_ROWS) {
                     // Refused here rather than counted and rejected afterwards:
                     // the point is not to hold the rows in the first place.
-                    throw new \RuntimeException(
-                        'Too many rows — the limit is ' . self::MAX_IMPORT_ROWS . ' rows per import',
+                    throw new UserFacingException(
+                        Message::t('Too many rows — the limit is %s rows per import', [self::MAX_IMPORT_ROWS]),
                     );
                 }
 
@@ -834,7 +849,9 @@ class ImportService
     private static function rejectDoctype(\XMLReader $reader): void
     {
         if ($reader->nodeType === \XMLReader::DOC_TYPE) {
-            throw new \RuntimeException('Spreadsheet rejected: unexpected document type declaration');
+            throw new UserFacingException(
+                Message::t('Spreadsheet rejected: unexpected document type declaration'),
+            );
         }
     }
 
@@ -965,7 +982,7 @@ class ImportService
         $declared   = (int)($stat['size'] ?? 0);
         $compressed = (int)($stat['comp_size'] ?? 0);
         if ($declared > self::MAX_XLSX_MEMBER_BYTES) {
-            throw new \RuntimeException('Spreadsheet contents too large to process');
+            throw new UserFacingException(Message::t('Spreadsheet contents too large to process'));
         }
         // Only worth ratio-checking a part big enough to matter once inflated:
         // a small part cannot exhaust memory however well it compressed.
@@ -974,7 +991,7 @@ class ImportService
             && $compressed > 0
             && $declared > $compressed * self::MAX_XLSX_RATIO
         ) {
-            throw new \RuntimeException('Spreadsheet rejected: implausible compression ratio');
+            throw new UserFacingException(Message::t('Spreadsheet rejected: implausible compression ratio'));
         }
         return true;
     }
@@ -1060,7 +1077,7 @@ class ImportService
      *
      * @param  array<int, array<string, string|null>> $mappedRows
      * @param  string                                 $userId
-     * @return array{created: int, duplicates: int, skipped: int, errors: string[], itemIds: int[]}
+     * @return array{created: int, duplicates: int, skipped: int, errors: list<Message>, itemIds: int[]}
      */
     public function import(
         array $mappedRows,
@@ -1081,8 +1098,10 @@ class ImportService
                 'duplicates' => 0,
                 'skipped'    => $rowCount,
                 'errors'     => [
-                    "Too many rows ({$rowCount}) — the limit is "
-                        . self::MAX_IMPORT_ROWS . ' rows per import',
+                    Message::t(
+                        'Too many rows (%1$s) — the limit is %2$s rows per import',
+                        [$rowCount, self::MAX_IMPORT_ROWS],
+                    ),
                 ],
                 'itemIds'    => [],
             ];
@@ -1129,13 +1148,13 @@ class ImportService
             // exactly '' — empty() would also reject a title or artist of '0'.
             if ($artist === '' || $title === '') {
                 $skipped++;
-                $errors[] = "Row {$rowNum}: missing Artist or Title — skipped";
+                $errors[] = Message::t('Row %s: missing Artist or Title — skipped', [$rowNum]);
                 continue;
             }
 
             if ($format === '') {
                 $skipped++;
-                $errors[] = "Row {$rowNum}: missing Format — skipped";
+                $errors[] = Message::t('Row %s: missing Format — skipped', [$rowNum]);
                 continue;
             }
 
@@ -1145,7 +1164,7 @@ class ImportService
             $canonicalFormat = self::resolveFormat($format, $category);
             if ($canonicalFormat === null) {
                 $skipped++;
-                $errors[] = "Row {$rowNum}: unrecognised format \"{$format}\" - skipped";
+                $errors[] = Message::t('Row %1$s: unrecognised format "%2$s" - skipped', [$rowNum, $format]);
                 continue;
             }
             $format = $canonicalFormat;
@@ -1166,13 +1185,14 @@ class ImportService
             foreach (self::MAX_LEN as $field => $max) {
                 $value = (string)($row[$field] ?? '');
                 if (mb_strlen($value, 'UTF-8') > $max) {
-                    $overLen = "{$field} exceeds {$max} chars";
+                    // TRANSLATORS: %1$s is a field's name as the import spells it, %2$s its maximum length
+                    $overLen = Message::t('%1$s exceeds %2$s chars', [$field, $max]);
                     break;
                 }
             }
             if ($overLen !== null) {
                 $skipped++;
-                $errors[] = "Row {$rowNum}: {$overLen} — skipped";
+                $errors[] = Message::t('Row %1$s: %2$s — skipped', [$rowNum, $overLen]);
                 continue;
             }
 
@@ -1197,7 +1217,10 @@ class ImportService
                 if (ctype_digit($yearRaw) && (int)$yearRaw >= 1000 && (int)$yearRaw <= $maxYear) {
                     $year = (int)$yearRaw;
                 } else {
-                    $errors[] = "Row {$rowNum}: unrecognised year \"{$yearRaw}\" — imported without a year";
+                    $errors[] = Message::t(
+                        'Row %1$s: unrecognised year "%2$s" — imported without a year',
+                        [$rowNum, $yearRaw],
+                    );
                 }
             }
             $notes     = $row['notes']     ?? null;
@@ -1220,7 +1243,7 @@ class ImportService
             );
             if (isset($priceCell['error'])) {
                 $skipped++;
-                $errors[] = "Row {$rowNum}: {$priceCell['error']} — skipped";
+                $errors[] = Message::t('Row %1$s: %2$s — skipped', [$rowNum, $priceCell['error']]);
                 continue;
             }
             $purchasePrice    = $priceCell['price'] ?? null;
@@ -1231,7 +1254,7 @@ class ImportService
                 );
                 if (isset($curCell['error'])) {
                     $skipped++;
-                    $errors[] = "Row {$rowNum}: {$curCell['error']} — skipped";
+                    $errors[] = Message::t('Row %1$s: %2$s — skipped', [$rowNum, $curCell['error']]);
                     continue;
                 }
                 $purchaseCurrency = $curCell['currency'] ?? null;
@@ -1265,7 +1288,7 @@ class ImportService
             } catch (\Throwable $e) {
                 $this->db->executeStatement('ROLLBACK TO SAVEPOINT crate_import_row');
                 $skipped++;
-                $errors[] = "Row {$rowNum}: could not be saved — skipped";
+                $errors[] = Message::t('Row %s: could not be saved — skipped', [$rowNum]);
                 $this->logger->warning(
                     'Import row {row} for user {user} failed to insert: {msg}',
                     ['row' => $rowNum, 'user' => $userId, 'msg' => $e->getMessage(), 'app' => 'crate'],

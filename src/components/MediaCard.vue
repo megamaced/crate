@@ -6,14 +6,14 @@
   <button
     type="button"
     class="media-card"
-    :aria-label="'Open ' + itemLabel"
+    :aria-label="t('crate', 'Open {item}', { item: itemLabel })"
     @click="$emit('detail', item)"
   >
     <MediaThumb
       :item="item"
       class="media-card-art"
     >
-      <span class="media-card-format-label">{{ item.format }}</span>
+      <span class="media-card-format-label">{{ formatLabel(item.format) }}</span>
     </MediaThumb>
     <div class="media-card-info">
       <span class="media-card-title">{{ artistFirst && item.artist ? item.artist : item.title }}</span>
@@ -31,13 +31,14 @@
       <span
         v-if="ownerLabel"
         class="media-card-owner"
-      >Shared by {{ ownerLabel }}</span>
+      >{{ t('crate', 'Shared by {name}', { name: ownerLabel }) }}</span>
     </div>
   </button>
 </template>
 
 <script setup>
 import { computed } from 'vue'
+import { formatLabel } from '../utils/categoryFormats.js'
 import { formatMarketValue } from '../utils/formatMarketValue.js'
 import MediaThumb from './MediaThumb.vue'
 

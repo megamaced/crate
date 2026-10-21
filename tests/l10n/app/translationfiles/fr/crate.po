@@ -1,0 +1,35 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Crate fixture\n"
+"PO-Revision-Date: 2026-10-21 00:00+0000\n"
+"Last-Translator: Fixture <fixture@example.com>\n"
+"Language-Team: French\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Template text"
+msgstr "Texte du modèle"
+
+#, fuzzy
+msgid "Attribute text"
+msgstr "Texte d’attribut"
+
+msgid "Hello {name}"
+msgstr "Bonjour {name}"
+
+msgid "%n record"
+msgid_plural "%n records"
+msgstr[0] "%n disque"
+msgstr[1] "%n disques"
+
+msgid "Script text"
+msgstr ""
+
+msgid "Don't panic"
+msgstr "Pas de panique"
+
+#~ msgid "Old text"
+#~ msgstr "Ancien texte"

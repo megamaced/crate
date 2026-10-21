@@ -10,7 +10,8 @@
  * message shown for this call.
  */
 import axios from '@nextcloud/axios'
-import { showError, showWarning } from '@nextcloud/dialogs'
+import { t } from '../l10n.js'
+import { showError, showWarning } from './toast.js'
 
 export function installErrorInterceptor() {
   axios.interceptors.response.use(
@@ -25,14 +26,14 @@ export function installErrorInterceptor() {
         if (custom) {
           showError(custom)
         } else if (status === 429) {
-          showWarning('Rate limit reached. Please wait and try again.')
+          showWarning(t('crate', 'Rate limit reached. Please wait and try again.'))
         } else if (status === 401 || status === 403) {
-          showError('Not authorised for this action.')
+          showError(t('crate', 'Not authorised for this action.'))
         } else if (status && status >= 500) {
-          showError('Server error. Please try again.')
+          showError(t('crate', 'Server error. Please try again.'))
         } else if (!error.response) {
           // No response = network failure / timeout / CORS
-          showError('Network error. Check your connection.')
+          showError(t('crate', 'Network error. Check your connection.'))
         }
         // 4xx (other than auth/rate-limit) left to callers — often "not found"
         // is expected and the component shows its own empty-state UX.

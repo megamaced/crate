@@ -1,3 +1,5 @@
+import { getCanonicalLocale } from '@nextcloud/l10n'
+
 /**
  * Format a media item's market value as a localised currency string.
  *
@@ -14,7 +16,7 @@ export function formatMarketValue(item) {
   const value = Number(item.marketValue)
   const currency = item.marketValueCurrency ?? 'GBP'
   try {
-    return new Intl.NumberFormat(undefined, {
+    return new Intl.NumberFormat(getCanonicalLocale(), {
       style: 'currency',
       currency,
       minimumFractionDigits: 2,

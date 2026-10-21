@@ -9,7 +9,7 @@
           class="detail-back"
           @click="$emit('back')"
         >
-          ← Back
+          ← {{ t('crate', 'Back') }}
         </NcButton>
         <div class="detail-topbar-actions">
           <!-- Read/write sharees can add & edit; read-only sharees see just the
@@ -18,7 +18,7 @@
           <span
             v-if="isShared"
             class="detail-shared-badge"
-          >Shared by {{ item.sharedByUser }} · {{ canWrite ? 'can edit' : 'read-only' }}</span>
+          >{{ sharedBadgeText }}</span>
           <template v-if="canWrite">
             <NcButton
               v-if="!enriching && !stripping"
@@ -26,14 +26,15 @@
               :disabled="!hasToken || queueBusy"
               @click="enrich"
             >
-              {{ isEnriched ? 'Re-enrich' : `Enrich from ${enrichSourceLabel}` }}
+              {{ enrichButtonLabel }}
             </NcButton>
             <NcButton
               v-if="isEnriched && !enriching && !stripping"
               variant="secondary"
               @click="stripEnrich"
             >
-              Remove data
+              <!-- TRANSLATORS: button that removes the details fetched from an online service (Discogs, TMDB…) -->
+              {{ t('crate', 'Remove data') }}
             </NcButton>
             <NcButton
               v-if="hasMarketValue && !fetchingMarket"
@@ -41,47 +42,47 @@
               :disabled="!hasMarketToken || queueBusy"
               @click="fetchMarketValue"
             >
-              {{ item.marketValue ? 'Refresh market rate' : 'Fetch market rate' }}
+              {{ marketButtonLabel }}
             </NcButton>
             <span
               v-if="enriching"
               class="detail-enriching"
-            >Fetching from {{ enrichSourceLabel }}…</span>
+            >{{ t('crate', 'Fetching from {source}…', { source: enrichSourceLabel }) }}</span>
             <span
               v-if="stripping"
               class="detail-enriching"
-            >Removing…</span>
+            >{{ t('crate', 'Removing…') }}</span>
             <span
               v-if="fetchingMarket"
               class="detail-enriching"
-            >Fetching price…</span>
+            >{{ t('crate', 'Fetching price…') }}</span>
           </template>
           <NcButton
             variant="secondary"
             @click="$emit('addToPlaylist', item)"
           >
-            Add to playlist
+            {{ t('crate', 'Add to playlist') }}
           </NcButton>
           <NcButton
             v-if="!isShared"
             variant="secondary"
             @click="$emit('share', item)"
           >
-            Share
+            {{ t('crate', 'Share') }}
           </NcButton>
           <NcButton
             v-if="canWrite"
             variant="secondary"
             @click="$emit('edit', item)"
           >
-            Edit
+            {{ t('crate', 'Edit') }}
           </NcButton>
           <NcButton
             v-if="!isShared"
             variant="error"
             @click="$emit('delete', item)"
           >
-            Delete
+            {{ t('crate', 'Delete') }}
           </NcButton>
         </div>
       </div>
@@ -109,10 +110,10 @@
               v-if="item.format"
               type="button"
               class="badge badge-format badge-filter"
-              :title="`Show all ${item.format} items`"
+              :title="t('crate', 'Show all {format} items', { format: formatLabel(item.format) })"
               @click="$emit('format', { item, format: item.format })"
             >
-              {{ item.format }}
+              {{ formatLabel(item.format) }}
             </button>
             <span
               v-else
@@ -122,7 +123,7 @@
               v-if="item.year"
               type="button"
               class="badge badge-year badge-filter"
-              :title="`Show all ${decade} items`"
+              :title="t('crate', 'Show all {decade} items', { decade: decadeLabel(decade) })"
               @click="$emit('decade', { item, decade })"
             >
               {{ item.year }}
@@ -130,7 +131,7 @@
             <span
               class="badge"
               :class="item.status === 'wanted' ? 'badge-wanted' : 'badge-owned'"
-            >{{ item.status === 'wanted' ? 'Wanted' : 'Owned' }}</span>
+            >{{ statusLabel(item.status) }}</span>
             <span
               v-if="item.country"
               class="badge badge-country"
@@ -142,7 +143,7 @@
             v-if="item.purchasePrice != null"
             class="detail-purchase-block"
           >
-            <span class="detail-purchase-label">Original price</span>
+            <span class="detail-purchase-label">{{ t('crate', 'Original price') }}</span>
             <span class="detail-purchase-value">
               {{ formatPrice(item.purchasePrice, item.purchasePriceCurrency) }}
             </span>
@@ -157,9 +158,9 @@
             <span
               v-else-if="purchaseDeltaCurrencyMismatch"
               class="detail-purchase-mismatch"
-              title="Purchase and market currencies differ — no gain/loss shown"
+              :title="t('crate', 'Purchase and market currencies differ — no gain/loss shown')"
             >
-              currencies differ
+              {{ t('crate', 'currencies differ') }}
             </span>
           </div>
 
@@ -174,21 +175,24 @@
                   v-if="item.marketValueLoose"
                   class="detail-market-price"
                 >
-                  <span class="detail-market-price-label">Loose</span>
+                  <!-- TRANSLATORS: market price of the game or comic on its own, without box or extras -->
+                  <span class="detail-market-price-label">{{ t('crate', 'Loose') }}</span>
                   {{ formatPrice(item.marketValueLoose, item.marketValueCurrency) }}
                 </span>
                 <span
                   v-if="item.marketValue"
                   class="detail-market-price detail-market-price--cib"
                 >
-                  <span class="detail-market-price-label">CIB</span>
+                  <!-- TRANSLATORS: short for "complete in box": market price with the original box and manual -->
+                  <span class="detail-market-price-label">{{ t('crate', 'CIB') }}</span>
                   {{ formatPrice(item.marketValue, item.marketValueCurrency) }}
                 </span>
                 <span
                   v-if="item.marketValueNew"
                   class="detail-market-price"
                 >
-                  <span class="detail-market-price-label">New</span>
+                  <!-- TRANSLATORS: market price of a new, sealed copy -->
+                  <span class="detail-market-price-label">{{ t('crate', 'New') }}</span>
                   {{ formatPrice(item.marketValueNew, item.marketValueCurrency) }}
                 </span>
               </div>
@@ -199,7 +203,8 @@
               </p>
             </template>
             <span class="detail-market-fetched">
-              as of {{ formatFetchedAt(item.marketValueFetchedAt) }}
+              <!-- TRANSLATORS: when the market price was fetched; {date} is a date such as "21 Oct 2026" -->
+              {{ t('crate', 'as of {date}', { date: formatFetchedAt(item.marketValueFetchedAt) }) }}
             </span>
           </div>
 
@@ -210,13 +215,13 @@
               <dd>{{ item.label }}</dd>
             </template>
             <template v-if="genres.length">
-              <dt>Genres</dt>
+              <dt>{{ t('crate', 'Genres') }}</dt>
               <dd class="detail-genres">
                 <button
                   v-for="genre in genres"
                   :key="genre"
                   class="detail-genre"
-                  :title="`Show all ${genre} items`"
+                  :title="t('crate', 'Show all {genre} items', { genre })"
                   @click="$emit('genre', { item, genre })"
                 >
                   {{ genre }}
@@ -228,7 +233,7 @@
               <dd>{{ item.barcode }}</dd>
             </template>
             <template v-if="item.notes">
-              <dt>Notes</dt>
+              <dt>{{ t('crate', 'Notes') }}</dt>
               <dd>{{ item.notes }}</dd>
             </template>
           </dl>
@@ -243,14 +248,14 @@
         v-if="item.hasPhoto1 || item.hasPhoto2"
         class="detail-section detail-photos"
       >
-        <h3>Photos</h3>
+        <h3>{{ t('crate', 'Photos') }}</h3>
         <div class="detail-photo-strip">
           <button
             v-if="item.hasPhoto1"
             type="button"
             class="detail-photo-thumb"
             :style="photoStyle(1)"
-            aria-label="Photo 1"
+            :aria-label="t('crate', 'Photo {number}', { number: 1 })"
             @click="openLightbox(1)"
           />
           <button
@@ -258,7 +263,7 @@
             type="button"
             class="detail-photo-thumb"
             :style="photoStyle(2)"
-            aria-label="Photo 2"
+            :aria-label="t('crate', 'Photo {number}', { number: 2 })"
             @click="openLightbox(2)"
           />
         </div>
@@ -269,7 +274,7 @@
         v-if="isMusic && tracklist.length > 0"
         class="detail-section"
       >
-        <h3>Tracklist</h3>
+        <h3>{{ t('crate', 'Tracklist') }}</h3>
         <table class="detail-tracklist">
           <tbody>
             <tr
@@ -317,7 +322,7 @@
           v-if="isMusic && members.length > 0"
           class="detail-members"
         >
-          <strong>Members:</strong>
+          <strong>{{ t('crate', 'Members:') }}</strong>
           {{ members.join(', ') }}
         </div>
       </section>
@@ -326,13 +331,13 @@
            size and how many suggestions are worth asking the server for. -->
       <div ref="railsEl">
         <RecommendationRail
-          title="More from your crate"
+          :title="t('crate', 'More from your crate')"
           :items="localRail"
           :tile-min="railTileMin"
           @pick="onLocalPick"
         />
         <RecommendationRail
-          title="If you like this…"
+          :title="t('crate', 'If you like this…')"
           :source="onlineSource"
           :items="onlineRail"
           :tile-min="railTileMin"
@@ -348,19 +353,19 @@
       role="dialog"
       aria-modal="true"
       tabindex="-1"
-      :aria-label="`Photo ${lightboxSlot}`"
+      :aria-label="t('crate', 'Photo {number}', { number: lightboxSlot })"
       @click="closeLightbox"
     >
       <img
         class="detail-photo-lightbox-img"
         :src="photoUrl(lightboxSlot)"
-        :alt="`Photo ${lightboxSlot}`"
+        :alt="t('crate', 'Photo {number}', { number: lightboxSlot })"
         @click.stop
       >
       <button
         type="button"
         class="detail-photo-lightbox-close"
-        aria-label="Close"
+        :aria-label="t('crate', 'Close')"
         @click="closeLightbox"
       >
         ×
@@ -375,11 +380,14 @@ import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 
 import { NcButton } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
+import { getCanonicalLocale } from '@nextcloud/l10n'
 import { generateOcsUrl, generateUrl } from '@nextcloud/router'
-import { showError } from '@nextcloud/dialogs'
+import { t } from '../l10n.js'
+import { showError } from '../utils/toast.js'
+import { fieldLabels, formatLabel, statusLabel } from '../utils/categoryFormats.js'
 import { useSettings } from '../composables/useSettings.js'
 import { formatMarketValue } from '../utils/formatMarketValue.js'
-import { decadeOf, genreTokens } from '../utils/genres.js'
+import { decadeLabel, decadeOf, genreTokens } from '../utils/genres.js'
 import { useArtworkStyle } from '../composables/useArtworkStyle.js'
 import { ENRICHMENT_ID_KEY } from '../utils/enrichmentProviders.js'
 import { cssUrl } from '../utils/artworkUrl.js'
@@ -421,33 +429,53 @@ const isPriceChartingCategory = computed(() => ['game', 'comic'].includes(props.
 const isShared = computed(() => !!props.item.sharedByUser)
 const canWrite = computed(() => !props.item.sharedByUser || props.item.canWrite === true)
 
+const sharedBadgeText = computed(() => {
+  const name = props.item.sharedByUser
+  if (canWrite.value) {
+    return t('crate', 'Shared by {name} · can edit', { name })
+  }
+  return t('crate', 'Shared by {name} · read-only', { name })
+})
+
 const enrichSourceLabel = computed(() => {
   const map = { music: 'Discogs', film: 'TMDB', book: 'Open Library', game: 'RAWG', comic: 'ComicVine' }
   return map[props.item.category] ?? 'Discogs'
 })
 
+const enrichButtonLabel = computed(() => {
+  if (isEnriched.value) {
+    // TRANSLATORS: fetch the item's details from the online service again
+    return t('crate', 'Re-enrich')
+  }
+  // TRANSLATORS: {source} is an online service such as Discogs or TMDB
+  return t('crate', 'Enrich from {source}', { source: enrichSourceLabel.value })
+})
+
+const marketButtonLabel = computed(() => {
+  if (props.item.marketValue) {
+    return t('crate', 'Refresh market rate')
+  }
+  return t('crate', 'Fetch market rate')
+})
+
 const notesSectionTitle = computed(() => {
-  if (props.item.category === 'film') return 'Overview'
-  if (props.item.category === 'book' || props.item.category === 'game' || props.item.category === 'comic') return 'Description'
-  return 'Notes'
+  if (props.item.category === 'film') return t('crate', 'Overview')
+  if (props.item.category === 'book' || props.item.category === 'game' || props.item.category === 'comic') return t('crate', 'Description')
+  return t('crate', 'Notes')
 })
 
 const showAboutSection = computed(() => props.item.category !== 'game' && props.item.category !== 'comic')
 
 const aboutSectionTitle = computed(() => {
-  if (props.item.category === 'film') return 'About the Director'
-  if (props.item.category === 'book') return 'About the Author'
-  return `About ${props.item.artist}`
+  if (props.item.category === 'film') return t('crate', 'About the Director')
+  if (props.item.category === 'book') return t('crate', 'About the Author')
+  return t('crate', 'About {artist}', { artist: props.item.artist })
 })
 
-const labelFieldLabel = computed(() => {
-  if (props.item.category === 'film') return 'Studio'
-  if (props.item.category === 'book' || props.item.category === 'game' || props.item.category === 'comic') return 'Publisher'
-  return 'Label'
-})
+const labelFieldLabel = computed(() => fieldLabels(props.item.category).label)
 
 const showBarcode = computed(() => true)
-const barcodeFieldLabel = computed(() => props.item.category === 'book' ? 'ISBN' : 'Barcode')
+const barcodeFieldLabel = computed(() => fieldLabels(props.item.category).barcode)
 
 /**
  * The columns each provider actually writes, per category — mirroring the
@@ -514,7 +542,7 @@ async function enrich() {
     // The server names the lookup that failed ("No match found on Open
     // Library."). Relaying it is the difference between a button that explains
     // itself and one that looks like it did nothing.
-    showError(e.response?.data?.ocs?.data?.error ?? 'Couldn’t fetch enrichment data')
+    showError(e.response?.data?.ocs?.data?.error ?? t('crate', 'Couldn’t fetch enrichment data'))
   } finally {
     enriching.value = false
   }
@@ -539,7 +567,7 @@ async function fetchMarketValue() {
     if (updated && !stale) emit('enriched', updated)
   } catch (e) {
     console.error('Fetch market value failed', e)
-    showError('Couldn’t refresh market value')
+    showError(t('crate', 'Couldn’t refresh market value'))
   } finally {
     fetchingMarket.value = false
     if (marketRefetchPending) {
@@ -555,7 +583,7 @@ function formatPrice(value, currency) {
   // The API may serialise a decimal column as a JSON string.
   const n = Number(value)
   try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency: c }).format(n)
+    return new Intl.NumberFormat(getCanonicalLocale(), { style: 'currency', currency: c }).format(n)
   } catch {
     return `${c} ${Number.isFinite(n) ? n.toFixed(2) : value}`
   }
@@ -655,7 +683,7 @@ const purchaseDeltaCurrencyMismatch = computed(() => {
 function formatFetchedAt(dateStr) {
   if (!dateStr) return ''
   try {
-    return new Date(dateStr).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+    return new Date(dateStr).toLocaleDateString(getCanonicalLocale(), { day: 'numeric', month: 'short', year: 'numeric' })
   } catch {
     return dateStr
   }
@@ -720,7 +748,7 @@ const localRail = computed(() => visible(localSuggestions.value).map(item => ({
   key:      `local-${item.id}`,
   title:    item.title,
   subtitle: [item.artist, item.year].filter(Boolean).join(' · '),
-  tooltip:  `Open ${item.title}`,
+  tooltip:  t('crate', 'Open {item}', { item: item.title }),
   item,
 })))
 
@@ -730,7 +758,7 @@ const onlineRail = computed(() => {
     key:      `online-${result[idKey] ?? i}`,
     title:    result.title,
     subtitle: [result.artist, result.year].filter(Boolean).join(' · '),
-    tooltip:  `Add ${result.title} to your wishlist`,
+    tooltip:  t('crate', 'Add {title} to your wishlist', { title: result.title }),
     thumb:    result.thumb ?? result.artworkUrl ?? null,
     result,
   }))
@@ -868,7 +896,7 @@ async function stripEnrich() {
     }
   } catch (e) {
     console.error('Strip enrich failed', e)
-    showError('Couldn’t remove enrichment data')
+    showError(t('crate', 'Couldn’t remove enrichment data'))
   } finally {
     stripping.value = false
   }

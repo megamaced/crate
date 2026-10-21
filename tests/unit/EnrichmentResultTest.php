@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Crate\Tests\Unit;
 
 use OCA\Crate\Db\MediaItem;
+use OCA\Crate\Message;
 use OCA\Crate\Service\EnrichmentResult;
 use PHPUnit\Framework\TestCase;
 
@@ -23,11 +24,11 @@ class EnrichmentResultTest extends TestCase
 
     public function testErrorHoldsMessageAndStatusAndNoItem(): void
     {
-        $result = EnrichmentResult::error('Not found', 404);
+        $result = EnrichmentResult::error(Message::t('Not found'), 404);
 
         self::assertFalse($result->isOk());
         self::assertNull($result->item);
-        self::assertSame('Not found', $result->error);
+        self::assertSame('Not found', (string) $result->error);
         self::assertSame(404, $result->status);
     }
 }

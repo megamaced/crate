@@ -4,7 +4,8 @@
 import { ref } from 'vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
-import { showError } from '@nextcloud/dialogs'
+import { showError } from '../utils/toast.js'
+import { t } from '../l10n.js'
 
 /**
  * @param {{ minLength?: number, debounceMs?: number }} [opts]
@@ -52,7 +53,7 @@ export function useUserSearch({ minLength = 2, debounceMs = 300 } = {}) {
       if (controller !== mine) return
       if (e.name === 'CanceledError' || e.code === 'ERR_CANCELED') return
       console.error('User search failed', e)
-      showError('User search failed')
+      showError(t('crate', 'User search failed'))
     }
     if (controller === mine) searching.value = false
   }

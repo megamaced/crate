@@ -55,7 +55,7 @@ class ImportRowNumberTest extends TestCase
                 'Row 4: missing Format — skipped',
                 'Row 6: unrecognised format "Betamaxx" - skipped',
             ],
-            $result['errors'],
+            array_map('strval', $result['errors']),
         );
     }
 
@@ -72,7 +72,7 @@ class ImportRowNumberTest extends TestCase
                 'Row 2: missing Format — skipped',
                 'Row 3: unrecognised format "Betamaxx" - skipped',
             ],
-            $result['errors'],
+            array_map('strval', $result['errors']),
         );
     }
 

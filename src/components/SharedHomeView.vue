@@ -5,7 +5,7 @@
   >
     <div class="crate-shared-toolbar">
       <h2 class="crate-shared-heading">
-        Shared with me
+        {{ t('crate', 'Shared with me') }}
       </h2>
     </div>
 
@@ -13,14 +13,14 @@
       v-if="loading"
       class="crate-status"
     >
-      Loading…
+      {{ t('crate', 'Loading…') }}
     </p>
 
     <div
       v-else-if="isEmpty"
       class="crate-home-empty"
     >
-      <p>Nothing has been shared with you yet.</p>
+      <p>{{ t('crate', 'Nothing has been shared with you yet.') }}</p>
     </div>
 
     <template v-else>
@@ -50,7 +50,7 @@
             </div>
             <div class="crate-hero__info">
               <p class="crate-hero__eyebrow">
-                Shared by {{ hero.sharedByUser }}
+                {{ t('crate', 'Shared by {user}', { user: hero.sharedByUser }) }}
               </p>
               <h2 class="crate-hero__title">
                 {{ hero.title }}
@@ -62,7 +62,7 @@
                 <span
                   v-if="hero.format"
                   class="crate-tag"
-                >{{ hero.format }}</span>
+                >{{ formatLabel(hero.format) }}</span>
                 <span
                   v-if="hero.year"
                   class="crate-tag"
@@ -73,7 +73,7 @@
                 class="crate-hero__btn"
                 @click="$emit('detail', hero)"
               >
-                View details
+                {{ t('crate', 'View details') }}
               </NcButton>
             </div>
           </div>
@@ -85,7 +85,7 @@
         v-if="recentShared.length > 0"
         class="crate-home-section"
       >
-        <h3>Recently Shared</h3>
+        <h3>{{ t('crate', 'Recently Shared') }}</h3>
         <div class="crate-card-grid">
           <MediaCard
             v-for="item in recentItems"
@@ -117,7 +117,8 @@
           v-if="cat.count === 0"
           class="crate-status"
         >
-          Nothing here yet. Open {{ cat.label }} to add the first item.
+          <!-- TRANSLATORS: {category} is a category name, e.g. "Films" -->
+          {{ t('crate', 'Nothing here yet. Open {category} to add the first item.', { category: cat.label }) }}
         </p>
         <div
           v-else
@@ -137,7 +138,7 @@
         v-if="sharedPlaylists.length > 0"
         class="crate-home-section"
       >
-        <h3>Shared Playlists</h3>
+        <h3>{{ t('crate', 'Shared Playlists') }}</h3>
         <div class="crate-pl-grid">
           <div
             v-for="pl in sharedPlaylists"
@@ -151,7 +152,7 @@
             />
             <div class="crate-pl-info">
               <span class="crate-pl-name">{{ pl.name }}</span>
-              <span class="crate-pl-meta">{{ playlistCountLabel(pl.itemCount, pl.categories) }} · by {{ pl.sharedByUser }}</span>
+              <span class="crate-pl-meta">{{ playlistMeta(pl) }}</span>
             </div>
           </div>
         </div>
@@ -165,7 +166,8 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { NcButton } from '@nextcloud/vue'
 import { generateUrl } from '@nextcloud/router'
 import MediaCard from './MediaCard.vue'
-import { playlistCountLabel } from '../utils/categoryFormats.js'
+import { formatLabel, playlistCountLabel } from '../utils/categoryFormats.js'
+import { t } from '../l10n.js'
 import { artworkStyleFor, artworkStyleForId } from '../composables/useArtworkStyle.js'
 import { useSharedContent } from '../composables/useSharedContent.js'
 
@@ -201,6 +203,12 @@ function updateRowCount() {
   const width = el.clientWidth
   const cols = Math.floor((width + 12) / (180 + 12))
   rowCount.value = Math.max(cols, 2)
+}
+
+function playlistMeta(pl) {
+  const count = playlistCountLabel(pl.itemCount, pl.categories)
+  // TRANSLATORS: {count} is what the playlist holds, e.g. "3 films"; {user} is who shared it
+  return t('crate', '{count} · by {user}', { count, user: pl.sharedByUser })
 }
 
 function playlistCoverStyle(pl) {

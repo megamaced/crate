@@ -7,7 +7,10 @@
       <span
         v-if="!hasPhoto"
         class="photo-slot__placeholder"
-      >Slot {{ slotNum }}</span>
+      >
+        <!-- TRANSLATORS: an empty position for an item photo; {number} counts the photo positions 1, 2, 3… -->
+        {{ t('crate', 'Slot {number}', { number: slotNum }) }}
+      </span>
     </div>
     <div class="photo-slot__controls">
       <input
@@ -23,7 +26,7 @@
         native-type="button"
         @click="fileInput.click()"
       >
-        {{ hasPhoto ? 'Replace' : 'Upload' }}
+        {{ uploadLabel }}
       </NcButton>
       <NcButton
         type="button"
@@ -31,7 +34,7 @@
         native-type="button"
         @click="pickFromNextcloud"
       >
-        Pick from Files
+        {{ t('crate', 'Pick from Files') }}
       </NcButton>
       <NcButton
         v-if="hasPhoto"
@@ -40,7 +43,7 @@
         native-type="button"
         @click="onRemove"
       >
-        Remove
+        {{ t('crate', 'Remove') }}
       </NcButton>
     </div>
   </div>
@@ -51,7 +54,8 @@ import { ref, computed, onBeforeUnmount, watch } from 'vue'
 import { NcButton } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateUrl } from '@nextcloud/router'
-import { showError } from '@nextcloud/dialogs'
+import { t } from '../l10n.js'
+import { showError } from '../utils/toast.js'
 import { cssUrl } from '../utils/artworkUrl.js'
 
 const props = defineProps({
@@ -98,6 +102,13 @@ const hasPhoto = computed(() => {
   return props.existing && !!props.itemId
 })
 
+const uploadLabel = computed(() => {
+  if (hasPhoto.value) {
+    return t('crate', 'Replace')
+  }
+  return t('crate', 'Upload')
+})
+
 const previewStyle = computed(() => {
   if (previewUrl.value) {
     return { backgroundImage: cssUrl(previewUrl.value), backgroundSize: 'cover', backgroundPosition: 'center' }
@@ -126,11 +137,11 @@ function onFileSelected(event) {
 function pickFromNextcloud() {
   const oc = window.OC
   if (!oc?.dialogs?.filepicker) {
-    showError('File picker not available.')
+    showError(t('crate', 'File picker not available.'))
     return
   }
   oc.dialogs.filepicker(
-    `Select photo ${props.slotNum}`,
+    t('crate', 'Select photo {number}', { number: props.slotNum }),
     async (path) => {
       try {
         const uid = encodeURIComponent(oc.currentUser ?? '')
@@ -143,7 +154,7 @@ function pickFromNextcloud() {
         emit('pick', new File([blob], fileName, { type: mime }))
       } catch (e) {
         console.error('Failed to fetch photo from Nextcloud', e)
-        showError('Failed to fetch photo')
+        showError(t('crate', 'Failed to fetch photo'))
       }
     },
     false,

@@ -11,6 +11,7 @@ use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\OCSController;
 use OCP\IConfig;
+use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IUserSession;
 use OCP\Security\ICredentialsManager;
@@ -26,6 +27,7 @@ class SettingsController extends OCSController
         private readonly IUserSession $userSession,
         private readonly ICredentialsManager $credentialsManager,
         private readonly CategoryVisibilityService $visibility,
+        private readonly IL10N $l,
     ) {
         parent::__construct($appName, $request);
     }
@@ -283,7 +285,7 @@ class SettingsController extends OCSController
         // Always keep at least one visible — count(ALL) - count(hidden) >= 1.
         if (count($clean) >= count(\OCA\Crate\CrateCategories::ALL)) {
             return new DataResponse(
-                ['error' => 'At least one category must remain visible.'],
+                ['error' => $this->l->t('At least one category must remain visible.')],
                 Http::STATUS_BAD_REQUEST,
             );
         }

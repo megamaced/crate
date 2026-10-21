@@ -7,6 +7,7 @@ namespace OCA\Crate\Service;
 use OCA\Crate\CrateCategories;
 use OCA\Crate\Db\MediaItem;
 use OCA\Crate\Exception\DiscogsRateLimitException;
+use OCA\Crate\Message;
 use OCP\AppFramework\Http;
 
 /**
@@ -48,7 +49,7 @@ class EnrichmentService
             CrateCategories::GAME  => $this->enrichGame($id, $userId, $item),
             CrateCategories::COMIC => $this->enrichComic($id, $userId, $item),
             default => EnrichmentResult::error(
-                'Unknown category: ' . (string) $category,
+                Message::t('Unknown category: %s', [(string) $category]),
                 Http::STATUS_BAD_REQUEST,
             ),
         };
@@ -62,7 +63,7 @@ class EnrichmentService
                 $results = $this->discogsService->search($userId, $query);
                 if (empty($results)) {
                     return EnrichmentResult::error(
-                        'No Discogs match found for this item.',
+                        Message::t('No Discogs match found for this item.'),
                         Http::STATUS_NOT_FOUND,
                     );
                 }
@@ -76,7 +77,7 @@ class EnrichmentService
                 $discogsId  = $best['discogsId'] ?? '';
                 if ($discogsId === '') {
                     return EnrichmentResult::error(
-                        'No Discogs match found for this item.',
+                        Message::t('No Discogs match found for this item.'),
                         Http::STATUS_NOT_FOUND,
                     );
                 }
@@ -86,7 +87,7 @@ class EnrichmentService
             $release = $this->discogsService->getRelease($userId, $item->getDiscogsId());
             if (empty($release)) {
                 return EnrichmentResult::error(
-                    'Could not fetch release from Discogs. Check your token.',
+                    Message::t('Could not fetch release from Discogs. Check your token.'),
                     Http::STATUS_BAD_GATEWAY,
                 );
             }
@@ -102,7 +103,7 @@ class EnrichmentService
             );
         } catch (DiscogsRateLimitException) {
             return EnrichmentResult::error(
-                'Discogs rate limit exceeded. The queue will retry automatically.',
+                Message::t('Discogs rate limit exceeded. The queue will retry automatically.'),
                 Http::STATUS_TOO_MANY_REQUESTS,
             );
         }
@@ -115,19 +116,19 @@ class EnrichmentService
             $results = $this->tmdbService->search($userId, trim($item->getTitle()));
             if (empty($results)) {
                 return EnrichmentResult::error(
-                    'No TMDB match found. Add a TMDB token in Settings.',
+                    Message::t('No TMDB match found. Add a TMDB token in Settings.'),
                     Http::STATUS_NOT_FOUND,
                 );
             }
             $tmdbId = (string)($results[0]['tmdbId'] ?? '');
         }
         if ($tmdbId === '') {
-            return EnrichmentResult::error('No TMDB ID available.', Http::STATUS_NOT_FOUND);
+            return EnrichmentResult::error(Message::t('No TMDB ID available.'), Http::STATUS_NOT_FOUND);
         }
         $movie = $this->tmdbService->getMovie($userId, $tmdbId);
         if (empty($movie)) {
             return EnrichmentResult::error(
-                'Could not fetch film from TMDB. Check your token.',
+                Message::t('Could not fetch film from TMDB. Check your token.'),
                 Http::STATUS_BAD_GATEWAY,
             );
         }
@@ -142,7 +143,7 @@ class EnrichmentService
 
         if ($workKey === '') {
             return EnrichmentResult::error(
-                'No match found on Open Library.',
+                Message::t('No match found on Open Library.'),
                 Http::STATUS_NOT_FOUND,
             );
         }
@@ -154,7 +155,7 @@ class EnrichmentService
         // does nothing at all.
         if (empty($work) && !isset($doc['title'])) {
             return EnrichmentResult::error(
-                'Could not fetch this book from Open Library.',
+                Message::t('Could not fetch this book from Open Library.'),
                 Http::STATUS_BAD_GATEWAY,
             );
         }
@@ -194,19 +195,19 @@ class EnrichmentService
             $results = $this->rawgService->search($userId, trim($item->getTitle()));
             if (empty($results)) {
                 return EnrichmentResult::error(
-                    'No RAWG match found. Add a RAWG API key in Settings.',
+                    Message::t('No RAWG match found. Add a RAWG API key in Settings.'),
                     Http::STATUS_NOT_FOUND,
                 );
             }
             $rawgId = (string)($results[0]['rawgId'] ?? '');
         }
         if ($rawgId === '') {
-            return EnrichmentResult::error('No RAWG ID available.', Http::STATUS_NOT_FOUND);
+            return EnrichmentResult::error(Message::t('No RAWG ID available.'), Http::STATUS_NOT_FOUND);
         }
         $game = $this->rawgService->getGame($userId, $rawgId);
         if (empty($game)) {
             return EnrichmentResult::error(
-                'Could not fetch game from RAWG. Check your API key.',
+                Message::t('Could not fetch game from RAWG. Check your API key.'),
                 Http::STATUS_BAD_GATEWAY,
             );
         }
@@ -220,7 +221,7 @@ class EnrichmentService
             $results = $this->comicVineService->search($userId, trim($item->getTitle()));
             if (empty($results)) {
                 return EnrichmentResult::error(
-                    'No ComicVine match found. Add a ComicVine API key in Settings.',
+                    Message::t('No ComicVine match found. Add a ComicVine API key in Settings.'),
                     Http::STATUS_NOT_FOUND,
                 );
             }
@@ -228,14 +229,14 @@ class EnrichmentService
         }
         if ($volumeId === '') {
             return EnrichmentResult::error(
-                'No ComicVine volume ID available.',
+                Message::t('No ComicVine volume ID available.'),
                 Http::STATUS_NOT_FOUND,
             );
         }
         $volume = $this->comicVineService->getVolume($userId, $volumeId);
         if (empty($volume)) {
             return EnrichmentResult::error(
-                'Could not fetch volume from ComicVine. Check your API key.',
+                Message::t('Could not fetch volume from ComicVine. Check your API key.'),
                 Http::STATUS_BAD_GATEWAY,
             );
         }

@@ -15,6 +15,7 @@ use OCA\Crate\Dto\MediaItemData;
 use OCA\Crate\ItemImageSlot;
 use OCA\Crate\Service\ActivityService;
 use OCA\Crate\Service\MediaService;
+use OCA\Crate\Exception\UserFacingException;
 use OCP\Files\AppData\IAppDataFactory;
 use OCP\Files\IAppData;
 use OCP\Files\NotFoundException;
@@ -119,7 +120,7 @@ class ArtworkPathTest extends TestCase
         $this->mapper->method('findWritableForUser')->willReturn($this->item('https://i.discogs.com/a.jpg'));
         $this->mapper->expects(self::never())->method('update');
 
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(UserFacingException::class);
         $this->service()->update(5, 'alice', $this->data('https://evil.example.com/x.jpg'));
     }
 

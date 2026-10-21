@@ -7,24 +7,26 @@
   >
     <div class="import-modal">
       <h2 id="import-modal-title">
-        Import collection
+        {{ t('crate', 'Import collection') }}
       </h2>
 
       <!-- ── Step 1: File picker ── -->
       <template v-if="step === 'pick'">
         <p class="import-hint">
-          Upload a CSV or XLSX file. {{ hintLead }}
+          {{ t('crate', 'Upload a CSV or XLSX file.') }}
+          {{ hintLead }}
         </p>
         <p class="import-hint">
-          <strong>Required columns:</strong> {{ hintRequired }}<br>
-          <strong>Optional:</strong> {{ hintOptional }}
+          <strong>{{ t('crate', 'Required columns:') }}</strong> {{ hintRequired }}<br>
+          <!-- TRANSLATORS: label before the list of columns an import file may also have -->
+          <strong>{{ t('crate', 'Optional:') }}</strong> {{ hintOptional }}
         </p>
 
         <div class="import-field">
           <label
             class="import-label"
             for="import-category"
-          >Category</label>
+          >{{ t('crate', 'Category') }}</label>
           <select
             id="import-category"
             v-model="selectedCategory"
@@ -32,19 +34,19 @@
             :disabled="!!owner"
           >
             <option value="music">
-              Music
+              {{ categoryLabel('music') }}
             </option>
             <option value="film">
-              Films
+              {{ categoryLabel('film') }}
             </option>
             <option value="book">
-              Books
+              {{ categoryLabel('book') }}
             </option>
             <option value="game">
-              Games
+              {{ categoryLabel('game') }}
             </option>
             <option value="comic">
-              Comics
+              {{ categoryLabel('comic') }}
             </option>
           </select>
         </div>
@@ -64,12 +66,13 @@
             style="display:none"
             @change="onFileChange"
           >
-          <span v-if="!selectedFile">Click or drag a CSV / XLSX file here</span>
+          <span v-if="!selectedFile">{{ t('crate', 'Click or drag a CSV / XLSX file here') }}</span>
           <span v-else>{{ selectedFile.name }}</span>
         </div>
 
         <div class="import-or">
-          <span>or</span>
+          <!-- TRANSLATORS: between the file drop zone and the button that picks a file from Nextcloud Files -->
+          <span>{{ t('crate', 'or') }}</span>
         </div>
 
         <div class="import-nc-pick">
@@ -79,7 +82,9 @@
             :disabled="pickingFromNc"
             @click="pickFromNextcloud"
           >
-            {{ pickingFromNc ? 'Loading…' : 'Pick from Nextcloud Files' }}
+            {{ pickingFromNc
+              ? t('crate', 'Loading…')
+              : t('crate', 'Pick from Nextcloud Files') }}
           </NcButton>
         </div>
 
@@ -96,7 +101,7 @@
             variant="tertiary"
             @click="handleClose"
           >
-            Cancel
+            {{ t('crate', 'Cancel') }}
           </NcButton>
           <NcButton
             type="button"
@@ -104,7 +109,9 @@
             :disabled="!selectedFile || parsing"
             @click="doParse"
           >
-            {{ parsing ? 'Reading…' : 'Next' }}
+            {{ parsing
+              ? t('crate', 'Reading…')
+              : t('crate', 'Next') }}
           </NcButton>
         </div>
       </template>
@@ -112,7 +119,7 @@
       <!-- ── Step 2: Column mapping ── -->
       <template v-else-if="step === 'map'">
         <p class="import-hint">
-          Map your columns to Crate fields. Columns marked <em>ignore</em> will be skipped.
+          {{ mapHint.before }}<em>{{ ignoreLabel }}</em>{{ mapHint.after }}
         </p>
 
         <div class="import-mapping">
@@ -125,7 +132,7 @@
             <span class="import-mapping-arrow">→</span>
             <select v-model="mapping[i]">
               <option value="">
-                ignore
+                {{ ignoreLabel }}
               </option>
               <option
                 v-for="f in mappableFields"
@@ -139,7 +146,7 @@
         </div>
 
         <p class="import-hint import-hint--section">
-          Preview (first {{ previewRows.length }} rows):
+          {{ n('crate', 'Preview (first %n row):', 'Preview (first %n rows):', previewRows.length) }}
         </p>
         <div class="import-preview-wrap">
           <table class="import-preview">
@@ -150,7 +157,7 @@
                   :key="i"
                 >
                   {{ header }}<br>
-                  <small>{{ mapping[i] || 'ignore' }}</small>
+                  <small>{{ mappedFieldLabel(mapping[i]) }}</small>
                 </th>
               </tr>
             </thead>
@@ -171,7 +178,7 @@
         </div>
 
         <p class="import-hint">
-          {{ totalRows }} rows in file.
+          {{ n('crate', '%n row in file.', '%n rows in file.', totalRows) }}
         </p>
 
         <p
@@ -190,7 +197,7 @@
               v-model="autoEnrichOnImport"
               type="checkbox"
             >
-            Enrich from {{ enrichServiceName }} after importing
+            {{ t('crate', 'Enrich from {service} after importing', { service: enrichServiceName }) }}
           </label>
         </div>
 
@@ -203,7 +210,7 @@
               v-model="autoFetchMarketRates"
               type="checkbox"
             >
-            Fetch market rates from {{ marketServiceName }} after importing
+            {{ t('crate', 'Fetch market rates from {service} after importing', { service: marketServiceName }) }}
           </label>
         </div>
 
@@ -213,7 +220,7 @@
             variant="tertiary"
             @click="step = 'pick'"
           >
-            Back
+            {{ t('crate', 'Back') }}
           </NcButton>
           <NcButton
             type="button"
@@ -221,7 +228,9 @@
             :disabled="!mappingValid || importing"
             @click="doImport"
           >
-            {{ importing ? 'Importing…' : `Import ${totalRows} rows` }}
+            {{ importing
+              ? t('crate', 'Importing…')
+              : n('crate', 'Import %n row', 'Import %n rows', totalRows) }}
           </NcButton>
         </div>
       </template>
@@ -231,15 +240,18 @@
         <div class="import-results">
           <div class="import-stat import-stat--created">
             <span class="import-stat__num">{{ result.created }}</span>
-            <span class="import-stat__label">items added</span>
+            <!-- TRANSLATORS: under the number of items the import added, which is shown above it -->
+            <span class="import-stat__label">{{ n('crate', 'item added', 'items added', result.created) }}</span>
           </div>
           <div class="import-stat">
             <span class="import-stat__num">{{ result.duplicates }}</span>
-            <span class="import-stat__label">duplicates skipped</span>
+            <!-- TRANSLATORS: under the number of rows left out because the item is already in the collection -->
+            <span class="import-stat__label">{{ n('crate', 'duplicate skipped', 'duplicates skipped', result.duplicates) }}</span>
           </div>
           <div class="import-stat">
             <span class="import-stat__num">{{ result.skipped }}</span>
-            <span class="import-stat__label">rows skipped</span>
+            <!-- TRANSLATORS: under the number of rows the import could not use -->
+            <span class="import-stat__label">{{ n('crate', 'row skipped', 'rows skipped', result.skipped) }}</span>
           </div>
         </div>
 
@@ -260,13 +272,13 @@
           <div class="import-enrich">
             <p class="import-enrich__label">
               <template v-if="enrich.finished.value">
-                Enrichment complete — {{ enrich.done.value }} of {{ enrich.total.value }} items enriched from {{ enrichServiceName }}.
+                {{ n('crate', 'Enrichment complete — {done} of %n item enriched from {service}.', 'Enrichment complete — {done} of %n items enriched from {service}.', enrich.total.value, { done: enrich.done.value, service: enrichServiceName }) }}
                 <template v-if="enrich.failed.value > 0">
-                  {{ enrich.failed.value }} could not be matched.
+                  {{ n('crate', '%n could not be matched.', '%n could not be matched.', enrich.failed.value) }}
                 </template>
               </template>
               <template v-else>
-                Enriching from {{ enrichServiceName }}… {{ enrich.done.value }} / {{ enrich.total.value }}
+                {{ t('crate', 'Enriching from {service}… {done} / {total}', { service: enrichServiceName, done: enrich.done.value, total: enrich.total.value }) }}
               </template>
             </p>
             <div class="import-enrich__bar-wrap">
@@ -279,15 +291,15 @@
               v-if="!enrich.finished.value"
               class="import-enrich__hint"
             >
-              You can safely close this dialog — enrichment will continue in the background.
-              <strong>Do not navigate away from Crate</strong> or the browser tab, or progress will be lost.
+              {{ t('crate', 'You can safely close this dialog — enrichment will continue in the background.') }}
+              {{ navigateWarning.before }}<strong>{{ navigateWarning.inner }}</strong>{{ navigateWarning.after }}
             </p>
           </div>
         </template>
         <template v-else-if="!enrichTokenAvailable && result.created > 0">
           <p class="import-hint import-hint--warn">
-            {{ enrichServiceName }} enrichment skipped — no API key configured.
-            Add your key in Settings to enrich artwork and metadata.
+            {{ t('crate', '{service} enrichment skipped — no API key configured.', { service: enrichServiceName }) }}
+            {{ t('crate', 'Add your key in Settings to enrich artwork and metadata.') }}
           </p>
         </template>
 
@@ -296,13 +308,13 @@
           <div class="import-enrich">
             <p class="import-enrich__label">
               <template v-if="marketQueue.finished.value">
-                Market rates complete — {{ marketQueue.done.value }} of {{ marketQueue.total.value }} items priced via {{ marketServiceName }}.
+                {{ n('crate', 'Market rates complete — {done} of %n item priced via {service}.', 'Market rates complete — {done} of %n items priced via {service}.', marketQueue.total.value, { done: marketQueue.done.value, service: marketServiceName }) }}
                 <template v-if="marketQueue.failed.value > 0">
-                  {{ marketQueue.failed.value }} had no listing.
+                  {{ n('crate', '%n had no listing.', '%n had no listing.', marketQueue.failed.value) }}
                 </template>
               </template>
               <template v-else>
-                Fetching market rates from {{ marketServiceName }}… {{ marketQueue.done.value }} / {{ marketQueue.total.value }}
+                {{ t('crate', 'Fetching market rates from {service}… {done} / {total}', { service: marketServiceName, done: marketQueue.done.value, total: marketQueue.total.value }) }}
               </template>
             </p>
             <div class="import-enrich__bar-wrap">
@@ -320,7 +332,7 @@
             variant="primary"
             @click="handleClose"
           >
-            Done
+            {{ t('crate', 'Done') }}
           </NcButton>
         </div>
       </template>
@@ -336,7 +348,8 @@ import { generateOcsUrl } from '@nextcloud/router'
 import { useEnrichQueue } from '../composables/useEnrichQueue.js'
 import { useMarketValueQueue } from '../composables/useMarketValueQueue.js'
 import { useSettings } from '../composables/useSettings.js'
-import { FIELD_CONFIG } from '../utils/categoryFormats.js'
+import { n, splitAround, splitAt, t } from '../l10n.js'
+import { FIELD_CONFIG, categoryLabel, fieldLabels } from '../utils/categoryFormats.js'
 
 const props = defineProps({
   show:                  { type: Boolean, required: true },
@@ -385,40 +398,69 @@ const result = ref(null)
 
 // ── field options for mapping UI (category-aware labels) ──────────────────────
 const mappableFields = computed(() => {
-  const cfg = FIELD_CONFIG[selectedCategory.value] ?? FIELD_CONFIG.music
-  const formatLabel = (selectedCategory.value === 'game') ? 'Format / Platform' : 'Format'
+  const labels = fieldLabels(selectedCategory.value)
+  const formatFieldLabel = (selectedCategory.value === 'game')
+    ? t('crate', 'Format / Platform')
+    : t('crate', 'Format')
+  // TRANSLATORS: {owned} and {wanted} are the values a file's status column takes; they stay in English
+  const statusFieldLabel = t('crate', 'Status ({owned} / {wanted})', {
+    owned: 'owned',
+    wanted: 'wanted',
+  })
   return [
-    { value: 'artist',    label: cfg.artist },
-    { value: 'title',     label: cfg.title },
-    { value: 'format',    label: formatLabel },
-    { value: 'year',      label: 'Year' },
-    { value: 'notes',     label: 'Notes' },
-    { value: 'status',    label: 'Status (owned / wanted)' },
-    { value: 'discogsId', label: 'Enrichment ID' },
-    { value: 'barcode',   label: cfg.barcode },
-    { value: 'label',     label: cfg.label },
-    { value: 'category',  label: 'Category' },
+    { value: 'artist',    label: labels.artist },
+    { value: 'title',     label: labels.title },
+    { value: 'format',    label: formatFieldLabel },
+    { value: 'year',      label: t('crate', 'Year') },
+    { value: 'notes',     label: t('crate', 'Notes') },
+    { value: 'status',    label: statusFieldLabel },
+    { value: 'discogsId', label: t('crate', 'Enrichment ID') },
+    { value: 'barcode',   label: labels.barcode },
+    { value: 'label',     label: labels.label },
+    { value: 'category',  label: t('crate', 'Category') },
     // /import/preview auto-detects these two and the modal posts its mapping
     // back verbatim, so without matching options a Crate export of its own
     // price-bearing data is rejected wholesale.
-    { value: 'purchasePrice',         label: 'Purchase price' },
-    { value: 'purchasePriceCurrency', label: 'Purchase currency' },
+    { value: 'purchasePrice',         label: t('crate', 'Purchase price') },
+    { value: 'purchasePriceCurrency', label: t('crate', 'Purchase currency') },
   ]
 })
 
-// Per-category prose for the step 1 hints. Reads the same FIELD_CONFIG the
-// column-mapper uses, so the required-columns list always matches what the
-// mapping step will accept.
-const HINT_LEAD = {
-  music: 'One row per album. If you own the same album on multiple formats, add a row for each. A Discogs collection export (CSV) imports as it is.',
-  film:  'One row per film. If you own the same film on multiple formats (Blu-ray, DVD, etc.), add a row for each.',
-  book:  'One row per book.',
-  game:  'One row per game. If you own the same game on multiple platforms, add a row for each.',
-  comic: 'One row per issue or volume.',
+// TRANSLATORS: the column-mapping choice that leaves a column out of the import
+const ignoreLabel = computed(() => t('crate', 'ignore'))
+
+/** What a column is mapped to, named as the mapping dropdown names it. */
+function mappedFieldLabel(field) {
+  if (!field) return ignoreLabel.value
+  return mappableFields.value.find(f => f.value === field)?.label ?? field
 }
 
-const hintLead = computed(() => HINT_LEAD[selectedCategory.value] ?? HINT_LEAD.music)
+// The mapping step's hint, cut around the "ignore" choice it shows in italics.
+const mapHint = computed(() => {
+  // TRANSLATORS: {ignore} is the column-mapping choice "ignore", shown in italics
+  return splitAt(t('crate', 'Map your columns to Crate fields. Columns marked {ignore} will be skipped.'), 'ignore')
+})
 
+// Per-category prose for the step 1 hints.
+const hintLead = computed(() => {
+  switch (selectedCategory.value) {
+    case 'film':
+      return t('crate', 'One row per film. If you own the same film on multiple formats (Blu-ray, DVD, etc.), add a row for each.')
+    case 'book':
+      return t('crate', 'One row per book.')
+    case 'game':
+      return t('crate', 'One row per game. If you own the same game on multiple platforms, add a row for each.')
+    case 'comic':
+      return t('crate', 'One row per issue or volume.')
+    default:
+      return t('crate', 'One row per album. If you own the same album on multiple formats, add a row for each. A Discogs collection export (CSV) imports as it is.')
+  }
+})
+
+// The column names to give the file. They stay in English, because the server
+// matches the headers against them, and come from the same FIELD_CONFIG the
+// column-mapper uses, so the required-columns list always matches what the
+// mapping step will accept.
 const hintRequired = computed(() => {
   const cfg = FIELD_CONFIG[selectedCategory.value] ?? FIELD_CONFIG.music
   return `${cfg.artist}, ${cfg.title}, Format`
@@ -448,7 +490,10 @@ const ENRICH_SERVICE = {
   game:  'RAWG',
   comic: 'ComicVine',
 }
-const enrichServiceName = computed(() => ENRICH_SERVICE[selectedCategory.value] ?? 'the enrichment service')
+const enrichServiceName = computed(() => {
+  // TRANSLATORS: stands in for a service's name, such as Discogs, in "Enrich from {service} after importing"
+  return ENRICH_SERVICE[selectedCategory.value] ?? t('crate', 'the enrichment service')
+})
 
 /** Whether the user has the credential needed to enrich this category. */
 const enrichTokenAvailable = computed(() => {
@@ -477,6 +522,12 @@ const marketTokenAvailable = computed(() => {
   if (selectedCategory.value === 'music') return props.hasDiscogsToken
   if (['game', 'comic'].includes(selectedCategory.value)) return props.hasPriceChartingToken
   return false
+})
+
+// The warning under the enrichment progress bar, cut around its bold part.
+const navigateWarning = computed(() => {
+  const text = t('crate', '{strongStart}Do not navigate away from Crate{strongEnd} or the browser tab, or progress will be lost.')
+  return splitAround(text, 'strongStart', 'strongEnd')
 })
 
 // ── reset on open ─────────────────────────────────────────────────────────────
@@ -520,11 +571,11 @@ function onDrop(e) {
 async function pickFromNextcloud() {
   const oc = window.OC
   if (!oc?.dialogs?.filepicker) {
-    parseError.value = 'Nextcloud file picker is not available.'
+    parseError.value = t('crate', 'Nextcloud file picker is not available.')
     return
   }
   oc.dialogs.filepicker(
-    'Select CSV or XLSX file',
+    t('crate', 'Select CSV or XLSX file'),
     async (path) => {
       pickingFromNc.value = true
       try {
@@ -537,7 +588,7 @@ async function pickFromNextcloud() {
         selectedFile.value = new File([resp.data], fileName, { type: mime })
         parseError.value = ''
       } catch {
-        parseError.value = 'Failed to fetch file from Nextcloud.'
+        parseError.value = t('crate', 'Failed to fetch file from Nextcloud.')
       } finally {
         pickingFromNc.value = false
       }
@@ -567,7 +618,7 @@ async function doParse() {
     mapping.value = m
     step.value = 'map'
   } catch (e) {
-    parseError.value = e.response?.data?.ocs?.data?.error ?? 'Failed to parse file.'
+    parseError.value = e.response?.data?.ocs?.data?.error ?? t('crate', 'Failed to parse file.')
   } finally {
     parsing.value = false
   }
@@ -609,7 +660,7 @@ async function doImport() {
       marketQueue.start(newIds, marketCurrency.value)
     }
   } catch (e) {
-    mappingError.value = e.response?.data?.ocs?.data?.error ?? 'Import failed.'
+    mappingError.value = e.response?.data?.ocs?.data?.error ?? t('crate', 'Import failed.')
   } finally {
     importing.value = false
   }

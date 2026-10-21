@@ -8,6 +8,7 @@
  * Mirrored in crate-android's CollectionFilters.kt so both clients bucket
  * identically.
  */
+import { t } from '../l10n.js'
 
 /**
  * Split an item's genres into trimmed tokens. Tolerates a JSON array, which
@@ -47,16 +48,31 @@ export function hasGenre(item, genre) {
 }
 
 /**
- * The decade label an item files under, e.g. 1997 -> "1990s". Null when the
- * item has no usable year.
+ * The decade an item files under, e.g. 1997 -> "1990s". Null when the item has
+ * no usable year. This is the decade filter's value, so it stays the same in
+ * every language; decadeLabel() is what the user sees.
  *
  * @param {object} item media item
- * @return {string|null} decade label
+ * @return {string|null} decade value
  */
 export function decadeOf(item) {
   const year = item?.year
   if (!year) return null
   return `${Math.floor(year / 10) * 10}s`
+}
+
+/**
+ * A decade value from decadeOf(), e.g. "1990s", in the user's language. Also
+ * takes the two-digit short form ("90s"). Anything else comes back unchanged.
+ *
+ * @param {string} decade decade value
+ * @return {string} decade to display
+ */
+export function decadeLabel(decade) {
+  const match = /^(\d+)s$/.exec(decade ?? '')
+  if (!match) return decade
+  // TRANSLATORS: a decade named by its first year: "1990s" for {decade} = 1990, or "90s" for {decade} = 90
+  return t('crate', '{decade}s', { decade: match[1] })
 }
 
 /**

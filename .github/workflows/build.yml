@@ -56,6 +56,25 @@ jobs:
 
       - run: vendor/bin/phpunit --testsuite unit
 
+      # Translations, in this required job so a failure blocks the merge: the
+      # template matches the sources, the extractor and converter still behave
+      # as tests/l10n pins them down, extraction doesn't depend on the checkout
+      # path, and every translation file is valid. Then the runtime catalogues
+      # are built, from reviewed entries only, for the release to package.
+      - run: bin/l10n check
+      - run: bin/l10n build
+
+      - name: Upload translation catalogues
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: crate-l10n-${{ github.sha }}
+          path: l10n/
+          # l10n/.languages lists the languages built, possibly none, so the
+          # artifact always exists.
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
+
   php-floor:
     # composer.json declares php ^8.2 and info.xml allows Nextcloud versions
     # that ship 8.2/8.3, but the dev toolchain cannot install there. Parsing
@@ -95,6 +114,8 @@ jobs:
       - run: npm ci
 
       - run: npm run lint
+
+      - run: npm test
 
       - run: npm run build
 
@@ -153,6 +174,13 @@ jobs:
           name: crate-js-${{ github.sha }}
           path: js/
 
+      # Likewise the translation catalogues the php job checked and built.
+      - name: Download translation catalogues
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: crate-l10n-${{ github.sha }}
+          path: l10n/
+
       - name: Build release archive
         env:
           TAG: ${{ github.ref_name }}
@@ -160,7 +188,8 @@ jobs:
           VERSION="${TAG#v}"
           STAGE="$(mktemp -d)"
           mkdir -p "$STAGE/crate"
-          cp -r appinfo img lib templates js LICENSE README.md "$STAGE/crate/"
+          cp -r appinfo img lib templates js l10n LICENSE README.md "$STAGE/crate/"
+          rm -f "$STAGE/crate/l10n/.languages"
           tar -C "$STAGE" -czf "crate-${VERSION}.tar.gz" crate
 
       - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3

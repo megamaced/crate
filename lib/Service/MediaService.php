@@ -13,7 +13,10 @@ use OCA\Crate\Db\MediaItemMapper;
 use OCA\Crate\Db\PlaylistItemMapper;
 use OCA\Crate\Db\PlaylistMapper;
 use OCA\Crate\Dto\MediaItemData;
+use OCA\Crate\Exception\UserFacingException;
 use OCA\Crate\ItemImageSlot;
+use OCA\Crate\Message;
+use OCP\AppFramework\Http;
 use OCP\Files\AppData\IAppDataFactory;
 use OCP\Files\NotFoundException;
 use OCP\Files\NotPermittedException;
@@ -201,7 +204,10 @@ class MediaService
         if ($targetOwnerUserId !== null && $targetOwnerUserId !== $callerUserId) {
             $category = $data->category ?? CrateCategories::MUSIC;
             if (!$this->shareMapper->hasWritableCollectionShare($callerUserId, $targetOwnerUserId, $category)) {
-                throw new \InvalidArgumentException('No write access to that collection.');
+                throw new UserFacingException(
+                    Message::t('No write access to that collection.'),
+                    Http::STATUS_FORBIDDEN,
+                );
             }
             $ownerUserId = $targetOwnerUserId;
         }
@@ -297,7 +303,7 @@ class MediaService
             return $artworkPath;
         }
         if (!CrateImageHosts::isValidArtworkPath($artworkPath)) {
-            throw new \InvalidArgumentException('Invalid artworkPath.');
+            throw new UserFacingException(Message::t('Invalid artworkPath.'));
         }
         return $artworkPath;
     }

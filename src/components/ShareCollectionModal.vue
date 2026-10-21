@@ -7,23 +7,21 @@
   >
     <div class="sc-modal">
       <h2 id="share-collection-modal-title">
-        Share collection
+        {{ t('crate', 'Share collection') }}
       </h2>
       <p class="sc-hint">
-        Share your whole library or individual categories with another Nextcloud
-        user. Read-only lets them browse; read/write also lets them add and edit
-        items (but not delete them).
+        {{ t('crate', 'Share your whole library or individual categories with another Nextcloud user. Read-only lets them browse; read/write also lets them add and edit items (but not delete them).') }}
       </p>
 
       <!-- What to share -->
       <div class="sc-field">
-        <label class="sc-label">What to share</label>
+        <label class="sc-label">{{ t('crate', 'What to share') }}</label>
         <div class="sc-checkboxes">
           <NcCheckboxRadioSwitch
             :model-value="wholeLibrary"
             @update:model-value="wholeLibrary = $event"
           >
-            Whole library
+            {{ t('crate', 'Whole library') }}
           </NcCheckboxRadioSwitch>
           <NcCheckboxRadioSwitch
             v-for="cat in categoryOptions"
@@ -39,19 +37,19 @@
 
       <!-- Access level -->
       <div class="sc-field">
-        <label class="sc-label">Access</label>
+        <label class="sc-label">{{ t('crate', 'Access') }}</label>
         <NcCheckboxRadioSwitch
           type="switch"
           :model-value="allowWrite"
           @update:model-value="allowWrite = $event"
         >
-          Allow adding &amp; editing (read/write)
+          {{ t('crate', 'Allow adding & editing (read/write)') }}
         </NcCheckboxRadioSwitch>
       </div>
 
       <!-- User search -->
       <div class="sc-field">
-        <label class="sc-label">Share with</label>
+        <label class="sc-label">{{ t('crate', 'Share with') }}</label>
         <p
           v-if="selectedUser"
           class="sc-selected-user"
@@ -63,7 +61,8 @@
             size="small"
             @click="clearSelectedUser"
           >
-            Change
+            <!-- TRANSLATORS: button to pick a different user to share with -->
+            {{ t('crate', 'Change') }}
           </NcButton>
         </p>
         <UserSearchField
@@ -93,14 +92,16 @@
           variant="tertiary"
           @click="$emit('close')"
         >
-          Close
+          {{ t('crate', 'Close') }}
         </NcButton>
         <NcButton
           variant="primary"
           :disabled="!canShare || sharing"
           @click="doShare"
         >
-          {{ sharing ? 'Sharing…' : 'Share' }}
+          {{ sharing
+            ? t('crate', 'Sharing…')
+            : t('crate', 'Share') }}
         </NcButton>
       </div>
     </div>
@@ -113,6 +114,8 @@ import { NcModal, NcButton, NcCheckboxRadioSwitch } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
 import UserSearchField from './UserSearchField.vue'
+import { CATEGORY_IDS, categoryLabel } from '../utils/categoryFormats.js'
+import { t } from '../l10n.js'
 
 const props = defineProps({
   show: { type: Boolean, required: true },
@@ -122,13 +125,9 @@ const props = defineProps({
 
 defineEmits(['close'])
 
-const categoryOptions = [
-  { value: 'music', label: 'Music' },
-  { value: 'film',  label: 'Films' },
-  { value: 'book',  label: 'Books' },
-  { value: 'game',  label: 'Games' },
-  { value: 'comic', label: 'Comics' },
-]
+const categoryOptions = computed(() =>
+  CATEGORY_IDS.map(value => ({ value, label: categoryLabel(value) })),
+)
 
 const wholeLibrary = ref(false)
 const selectedCategories = ref([])
@@ -185,9 +184,9 @@ async function doShare() {
   // Build the list of {label, url} targets: whole library OR each selected
   // category as its own POST (there is no bulk-create endpoint).
   const targets = wholeLibrary.value
-    ? [{ label: 'Whole library', url: generateOcsUrl('/apps/crate/api/v1/share/library') }]
+    ? [{ label: t('crate', 'Whole library'), url: generateOcsUrl('/apps/crate/api/v1/share/library') }]
     : selectedCategories.value.map(cat => ({
-      label: categoryOptions.find(c => c.value === cat)?.label ?? cat,
+      label: categoryLabel(cat),
       url: generateOcsUrl(`/apps/crate/api/v1/share/category/${cat}`),
     }))
 
@@ -195,13 +194,14 @@ async function doShare() {
   for (const target of targets) {
     try {
       await axios.post(target.url, { userId, permission })
-      report.push({ label: target.label, state: 'ok', message: 'Shared' })
+      // TRANSLATORS: result shown next to a library or category: the share was created
+      report.push({ label: target.label, state: 'ok', message: t('crate', 'Shared') })
     } catch (e) {
       // 409 = already shared with this user — note it but keep going.
       if (e.response?.status === 409) {
-        report.push({ label: target.label, state: 'skip', message: 'Already shared' })
+        report.push({ label: target.label, state: 'skip', message: t('crate', 'Already shared') })
       } else {
-        const msg = e.response?.data?.ocs?.data?.error ?? 'Failed to share'
+        const msg = e.response?.data?.ocs?.data?.error ?? t('crate', 'Failed to share')
         report.push({ label: target.label, state: 'error', message: msg })
       }
     }

@@ -6,6 +6,10 @@ namespace OCA\Crate\Controller;
 
 use OCA\Crate\CrateCategories;
 use OCA\Crate\Dto\MediaItemData;
+use OCA\Crate\Exception\DiscogsRateLimitException;
+use OCA\Crate\Exception\PriceChartingRateLimitException;
+use OCA\Crate\Exception\UserFacingException;
+use OCA\Crate\Message;
 use OCA\Crate\Service\EnrichmentService;
 use OCA\Crate\Service\MarketValueService;
 use OCA\Crate\Service\MediaService;
@@ -17,11 +21,13 @@ use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\OCSController;
 use OCP\IConfig;
+use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IUserSession;
 
 class MediaController extends OCSController
 {
+    use ReportsUserFacingErrors;
     use UsesAuthenticatedUser;
 
     /** Max offset accepted by paginated endpoints. Protects against DoS via absurd offsets. */
@@ -42,6 +48,7 @@ class MediaController extends OCSController
         private readonly RecommendationService $recommendationService,
         private readonly IUserSession $userSession,
         private readonly IConfig $config,
+        private readonly IL10N $l,
     ) {
         parent::__construct($appName, $request);
     }
@@ -123,7 +130,7 @@ class MediaController extends OCSController
         try {
             $item = $this->mediaService->findVisible($id, $userId);
         } catch (DoesNotExistException) {
-            return new DataResponse(['error' => 'Not found'], Http::STATUS_NOT_FOUND);
+            return new DataResponse(['error' => $this->l->t('Not found')], Http::STATUS_NOT_FOUND);
         }
         // Make a single-item fetch self-describing about its shared status, so
         // clients that re-fetch one item (Android detail, web hash-navigation /
@@ -157,14 +164,14 @@ class MediaController extends OCSController
         ?string $owner = null,
     ): DataResponse {
         if (!CrateCategories::isStatus($status)) {
-            return new DataResponse(['error' => 'Invalid status'], Http::STATUS_BAD_REQUEST);
+            return new DataResponse(['error' => $this->l->t('Invalid status')], Http::STATUS_BAD_REQUEST);
         }
         if (!CrateCategories::isCategory($category)) {
-            return new DataResponse(['error' => 'Invalid category'], Http::STATUS_BAD_REQUEST);
+            return new DataResponse(['error' => $this->l->t('Invalid category')], Http::STATUS_BAD_REQUEST);
         }
         $priceResult = self::normalisePurchasePrice($purchasePrice, $purchasePriceCurrency);
         if (isset($priceResult['error'])) {
-            return new DataResponse(['error' => $priceResult['error']], Http::STATUS_BAD_REQUEST);
+            return new DataResponse(['error' => $priceResult['error']->translate($this->l)], Http::STATUS_BAD_REQUEST);
         }
         // MediaItemData bounds every value against its column, so a payload
         // the schema cannot hold is a 400 here rather than a driver exception
@@ -186,19 +193,16 @@ class MediaController extends OCSController
                 $priceResult['price'],
                 $priceResult['currency'],
             );
-        } catch (\InvalidArgumentException $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+        } catch (UserFacingException $e) {
+            return $this->userError($e);
         }
         // $owner set → adding into another user's collection via a read/write
         // library/category share. MediaService verifies the share and rejects
         // otherwise.
         try {
             return new DataResponse($this->mediaService->create($this->userId(), $data, $owner));
-        } catch (\InvalidArgumentException $e) {
-            $status = $e->getMessage() === 'Invalid artworkPath.'
-                ? Http::STATUS_BAD_REQUEST
-                : Http::STATUS_FORBIDDEN;
-            return new DataResponse(['error' => $e->getMessage()], $status);
+        } catch (UserFacingException $e) {
+            return $this->userError($e);
         }
     }
 
@@ -221,14 +225,14 @@ class MediaController extends OCSController
         ?string $purchasePriceCurrency = null,
     ): DataResponse {
         if (!CrateCategories::isStatus($status)) {
-            return new DataResponse(['error' => 'Invalid status'], Http::STATUS_BAD_REQUEST);
+            return new DataResponse(['error' => $this->l->t('Invalid status')], Http::STATUS_BAD_REQUEST);
         }
         if ($category !== null && !CrateCategories::isCategory($category)) {
-            return new DataResponse(['error' => 'Invalid category'], Http::STATUS_BAD_REQUEST);
+            return new DataResponse(['error' => $this->l->t('Invalid category')], Http::STATUS_BAD_REQUEST);
         }
         $priceResult = self::normalisePurchasePrice($purchasePrice, $purchasePriceCurrency);
         if (isset($priceResult['error'])) {
-            return new DataResponse(['error' => $priceResult['error']], Http::STATUS_BAD_REQUEST);
+            return new DataResponse(['error' => $priceResult['error']->translate($this->l)], Http::STATUS_BAD_REQUEST);
         }
         try {
             $data = new MediaItemData(
@@ -249,9 +253,9 @@ class MediaController extends OCSController
             );
             return new DataResponse($this->mediaService->update($id, $this->userId(), $data));
         } catch (DoesNotExistException) {
-            return new DataResponse(['error' => 'Not found'], Http::STATUS_NOT_FOUND);
-        } catch (\InvalidArgumentException $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            return new DataResponse(['error' => $this->l->t('Not found')], Http::STATUS_NOT_FOUND);
+        } catch (UserFacingException $e) {
+            return $this->userError($e);
         }
     }
 
@@ -297,9 +301,9 @@ class MediaController extends OCSController
      * sit on the shared MarketValueService allowlist when a price is set.
      *
      * Returns ['price' => ?float, 'currency' => ?string] on success, or
-     * ['error' => string] for the controller to surface as a 400.
+     * ['error' => Message] for the controller to surface as a 400.
      *
-     * @return array{price?: ?float, currency?: ?string, error?: string}
+     * @return array{price?: ?float, currency?: ?string, error?: Message}
      */
     public static function normalisePurchasePrice(?float $price, ?string $currency): array
     {
@@ -308,14 +312,14 @@ class MediaController extends OCSController
             return ['price' => null, 'currency' => null];
         }
         if ($price < 0 || $price > 1_000_000) {
-            return ['error' => 'purchasePrice out of range'];
+            return ['error' => Message::t('purchasePrice out of range')];
         }
         $currency = $currency !== null ? strtoupper(trim($currency)) : null;
         if ($currency === null || $currency === '') {
-            return ['error' => 'purchasePriceCurrency is required when purchasePrice is set'];
+            return ['error' => Message::t('purchasePriceCurrency is required when purchasePrice is set')];
         }
         if (!in_array($currency, MarketValueService::SUPPORTED_CURRENCIES, true)) {
-            return ['error' => 'Unsupported purchasePriceCurrency'];
+            return ['error' => Message::t('Unsupported purchasePriceCurrency')];
         }
         return ['price' => $price, 'currency' => $currency];
     }
@@ -326,7 +330,7 @@ class MediaController extends OCSController
         try {
             $this->mediaService->delete($id, $this->userId());
         } catch (DoesNotExistException) {
-            return new DataResponse(['error' => 'Not found'], Http::STATUS_NOT_FOUND);
+            return new DataResponse(['error' => $this->l->t('Not found')], Http::STATUS_NOT_FOUND);
         }
         return new DataResponse([]);
     }
@@ -354,7 +358,7 @@ class MediaController extends OCSController
 
         if (!empty($unknown)) {
             return new DataResponse(
-                ['error' => 'Unknown wipe scope(s): ' . implode(', ', $unknown)],
+                ['error' => $this->l->t('Unknown wipe scope(s): %s', [implode(', ', $unknown)])],
                 Http::STATUS_BAD_REQUEST,
             );
         }
@@ -381,12 +385,12 @@ class MediaController extends OCSController
         try {
             $result = $this->enrichmentService->enrich($id, $this->userId());
         } catch (DoesNotExistException) {
-            return new DataResponse(['error' => 'Not found'], Http::STATUS_NOT_FOUND);
+            return new DataResponse(['error' => $this->l->t('Not found')], Http::STATUS_NOT_FOUND);
         }
         if ($result->isOk()) {
             return new DataResponse($result->item);
         }
-        return new DataResponse(['error' => $result->error], $result->status);
+        return new DataResponse(['error' => $result->error?->translate($this->l)], $result->status);
     }
 
     /**
@@ -426,7 +430,7 @@ class MediaController extends OCSController
                 $this->recommendationService->forItem($id, $this->userId(), $limit, $include),
             );
         } catch (DoesNotExistException) {
-            return new DataResponse(['error' => 'Not found'], Http::STATUS_NOT_FOUND);
+            return new DataResponse(['error' => $this->l->t('Not found')], Http::STATUS_NOT_FOUND);
         }
     }
 
@@ -456,22 +460,24 @@ class MediaController extends OCSController
             $updated = $this->marketValueService->fetchAndStore($id, $this->userId(), $currency);
             if ($updated === null) {
                 return new DataResponse(
-                    ['error' => 'No market value available — this category may have no price source, '
-                        . 'no match was found, or (for music) the item needs a Discogs ID first.'],
+                    ['error' => $this->l->t(
+                        'No market value available — this category may have no price source, '
+                        . 'no match was found, or (for music) the item needs a Discogs ID first.',
+                    )],
                     Http::STATUS_UNPROCESSABLE_ENTITY,
                 );
             }
             return new DataResponse($updated);
         } catch (DoesNotExistException) {
-            return new DataResponse(['error' => 'Not found'], Http::STATUS_NOT_FOUND);
-        } catch (\OCA\Crate\Exception\DiscogsRateLimitException) {
+            return new DataResponse(['error' => $this->l->t('Not found')], Http::STATUS_NOT_FOUND);
+        } catch (DiscogsRateLimitException) {
             return new DataResponse(
-                ['error' => 'Discogs rate limit exceeded. Try again shortly.'],
+                ['error' => $this->l->t('Discogs rate limit exceeded. Try again shortly.')],
                 Http::STATUS_TOO_MANY_REQUESTS,
             );
-        } catch (\OCA\Crate\Exception\PriceChartingRateLimitException) {
+        } catch (PriceChartingRateLimitException) {
             return new DataResponse(
-                ['error' => 'PriceCharting rate limit reached. Try again shortly.'],
+                ['error' => $this->l->t('PriceCharting rate limit reached. Try again shortly.')],
                 Http::STATUS_TOO_MANY_REQUESTS,
             );
         }
@@ -489,7 +495,7 @@ class MediaController extends OCSController
         try {
             $updated = $this->mediaService->stripEnrichment($id, $this->userId());
         } catch (DoesNotExistException) {
-            return new DataResponse(['error' => 'Not found'], Http::STATUS_NOT_FOUND);
+            return new DataResponse(['error' => $this->l->t('Not found')], Http::STATUS_NOT_FOUND);
         }
         return new DataResponse($updated);
     }

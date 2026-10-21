@@ -6,6 +6,8 @@ namespace OCA\Crate\Controller;
 
 use OCA\Crate\Db\MediaItemMapper;
 use OCA\Crate\Db\PlaylistMapper;
+use OCA\Crate\Exception\UserFacingException;
+use OCA\Crate\Message;
 use OCA\Crate\Service\ShareService;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
@@ -14,12 +16,14 @@ use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\OCSController;
 use OCP\Collaboration\Collaborators\ISearch;
+use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IUserSession;
 use OCP\Share\IShare;
 
 class ShareController extends OCSController
 {
+    use ReportsUserFacingErrors;
     use UsesAuthenticatedUser;
 
     public function __construct(
@@ -30,6 +34,7 @@ class ShareController extends OCSController
         private readonly ISearch $collaboratorSearch,
         private readonly MediaItemMapper $mediaItemMapper,
         private readonly PlaylistMapper $playlistMapper,
+        private readonly IL10N $l,
     ) {
         parent::__construct($appName, $request);
     }
@@ -91,12 +96,9 @@ class ShareController extends OCSController
         try {
             return new DataResponse($this->shareService->shareAlbum($this->userId(), $id, $userId, $permission));
         } catch (DoesNotExistException) {
-            return new DataResponse(['error' => 'Album not found'], Http::STATUS_NOT_FOUND);
-        } catch (\InvalidArgumentException $e) {
-            $status = $e->getMessage() === 'Unknown permission.'
-                ? Http::STATUS_BAD_REQUEST
-                : Http::STATUS_CONFLICT;
-            return new DataResponse(['error' => $e->getMessage()], $status);
+            return new DataResponse(['error' => $this->l->t('Album not found')], Http::STATUS_NOT_FOUND);
+        } catch (UserFacingException $e) {
+            return $this->userError($e);
         }
     }
 
@@ -106,7 +108,7 @@ class ShareController extends OCSController
         try {
             $this->mediaItemMapper->findByUser($id, $this->userId());
         } catch (DoesNotExistException) {
-            return new DataResponse(['error' => 'Album not found'], Http::STATUS_NOT_FOUND);
+            return new DataResponse(['error' => $this->l->t('Album not found')], Http::STATUS_NOT_FOUND);
         }
         return new DataResponse($this->shareService->getSharesForAlbum($this->userId(), $id));
     }
@@ -119,12 +121,9 @@ class ShareController extends OCSController
         try {
             return new DataResponse($this->shareService->sharePlaylist($this->userId(), $id, $userId, $permission));
         } catch (DoesNotExistException) {
-            return new DataResponse(['error' => 'Playlist not found'], Http::STATUS_NOT_FOUND);
-        } catch (\InvalidArgumentException $e) {
-            $status = $e->getMessage() === 'Unknown permission.'
-                ? Http::STATUS_BAD_REQUEST
-                : Http::STATUS_CONFLICT;
-            return new DataResponse(['error' => $e->getMessage()], $status);
+            return new DataResponse(['error' => $this->l->t('Playlist not found')], Http::STATUS_NOT_FOUND);
+        } catch (UserFacingException $e) {
+            return $this->userError($e);
         }
     }
 
@@ -134,7 +133,7 @@ class ShareController extends OCSController
         try {
             $this->playlistMapper->findByUser($id, $this->userId());
         } catch (DoesNotExistException) {
-            return new DataResponse(['error' => 'Playlist not found'], Http::STATUS_NOT_FOUND);
+            return new DataResponse(['error' => $this->l->t('Playlist not found')], Http::STATUS_NOT_FOUND);
         }
         return new DataResponse($this->shareService->getSharesForPlaylist($this->userId(), $id));
     }
@@ -146,11 +145,8 @@ class ShareController extends OCSController
     {
         try {
             return new DataResponse($this->shareService->shareLibrary($this->userId(), $userId, $permission));
-        } catch (\InvalidArgumentException $e) {
-            $status = $e->getMessage() === 'Unknown permission.'
-                ? Http::STATUS_BAD_REQUEST
-                : Http::STATUS_CONFLICT;
-            return new DataResponse(['error' => $e->getMessage()], $status);
+        } catch (UserFacingException $e) {
+            return $this->userError($e);
         }
     }
 
@@ -169,11 +165,8 @@ class ShareController extends OCSController
             return new DataResponse(
                 $this->shareService->shareCategory($this->userId(), $category, $userId, $permission),
             );
-        } catch (\InvalidArgumentException $e) {
-            $status = in_array($e->getMessage(), ['Unknown category.', 'Unknown permission.'], true)
-                ? Http::STATUS_BAD_REQUEST
-                : Http::STATUS_CONFLICT;
-            return new DataResponse(['error' => $e->getMessage()], $status);
+        } catch (UserFacingException $e) {
+            return $this->userError($e);
         }
     }
 
@@ -182,8 +175,8 @@ class ShareController extends OCSController
     {
         try {
             return new DataResponse($this->shareService->getSharesForCategory($this->userId(), $category));
-        } catch (\InvalidArgumentException $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+        } catch (UserFacingException $e) {
+            return $this->userError($e);
         }
     }
 
@@ -200,7 +193,14 @@ class ShareController extends OCSController
     #[NoAdminRequired]
     public function sharedByMe(): DataResponse
     {
-        return new DataResponse($this->shareService->getSharedByMe($this->userId()));
+        $rows = $this->shareService->getSharedByMe($this->userId());
+        foreach ($rows as &$row) {
+            if ($row['label'] instanceof Message) {
+                $row['label'] = $row['label']->translate($this->l);
+            }
+        }
+        unset($row);
+        return new DataResponse($rows);
     }
 
     // ── Remove share ───────────────────────────────────────────────────────────
@@ -212,7 +212,7 @@ class ShareController extends OCSController
             $this->shareService->unshare($id, $this->userId());
             return new DataResponse([]);
         } catch (DoesNotExistException) {
-            return new DataResponse(['error' => 'Share not found'], Http::STATUS_NOT_FOUND);
+            return new DataResponse(['error' => $this->l->t('Share not found')], Http::STATUS_NOT_FOUND);
         }
     }
 }

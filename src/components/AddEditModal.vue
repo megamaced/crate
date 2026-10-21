@@ -22,40 +22,32 @@
         <!-- Category picker -->
         <div class="crate-row">
           <div class="crate-field crate-field--grow">
-            <label for="field-category">Category</label>
+            <label for="field-category">{{ t('crate', 'Category') }}</label>
             <select
               id="field-category"
               v-model="form.category"
             >
-              <option value="music">
-                Music
-              </option>
-              <option value="film">
-                Films
-              </option>
-              <option value="book">
-                Books
-              </option>
-              <option value="game">
-                Games
-              </option>
-              <option value="comic">
-                Comics
+              <option
+                v-for="id in CATEGORY_IDS"
+                :key="id"
+                :value="id"
+              >
+                {{ categoryLabel(id) }}
               </option>
             </select>
           </div>
 
           <div class="crate-field crate-field--grow">
-            <label for="field-status">Status</label>
+            <label for="field-status">{{ t('crate', 'Status') }}</label>
             <select
               id="field-status"
               v-model="form.status"
             >
               <option value="owned">
-                Owned
+                {{ statusLabel('owned') }}
               </option>
               <option value="wanted">
-                Wanted
+                {{ statusLabel('wanted') }}
               </option>
             </select>
           </div>
@@ -64,7 +56,7 @@
         <!-- Artist / Director / Author / Developer + Format -->
         <div class="crate-row">
           <div class="crate-field crate-field--grow">
-            <label for="field-artist">{{ fieldConfig.artist }} <span class="required">*</span></label>
+            <label for="field-artist">{{ fieldNames.artist }} <span class="required">*</span></label>
             <input
               id="field-artist"
               v-model="form.artist"
@@ -76,7 +68,7 @@
           </div>
 
           <div class="crate-field crate-field--format">
-            <label for="field-format">Format <span class="required">*</span></label>
+            <label for="field-format">{{ t('crate', 'Format') }} <span class="required">*</span></label>
             <select
               id="field-format"
               v-model="form.format"
@@ -86,19 +78,20 @@
                 value=""
                 disabled
               >
-                Select…
+                <!-- TRANSLATORS: the empty choice of a dropdown, asking the user to pick a format -->
+                {{ t('crate', 'Select…') }}
               </option>
               <optgroup
                 v-for="group in formatGroups"
                 :key="group.label"
-                :label="group.label"
+                :label="formatGroupLabel(group.label)"
               >
                 <option
                   v-for="fmt in group.formats"
                   :key="fmt"
                   :value="fmt"
                 >
-                  {{ fmt }}
+                  {{ formatLabel(fmt) }}
                 </option>
               </optgroup>
             </select>
@@ -107,7 +100,7 @@
 
         <!-- Title -->
         <div class="crate-field">
-          <label for="field-title">{{ fieldConfig.title }} <span class="required">*</span></label>
+          <label for="field-title">{{ fieldNames.title }} <span class="required">*</span></label>
           <input
             id="field-title"
             v-model="form.title"
@@ -121,19 +114,19 @@
         <!-- Year + Label -->
         <div class="crate-row">
           <div class="crate-field crate-field--year">
-            <label for="field-year">Year</label>
+            <label for="field-year">{{ t('crate', 'Year') }}</label>
             <input
               id="field-year"
               v-model.number="form.year"
               type="number"
               min="1800"
               :max="currentYear"
-              placeholder="e.g. 1973"
+              :placeholder="example('1973')"
             >
           </div>
 
           <div class="crate-field crate-field--grow">
-            <label for="field-label">{{ fieldConfig.label }}</label>
+            <label for="field-label">{{ fieldNames.label }}</label>
             <input
               id="field-label"
               v-model="form.label"
@@ -149,7 +142,7 @@
              (TMDB / RAWG / ComicVine don't expose barcodes, but the user may
              still want to track UPC / SKU / etc.). -->
         <div class="crate-field">
-          <label for="field-barcode">{{ fieldConfig.barcode }}</label>
+          <label for="field-barcode">{{ fieldNames.barcode }}</label>
           <div
             v-if="form.category === 'book'"
             class="crate-barcode-row"
@@ -168,7 +161,7 @@
               :disabled="!form.barcode || isbnLooking"
               @click="lookupIsbn"
             >
-              {{ isbnLooking ? 'Looking up…' : 'Look up' }}
+              {{ lookupButtonLabel }}
             </NcButton>
           </div>
           <input
@@ -184,20 +177,20 @@
         <!-- Purchase price + currency (what the user paid) -->
         <div class="crate-row">
           <div class="crate-field crate-field--price">
-            <label for="field-purchase-price">Original price</label>
+            <label for="field-purchase-price">{{ t('crate', 'Original price') }}</label>
             <input
               id="field-purchase-price"
               v-model.number="form.purchasePrice"
               type="number"
               min="0"
               step="0.01"
-              placeholder="e.g. 24.99"
+              :placeholder="example('24.99')"
               autocomplete="off"
             >
           </div>
 
           <div class="crate-field crate-field--currency">
-            <label for="field-purchase-currency">Currency</label>
+            <label for="field-purchase-currency">{{ t('crate', 'Currency') }}</label>
             <select
               id="field-purchase-currency"
               v-model="form.purchasePriceCurrency"
@@ -215,18 +208,18 @@
         </div>
 
         <div class="crate-field">
-          <label for="field-notes">Notes</label>
+          <label for="field-notes">{{ t('crate', 'Notes') }}</label>
           <textarea
             id="field-notes"
             v-model="form.notes"
             rows="3"
-            placeholder="Condition, purchase details, thoughts…"
+            :placeholder="t('crate', 'Condition, purchase details, thoughts…')"
           />
         </div>
 
         <!-- Artwork -->
         <div class="crate-field">
-          <label>Artwork</label>
+          <label>{{ t('crate', 'Artwork') }}</label>
           <div class="crate-artwork-row">
             <div
               class="crate-artwork-thumb"
@@ -251,7 +244,7 @@
                 native-type="button"
                 @click="fileInput.click()"
               >
-                Upload from computer
+                {{ t('crate', 'Upload from computer') }}
               </NcButton>
               <NcButton
                 type="button"
@@ -259,7 +252,8 @@
                 native-type="button"
                 @click="pickFromNextcloud"
               >
-                Pick from Files
+                <!-- TRANSLATORS: "Files" is the Nextcloud Files app -->
+                {{ t('crate', 'Pick from Files') }}
               </NcButton>
               <NcButton
                 v-if="hasArtwork"
@@ -268,7 +262,8 @@
                 native-type="button"
                 @click="doRemoveArtwork"
               >
-                Remove
+                <!-- TRANSLATORS: button that removes the artwork -->
+                {{ t('crate', 'Remove') }}
               </NcButton>
             </div>
           </div>
@@ -281,7 +276,7 @@
           user-uploaded.
         -->
         <div class="crate-field">
-          <label>Additional photos</label>
+          <label>{{ t('crate', 'Additional photos') }}</label>
           <div class="crate-photos-row">
             <PhotoSlot
               :slot-num="1"
@@ -312,14 +307,14 @@
             variant="tertiary"
             @click="$emit('close')"
           >
-            Cancel
+            {{ t('crate', 'Cancel') }}
           </NcButton>
           <NcButton
             type="submit"
             variant="primary"
             :disabled="saving"
           >
-            {{ saving ? 'Saving…' : (item ? 'Save changes' : 'Add to collection') }}
+            {{ submitButtonLabel }}
           </NcButton>
         </div>
       </form>
@@ -332,13 +327,22 @@ import { ref, watch, computed, onBeforeUnmount } from 'vue'
 import { NcModal, NcButton } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateUrl, generateOcsUrl } from '@nextcloud/router'
-import { showError } from '@nextcloud/dialogs'
+import { showError } from '../utils/toast.js'
 import EnrichmentSearch from './EnrichmentSearch.vue'
 import PhotoSlot from './PhotoSlot.vue'
-import { FORMAT_GROUPS, FIELD_CONFIG } from '../utils/categoryFormats.js'
+import {
+  CATEGORY_IDS,
+  FORMAT_GROUPS,
+  categoryLabel,
+  fieldLabels,
+  formatGroupLabel,
+  formatLabel,
+  statusLabel,
+} from '../utils/categoryFormats.js'
 import { ENRICHMENT_ID_KEY, providerFor } from '../utils/enrichmentProviders.js'
 import { cssUrl } from '../utils/artworkUrl.js'
 import { useSettings } from '../composables/useSettings.js'
+import { t } from '../l10n.js'
 
 const props = defineProps({
   show:          { type: Boolean, required: true },
@@ -413,11 +417,11 @@ function onFileSelected(e) {
 function pickFromNextcloud() {
   const oc = window.OC
   if (!oc?.dialogs?.filepicker) {
-    showError('File picker not available.')
+    showError(t('crate', 'File picker not available.'))
     return
   }
   oc.dialogs.filepicker(
-    'Select artwork',
+    t('crate', 'Select artwork'),
     async (path) => {
       try {
         const uid = encodeURIComponent(oc.currentUser ?? '')
@@ -433,7 +437,7 @@ function pickFromNextcloud() {
         removeArtworkFlag.value = false
       } catch (e) {
         console.error('Failed to fetch artwork from Nextcloud', e)
-        showError('Failed to fetch artwork')
+        showError(t('crate', 'Failed to fetch artwork'))
       }
     },
     false,
@@ -608,41 +612,63 @@ const hasProviderCredential = computed(() => {
   }
 })
 
-const fieldConfig = computed(() => FIELD_CONFIG[form.value.category] ?? FIELD_CONFIG.music)
+const fieldNames = computed(() => fieldLabels(form.value.category))
 const formatGroups = computed(() => FORMAT_GROUPS[form.value.category] ?? FORMAT_GROUPS.music)
 
-// Per-category singular noun for the modal heading. Avoids the historical
-// "Music" → "Musi" bug where `slice(0, -1)` assumed every category label
-// ended in an "s".
-const CATEGORY_SINGULAR = {
-  music: 'album',
-  film:  'film',
-  book:  'book',
-  game:  'game',
-  comic: 'comic',
-}
+// One heading per category, each a whole phrase, so a language can word the
+// "add" and "edit" forms of each noun its own way.
 const modalTitle = computed(() => {
-  const noun = CATEGORY_SINGULAR[form.value.category] ?? 'item'
-  return (props.item ? 'Edit ' : 'Add ') + noun
+  const editing = !!props.item
+  switch (form.value.category) {
+    case 'music':
+      return editing ? t('crate', 'Edit album') : t('crate', 'Add album')
+    case 'film':
+      return editing ? t('crate', 'Edit film') : t('crate', 'Add film')
+    case 'book':
+      return editing ? t('crate', 'Edit book') : t('crate', 'Add book')
+    case 'game':
+      return editing ? t('crate', 'Edit game') : t('crate', 'Add game')
+    case 'comic':
+      return editing ? t('crate', 'Edit comic') : t('crate', 'Add comic')
+    default:
+      return editing ? t('crate', 'Edit item') : t('crate', 'Add item')
+  }
 })
 
+/**
+ * A field's placeholder, e.g. "e.g. Pink Floyd". The examples are names,
+ * titles and numbers, so only the wording around them translates.
+ */
+function example(value) {
+  // TRANSLATORS: an example shown in an empty form field; {example} is a name, title or number such as Pink Floyd
+  return t('crate', 'e.g. {example}', { example: value })
+}
+
 const artistPlaceholder = computed(() => {
-  const examples = { music: 'e.g. Pink Floyd', film: 'e.g. Christopher Nolan', book: 'e.g. George Orwell', game: 'e.g. Nintendo', comic: 'e.g. Alan Moore' }
-  return examples[form.value.category] ?? ''
+  const examples = { music: 'Pink Floyd', film: 'Christopher Nolan', book: 'George Orwell', game: 'Nintendo', comic: 'Alan Moore' }
+  const value = examples[form.value.category]
+  return value ? example(value) : ''
 })
 
 const titlePlaceholder = computed(() => {
-  const examples = { music: 'e.g. The Dark Side of the Moon', film: 'e.g. Inception', book: 'e.g. 1984', game: 'e.g. Super Mario Bros.', comic: 'e.g. Watchmen' }
-  return examples[form.value.category] ?? ''
+  const examples = { music: 'The Dark Side of the Moon', film: 'Inception', book: '1984', game: 'Super Mario Bros.', comic: 'Watchmen' }
+  const value = examples[form.value.category]
+  return value ? example(value) : ''
 })
 
 const labelPlaceholder = computed(() => {
-  const examples = { music: 'e.g. EMI', film: 'e.g. Warner Bros.', book: 'e.g. Penguin', game: 'e.g. Nintendo', comic: 'e.g. DC Comics' }
-  return examples[form.value.category] ?? ''
+  const examples = { music: 'EMI', film: 'Warner Bros.', book: 'Penguin', game: 'Nintendo', comic: 'DC Comics' }
+  const value = examples[form.value.category]
+  return value ? example(value) : ''
 })
 
 const barcodePlaceholder = computed(() => {
-  return form.value.category === 'book' ? 'e.g. 978-0451524935' : 'e.g. 5099902987521'
+  return example(form.value.category === 'book' ? '978-0451524935' : '5099902987521')
+})
+
+const submitButtonLabel = computed(() => {
+  if (saving.value) return t('crate', 'Saving…')
+  return props.item ? t('crate', 'Save changes') : t('crate', 'Add to collection')
 })
 
 // ── Enrichment apply (all sources) ─────────────────────────────────────────────
@@ -679,6 +705,12 @@ function applyEnrichment(result) {
 // ── ISBN lookup (books) ────────────────────────────────────────────────────────
 const isbnLooking = ref(false)
 
+const lookupButtonLabel = computed(() => {
+  if (isbnLooking.value) return t('crate', 'Looking up…')
+  // TRANSLATORS: button that looks up a book by its ISBN
+  return t('crate', 'Look up')
+})
+
 async function lookupIsbn() {
   if (!form.value.barcode || isbnLooking.value) return
   isbnLooking.value = true
@@ -690,10 +722,10 @@ async function lookupIsbn() {
     if (data && data.title) {
       applyEnrichment(data)
     } else {
-      showError('ISBN not found in Open Library')
+      showError(t('crate', 'ISBN not found in Open Library'))
     }
   } catch {
-    showError('ISBN not found in Open Library')
+    showError(t('crate', 'ISBN not found in Open Library'))
   } finally {
     isbnLooking.value = false
   }

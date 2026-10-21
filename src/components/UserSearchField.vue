@@ -27,7 +27,7 @@
       v-if="showNoResults"
       class="user-search__empty"
     >
-      No users found.
+      {{ t('crate', 'No users found.') }}
     </p>
   </div>
 </template>
@@ -35,9 +35,10 @@
 <script setup>
 import { computed, onBeforeUnmount, watch } from 'vue'
 import { useUserSearch } from '../composables/useUserSearch.js'
+import { t } from '../l10n.js'
 
 const props = defineProps({
-  placeholder: { type: String, default: 'Search users by name or username…' },
+  placeholder: { type: String, default: () => t('crate', 'Search users by name or username…') },
   /**
    * Set false while the containing dialog is closed: the pending timer and any
    * in-flight request are dropped so a reopened dialog starts clean.
