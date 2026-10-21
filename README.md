@@ -30,9 +30,10 @@ Rich, category-aware detail with auto-fetched metadata, tracklists, market value
 
 - **Five categories** — Music, Films, Books, Games, Comics — each with category-appropriate fields, search providers, and detail views
 - **Add by barcode** for music (Discogs) and books (Open Library), or by external search for films (TMDB), games (RAWG) and comics (ComicVine)
-- **Auto-enrichment** pulls full metadata, artwork, tracklists, artist bios and pressing notes
+- **Auto-enrichment** pulls full metadata, artwork, tracklists, artist bios and pressing notes. Film titles and overviews come in your Nextcloud language when TMDB has a translation, otherwise in English. Book searches prefer an edition in your language, then an English one
 - **Market values** for music (Discogs price suggestions) and games / comics (PriceCharting), with multi-currency support
 - **Wishlist** alongside your owned collection
+- **Star ratings** from one to five, to sort and group your collection by
 - **Playlists** — mixed-category groups of items
 - **Sharing** with other users on the same Nextcloud instance
 - **CSV / XLSX import and export**, including importing a Discogs collection export as it is
