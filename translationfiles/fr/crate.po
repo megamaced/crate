@@ -1,0 +1,2447 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the Nextcloud package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Nextcloud 3.14159\n"
+"Report-Msgid-Bugs-To: translations\\@example.com\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: Automatically generated\n"
+"Language-Team: none\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n > 1;\n"
+
+#. TRANSLATORS: %1$s is a field's name as the API spells it, %2$s its maximum length
+#: lib/Dto/MediaItemData.php:97
+#, php-format
+msgid "%1$s exceeds %2$s characters"
+msgstr ""
+
+#. TRANSLATORS: %1$s is a field's name as the import spells it, %2$s its maximum length
+#: lib/Service/ImportService.php:1189
+#, php-format
+msgid "%1$s exceeds %2$s chars"
+msgstr ""
+
+#: src/utils/categoryFormats.js:48
+msgid "%n album"
+msgid_plural "%n albums"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/utils/categoryFormats.js:52
+msgid "%n book"
+msgid_plural "%n books"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/utils/categoryFormats.js:56
+msgid "%n comic"
+msgid_plural "%n comics"
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRANSLATORS src/components/ImportModal.vue:277
+msgid "%n could not be matched."
+msgid_plural "%n could not be matched."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/utils/categoryFormats.js:50
+msgid "%n film"
+msgid_plural "%n films"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/utils/categoryFormats.js:54
+msgid "%n game"
+msgid_plural "%n games"
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRANSLATORS src/components/ImportModal.vue:313
+msgid "%n had no listing."
+msgid_plural "%n had no listing."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/utils/categoryFormats.js:58
+msgid "%n item"
+msgid_plural "%n items"
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRANSLATORS src/components/ImportModal.vue:181
+msgid "%n row in file."
+msgid_plural "%n rows in file."
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRANSLATORS: %s is the field's name as the API spells it (title, artist, format)
+#: lib/Dto/MediaItemData.php:87
+#, php-format
+msgid "%s is required"
+msgstr ""
+
+msgid "(Discogs for music; PriceCharting loose / CIB / new for games and comics)"
+msgstr ""
+
+msgid "(Discogs lowest price, currency, fetched date)"
+msgstr ""
+
+#. TRANSLATORS: loose, CIB (complete in box) and new are the conditions PriceCharting prices a game or comic in
+msgid "(PriceCharting loose / CIB / new in USD, fetched date)"
+msgstr ""
+
+#. TRANSLATORS src/components/ExportModal.vue:125
+msgid "(purchase price + currency you entered)"
+msgstr ""
+
+msgid "(saved — paste a new one to replace)"
+msgstr ""
+
+#: src/utils/categoryFormats.js:179
+msgid "12\" Single"
+msgstr ""
+
+#: src/utils/categoryFormats.js:193
+msgid "4-Track Cartridge"
+msgstr ""
+
+#: src/utils/categoryFormats.js:177
+msgid "7\" Single"
+msgstr ""
+
+#: lib/Service/ImportService.php:636
+#, php-format
+msgid "A cell holds more than %s characters, the most a spreadsheet cell can hold. Shorten it, or import the collection as CSV."
+msgstr ""
+
+#. TRANSLATORS src/components/PlaylistsView.vue:121
+msgid "A short description"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:260
+msgid "API keys"
+msgstr ""
+
+msgid "About the Author"
+msgstr ""
+
+msgid "About the Director"
+msgstr ""
+
+msgid "About {artist}"
+msgstr ""
+
+#. TRANSLATORS src/components/ShareCollectionModal.vue:40
+msgid "Access"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:100
+msgid "Add a ComicVine API key under API keys to enable enrichment."
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:142
+msgid "Add a Discogs API key under API keys to enable enrichment."
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:249
+msgid "Add a Discogs or PriceCharting API key to enable market rates."
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:128
+msgid "Add a RAWG API key under API keys to enable enrichment."
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:114
+msgid "Add a TMDB API key under API keys to enable enrichment."
+msgstr ""
+
+msgid "Add album"
+msgstr ""
+
+msgid "Add book"
+msgstr ""
+
+msgid "Add comic"
+msgstr ""
+
+msgid "Add film"
+msgstr ""
+
+msgid "Add game"
+msgstr ""
+
+#. TRANSLATORS src/components/CollectionView.vue:149
+msgid "Add item"
+msgstr ""
+
+msgid "Add to collection"
+msgstr ""
+
+#. TRANSLATORS src/components/AddToPlaylistModal.vue:10
+#. TRANSLATORS src/components/ItemDetailView.vue:64
+msgid "Add to playlist"
+msgstr ""
+
+msgid "Add to whose collection?"
+msgstr ""
+
+#. TRANSLATORS src/components/HomeView.vue:20
+msgid "Add your first record"
+msgstr ""
+
+#. TRANSLATORS src/components/ImportModal.vue:302
+msgid "Add your key in Settings to enrich artwork and metadata."
+msgstr ""
+
+msgid "Add {title} to your wishlist"
+msgstr ""
+
+#. TRANSLATORS src/components/AddEditModal.vue:279
+msgid "Additional photos"
+msgstr ""
+
+msgid "Album"
+msgstr ""
+
+#: src/utils/categoryFormats.js:288
+msgid "Album / Title"
+msgstr ""
+
+msgid "Album A–Z"
+msgstr ""
+
+msgid "Album Z–A"
+msgstr ""
+
+#: lib/Controller/ShareController.php:99 lib/Controller/ShareController.php:111
+msgid "Album not found"
+msgstr ""
+
+msgid "Album of the Day"
+msgstr ""
+
+#. TRANSLATORS filter chip that shows every format; {count} is how many items there are (src/components/CollectionView.vue:205)
+msgid "All ({count})"
+msgstr ""
+
+#. TRANSLATORS src/components/ExportModal.vue:43
+msgid "All categories"
+msgstr ""
+
+#. TRANSLATORS src/components/ExportModal.vue:70
+msgid "All items"
+msgstr ""
+
+#. TRANSLATORS src/components/ShareCollectionModal.vue:46
+#. TRANSLATORS src/components/ShareModal.vue:32
+msgid "Allow adding & editing (read/write)"
+msgstr ""
+
+msgid "Already shared"
+msgstr ""
+
+#: lib/Service/ShareService.php:46 lib/Service/ShareService.php:83
+msgid "Already shared with this user."
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:173
+msgid "Also suggest things you don't own yet, from the same service that enriched the item — Discogs for music, TMDB for films, Open Library for books, RAWG for games. Only enriched items can have these, since suggestions are looked up by the ID enrichment stores. Results are cached, so re-opening an item won't re-query the service. Comics aren't covered: ComicVine publishes no similarity data."
+msgstr ""
+
+msgid "An enrichment or market-value fetch is still running. Leaving the page will stop it."
+msgstr ""
+
+#: src/main.js:18
+msgid "An unexpected error occurred."
+msgstr ""
+
+#. TRANSLATORS: a comic published once a year alongside the regular series
+#: src/utils/categoryFormats.js:216
+msgid "Annual"
+msgstr ""
+
+#. TRANSLATORS src/components/CollectionView.vue:188
+msgid "Any genre ({count})"
+msgstr ""
+
+#. TRANSLATORS src/components/CollectionView.vue:170
+msgid "Any year ({count})"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:47
+msgid "Applies to Music (Discogs), Films (TMDB), Books (Open Library — no key needed), Games (RAWG), and Comics (ComicVine). Requires the relevant API key to be configured."
+msgstr ""
+
+#: src/utils/categoryFormats.js:287
+msgid "Artist"
+msgstr ""
+
+msgid "Artist A–Z"
+msgstr ""
+
+msgid "Artist Z–A"
+msgstr ""
+
+#. TRANSLATORS src/components/AddEditModal.vue:222
+msgid "Artwork"
+msgstr ""
+
+msgid "Artwork upload failed"
+msgstr ""
+
+#: lib/Controller/SettingsController.php:288
+msgid "At least one category must remain visible."
+msgstr ""
+
+#: src/utils/categoryFormats.js:155
+msgid "Audio"
+msgstr ""
+
+#: src/utils/categoryFormats.js:209
+msgid "Audiobook CD"
+msgstr ""
+
+#: src/utils/categoryFormats.js:211
+msgid "Audiobook Cassette"
+msgstr ""
+
+#: src/utils/categoryFormats.js:266
+msgid "Author"
+msgstr ""
+
+msgid "Author A–Z"
+msgstr ""
+
+msgid "Author Z–A"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:44
+msgid "Auto-enrich items when opening them"
+msgstr ""
+
+#. TRANSLATORS heading over the setting that enriches items without being asked (src/components/SettingsPanel.vue:41)
+msgid "Automatic"
+msgstr ""
+
+#. TRANSLATORS src/components/ImportModal.vue:223
+#. TRANSLATORS src/components/ItemDetailView.vue:12
+#. TRANSLATORS src/components/PlaylistDetailView.vue:10
+msgid "Back"
+msgstr ""
+
+#: src/utils/categoryFormats.js:262 src/utils/categoryFormats.js:276
+#: src/utils/categoryFormats.js:283 src/utils/categoryFormats.js:291
+msgid "Barcode"
+msgstr ""
+
+#: lib/Service/ShareService.php:356
+msgid "Book"
+msgstr ""
+
+msgid "Book metadata, covers and author bios via the {linkStart}Open Library API{linkEnd}. No API key is required."
+msgstr ""
+
+#: lib/Controller/OpenLibraryController.php:53
+msgid "Book not found for ISBN"
+msgstr ""
+
+msgid "Book of the Day"
+msgstr ""
+
+#: src/utils/categoryFormats.js:17
+msgid "Books"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:80
+msgid "By category"
+msgstr ""
+
+#. TRANSLATORS short for "complete in box": market price with the original box and manual (src/components/ItemDetailView.vue:187)
+msgid "CIB"
+msgstr ""
+
+#. TRANSLATORS src/components/ShareModal.vue:63
+#. TRANSLATORS src/components/SharedByMeView.vue:41
+msgid "Can edit"
+msgstr ""
+
+#. TRANSLATORS src/App.vue:236
+#. TRANSLATORS src/components/AddEditModal.vue:310
+#. TRANSLATORS src/components/ExportModal.vue:154
+#. TRANSLATORS src/components/ImportModal.vue:104
+#. TRANSLATORS src/components/OwnerPickerModal.vue:34
+#. TRANSLATORS src/components/PlaylistDetailView.vue:165
+#. TRANSLATORS src/components/PlaylistsView.vue:132
+#. TRANSLATORS src/components/SettingsPanel.vue:394
+msgid "Cancel"
+msgstr ""
+
+#: lib/Service/ShareService.php:411
+msgid "Cannot share with that user."
+msgstr ""
+
+#. TRANSLATORS src/components/CollectionView.vue:80
+msgid "Card view"
+msgstr ""
+
+#: src/utils/categoryFormats.js:189
+msgid "Cassette"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:16
+msgid "Categories"
+msgstr ""
+
+#. TRANSLATORS src/components/AddEditModal.vue:25
+#. TRANSLATORS src/components/ExportModal.vue:17
+#. TRANSLATORS src/components/ImportModal.vue:29
+msgid "Category"
+msgstr ""
+
+#: lib/Service/ShareService.php:154
+msgid "Category already shared with this user."
+msgstr ""
+
+#: lib/Service/ImportService.php:629
+#, php-format
+msgid "Cell %1$s holds more than %2$s characters, the most a spreadsheet cell can hold. Shorten it, or import the collection as CSV."
+msgstr ""
+
+#. TRANSLATORS button to pick a different user to share with (src/components/ShareCollectionModal.vue:65)
+msgid "Change"
+msgstr ""
+
+#. TRANSLATORS src/components/CollectionView.vue:222
+msgid "Clear filters"
+msgstr ""
+
+#. TRANSLATORS src/components/ImportModal.vue:69
+msgid "Click or drag a CSV / XLSX file here"
+msgstr ""
+
+#. TRANSLATORS src/components/ItemDetailView.vue:368
+#. TRANSLATORS src/components/ShareCollectionModal.vue:95
+msgid "Close"
+msgstr ""
+
+#. TRANSLATORS: comics collected into one volume (trade paperbacks, omnibuses…)
+#: src/utils/categoryFormats.js:160
+msgid "Collected"
+msgstr ""
+
+#. TRANSLATORS tab listing the items the user owns, next to the Wanted tab (src/components/CollectionView.vue:107)
+msgid "Collection"
+msgstr ""
+
+#. TRANSLATORS src/components/ExportModal.vue:56
+msgid "Collection (owned)"
+msgstr ""
+
+#. TRANSLATORS src/components/CollectionView.vue:100
+msgid "Collection or Wanted"
+msgstr ""
+
+msgid "Collection wiped."
+msgstr ""
+
+#: lib/Service/ShareService.php:358 src/utils/categoryFormats.js:207
+msgid "Comic"
+msgstr ""
+
+msgid "Comic of the Day"
+msgstr ""
+
+msgid "Comic volume metadata, artwork, genres and descriptions via the {linkStart}ComicVine API{linkEnd}."
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:317
+msgid "ComicVine API key"
+msgstr ""
+
+msgid "ComicVine key"
+msgstr ""
+
+#: src/utils/categoryFormats.js:21
+msgid "Comics"
+msgstr ""
+
+#: src/utils/categoryFormats.js:229
+msgid "Compendium"
+msgstr ""
+
+#. TRANSLATORS src/components/AddEditModal.vue:216
+msgid "Condition, purchase details, thoughts…"
+msgstr ""
+
+#: lib/Service/EnrichmentService.php:131
+msgid "Could not fetch film from TMDB. Check your token."
+msgstr ""
+
+#: lib/Service/EnrichmentService.php:210
+msgid "Could not fetch game from RAWG. Check your API key."
+msgstr ""
+
+#: lib/Service/EnrichmentService.php:90
+msgid "Could not fetch release from Discogs. Check your token."
+msgstr ""
+
+#: lib/Service/EnrichmentService.php:158
+msgid "Could not fetch this book from Open Library."
+msgstr ""
+
+#: lib/Service/EnrichmentService.php:239
+msgid "Could not fetch volume from ComicVine. Check your API key."
+msgstr ""
+
+#: lib/Service/ImportService.php:494
+msgid "Could not open spreadsheet file"
+msgstr ""
+
+#: lib/Controller/ImportController.php:185 lib/Service/ImportService.php:418
+msgid "Could not read file"
+msgstr ""
+
+#: lib/Service/ImportService.php:509 lib/Service/ImportService.php:652
+msgid "Could not read worksheet from spreadsheet"
+msgstr ""
+
+msgid "Couldn't fetch full details from {provider} — using the search result."
+msgstr ""
+
+msgid "Couldn’t fetch enrichment data"
+msgstr ""
+
+msgid "Couldn’t refresh market value"
+msgstr ""
+
+msgid "Couldn’t remove enrichment data"
+msgstr ""
+
+#: lib/Activity/Filter.php:27 lib/Activity/Setting.php:35
+msgid "Crate"
+msgstr ""
+
+msgid ""
+"Crate is a personal physical media catalogue for Nextcloud — browse and manage your music, films, books, games and comics in one place, with everything stored on your own server.\n"
+"\n"
+"Add items manually or by barcode scan. Pull rich metadata automatically from Discogs (music), TMDB (films), Open Library (books), RAWG (games) and ComicVine (comics). Track market values from Discogs and PriceCharting alongside what you originally paid. Attach the cover art plus two extra user photos per item (receipts, sleevenotes, disc shots).\n"
+"\n"
+"Owned vs. wanted, playlists, sharing with other Nextcloud users, full CSV and XLSX import / export. There's a native Android companion at https://github.com/megamaced/crate-android."
+msgstr ""
+
+#: lib/Activity/Setting.php:25
+msgid "Crate media collection changes"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:10
+msgid "Crate settings"
+msgstr ""
+
+#: lib/Search/Provider.php:34
+msgid "Crate — Physical Media"
+msgstr ""
+
+#. TRANSLATORS src/components/PlaylistsView.vue:141
+msgid "Create"
+msgstr ""
+
+#. TRANSLATORS src/components/AddToPlaylistModal.vue:74
+msgid "Create & add"
+msgstr ""
+
+#. TRANSLATORS src/components/PlaylistsView.vue:35
+msgid "Create a playlist"
+msgstr ""
+
+#. TRANSLATORS src/components/AddToPlaylistModal.vue:73
+#. TRANSLATORS src/components/PlaylistsView.vue:140
+msgid "Creating…"
+msgstr ""
+
+#. TRANSLATORS src/components/AddEditModal.vue:193
+msgid "Currency"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:352
+msgid "Danger zone"
+msgstr ""
+
+#. TRANSLATORS src/App.vue:242
+#. TRANSLATORS src/components/CollectionView.vue:363
+#. TRANSLATORS src/components/ItemDetailView.vue:85
+#. TRANSLATORS src/components/PlaylistDetailView.vue:198
+#. TRANSLATORS src/components/PlaylistsView.vue:89
+msgid "Delete"
+msgstr ""
+
+#. TRANSLATORS src/App.vue:226
+msgid "Delete item"
+msgstr ""
+
+#. TRANSLATORS src/components/PlaylistDetailView.vue:37
+#. TRANSLATORS src/components/PlaylistDetailView.vue:182
+#. TRANSLATORS src/components/PlaylistsView.vue:198
+msgid "Delete playlist"
+msgstr ""
+
+#. TRANSLATORS src/components/CollectionView.vue:360
+msgid "Delete {item}"
+msgstr ""
+
+#. TRANSLATORS: {item} is the artist and title of the item being deleted, shown in bold
+msgid "Delete {item}? This cannot be undone."
+msgstr ""
+
+#. TRANSLATORS src/components/PlaylistsView.vue:86
+msgid "Delete {name}"
+msgstr ""
+
+#. TRANSLATORS: {name} is the name of the playlist being deleted, shown in bold
+msgid "Delete {name}? The albums in it won't be deleted."
+msgstr ""
+
+#. TRANSLATORS: {name} is the name of the playlist being deleted, shown in bold
+msgid "Delete {name}? The items in it won't be deleted."
+msgstr ""
+
+msgid "Description"
+msgstr ""
+
+#. TRANSLATORS src/components/PlaylistDetailView.vue:150
+#. TRANSLATORS src/components/PlaylistsView.vue:116
+msgid "Description (optional)"
+msgstr ""
+
+#: src/utils/categoryFormats.js:273
+msgid "Developer"
+msgstr ""
+
+msgid "Developer A–Z"
+msgstr ""
+
+msgid "Developer Z–A"
+msgstr ""
+
+#: src/utils/categoryFormats.js:259
+msgid "Director"
+msgstr ""
+
+msgid "Director A–Z"
+msgstr ""
+
+msgid "Director Z–A"
+msgstr ""
+
+#: src/utils/categoryFormats.js:148
+msgid "Disc"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:266
+msgid "Discogs personal access token"
+msgstr ""
+
+#: lib/Service/EnrichmentService.php:106
+msgid "Discogs rate limit exceeded. The queue will retry automatically."
+msgstr ""
+
+#: lib/Controller/MediaController.php:475
+msgid "Discogs rate limit exceeded. Try again shortly."
+msgstr ""
+
+msgid "Discogs token"
+msgstr ""
+
+#. TRANSLATORS heading over the setting for the currency prices are shown in (src/components/SettingsPanel.vue:194)
+msgid "Display"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:197
+msgid "Display currency"
+msgstr ""
+
+#. TRANSLATORS src/components/ImportModal.vue:335
+msgid "Done"
+msgstr ""
+
+#. TRANSLATORS src/components/ExportModal.vue:163
+msgid "Download"
+msgstr ""
+
+msgid "Earlier this month"
+msgstr ""
+
+msgid "Earlier this week"
+msgstr ""
+
+msgid "Earlier this year"
+msgstr ""
+
+#. TRANSLATORS src/components/CollectionView.vue:355
+#. TRANSLATORS src/components/ItemDetailView.vue:78
+#. TRANSLATORS src/components/PlaylistDetailView.vue:22
+msgid "Edit"
+msgstr ""
+
+msgid "Edit album"
+msgstr ""
+
+msgid "Edit book"
+msgstr ""
+
+msgid "Edit comic"
+msgstr ""
+
+msgid "Edit film"
+msgstr ""
+
+msgid "Edit game"
+msgstr ""
+
+msgid "Edit item"
+msgstr ""
+
+#. TRANSLATORS src/components/PlaylistDetailView.vue:134
+msgid "Edit playlist"
+msgstr ""
+
+#. TRANSLATORS src/components/CollectionView.vue:352
+msgid "Edit {item}"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:170
+msgid "Enable online recommendations"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:63
+msgid "Enrich all items (every category)"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:85
+msgid "Enrich all un-enriched books"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:98
+msgid "Enrich all un-enriched comics"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:112
+msgid "Enrich all un-enriched films"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:126
+msgid "Enrich all un-enriched games"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:140
+msgid "Enrich all un-enriched music"
+msgstr ""
+
+#. TRANSLATORS src/components/ImportModal.vue:200
+msgid "Enrich from {service} after importing"
+msgstr ""
+
+#. TRANSLATORS: {source} is an online service such as Discogs or TMDB
+msgid "Enrich from {source}"
+msgstr ""
+
+msgid "Enriched metadata"
+msgstr ""
+
+msgid "Enriched metadata (from all sources)"
+msgstr ""
+
+#. TRANSLATORS: {provider} is the service the details were fetched from, e.g. Discogs or TMDB
+msgid "Enriched {provider} data"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:74
+msgid "Enriches every un-enriched item across every category, using whichever API keys you have configured."
+msgstr ""
+
+#. TRANSLATORS src/components/ImportModal.vue:281
+msgid "Enriching from {service}… {done} / {total}"
+msgstr ""
+
+msgid "Enriching items {done} / {total}"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:62
+msgid "Enriching… {done} / {total}"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:35
+msgid "Enrichment"
+msgstr ""
+
+msgid "Enrichment ID"
+msgstr ""
+
+#. TRANSLATORS src/components/ImportModal.vue:275
+msgid "Enrichment complete — {done} of %n item enriched from {service}."
+msgid_plural "Enrichment complete — {done} of %n items enriched from {service}."
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:53
+msgid "Everything at once"
+msgstr ""
+
+#. TRANSLATORS button that opens the dialog for exporting this collection to a file (src/components/CollectionView.vue:131)
+msgid "Export"
+msgstr ""
+
+msgid "Export book collection"
+msgstr ""
+
+msgid "Export collection"
+msgstr ""
+
+msgid "Export comic collection"
+msgstr ""
+
+msgid "Export entire collection"
+msgstr ""
+
+msgid "Export failed"
+msgstr ""
+
+msgid "Export failed — please try again."
+msgstr ""
+
+msgid "Export film collection"
+msgstr ""
+
+msgid "Export game collection"
+msgstr ""
+
+msgid "Export music collection"
+msgstr ""
+
+msgid "Export timed out"
+msgstr ""
+
+msgid "Export took too long — try exporting without enriched/market data."
+msgstr ""
+
+msgid "Failed to add to playlist"
+msgstr ""
+
+#. TRANSLATORS: {name} is a key's name, e.g. "Discogs token" or "RAWG key"
+#: src/composables/useTokenSetting.js:75
+msgid "Failed to clear {name}"
+msgstr ""
+
+msgid "Failed to create playlist"
+msgstr ""
+
+msgid "Failed to delete item"
+msgstr ""
+
+msgid "Failed to delete playlist"
+msgstr ""
+
+msgid "Failed to fetch artwork"
+msgstr ""
+
+msgid "Failed to fetch file from Nextcloud."
+msgstr ""
+
+msgid "Failed to fetch photo"
+msgstr ""
+
+msgid "Failed to load playlists"
+msgstr ""
+
+msgid "Failed to load recent items"
+msgstr ""
+
+msgid "Failed to load settings"
+msgstr ""
+
+msgid "Failed to load shares"
+msgstr ""
+
+msgid "Failed to load your collection"
+msgstr ""
+
+msgid "Failed to parse file."
+msgstr ""
+
+msgid "Failed to remove artwork"
+msgstr ""
+
+msgid "Failed to remove item from playlist"
+msgstr ""
+
+msgid "Failed to remove photo {slot}"
+msgstr ""
+
+msgid "Failed to rename playlist"
+msgstr ""
+
+msgid "Failed to save item"
+msgstr ""
+
+#. TRANSLATORS: {name} is a key's name, e.g. "Discogs token" or "RAWG key"
+#: src/composables/useTokenSetting.js:56
+msgid "Failed to save {name}"
+msgstr ""
+
+#: src/composables/useTokenSetting.js:58
+msgid "Failed to save."
+msgstr ""
+
+msgid "Failed to share"
+msgstr ""
+
+msgid "Failed to share."
+msgstr ""
+
+msgid "Failed to start enrichment"
+msgstr ""
+
+msgid "Failed to start market rate refresh"
+msgstr ""
+
+msgid "Failed to stop sharing"
+msgstr ""
+
+msgid "Failed to unshare"
+msgstr ""
+
+msgid "Failed to update playlist"
+msgstr ""
+
+msgid "Failed to wipe collection"
+msgstr ""
+
+msgid "Failed — check the console."
+msgstr ""
+
+msgid "Fetch market rate"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:223
+msgid "Fetch market rates automatically"
+msgstr ""
+
+#. TRANSLATORS src/components/ImportModal.vue:213
+msgid "Fetch market rates from {service} after importing"
+msgstr ""
+
+#. TRANSLATORS heading over the settings for looking up market prices (src/components/SettingsPanel.vue:220)
+msgid "Fetching"
+msgstr ""
+
+#. TRANSLATORS src/components/EnrichmentSearch.vue:30
+msgid "Fetching details from {provider}…"
+msgstr ""
+
+#. TRANSLATORS src/components/ItemDetailView.vue:50
+msgid "Fetching from {source}…"
+msgstr ""
+
+#. TRANSLATORS src/components/ImportModal.vue:317
+msgid "Fetching market rates from {service}… {done} / {total}"
+msgstr ""
+
+msgid "Fetching market rates {done} / {total}"
+msgstr ""
+
+#. TRANSLATORS src/components/ItemDetailView.vue:58
+msgid "Fetching price…"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:236
+msgid "Fetching… {done} / {total}"
+msgstr ""
+
+msgid "File picker not available."
+msgstr ""
+
+#: lib/Controller/ArtworkController.php:267
+#: lib/Controller/PhotoController.php:154 lib/Service/ImportService.php:412
+#: lib/Service/ImportService.php:489
+msgid "File too large (max 10 MB)"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:36
+msgid "Fill items in with metadata, artwork and descriptions from each category's provider. Every provider except Open Library needs a key, set under API keys."
+msgstr ""
+
+#: lib/Service/ShareService.php:355
+msgid "Film"
+msgstr ""
+
+msgid "Film A–Z"
+msgstr ""
+
+#: src/utils/categoryFormats.js:260
+msgid "Film Title"
+msgstr ""
+
+msgid "Film Z–A"
+msgstr ""
+
+msgid "Film metadata, posters and director info via the {linkStart}TMDB API{linkEnd}."
+msgstr ""
+
+msgid "Film of the Day"
+msgstr ""
+
+#: src/utils/categoryFormats.js:15
+msgid "Films"
+msgstr ""
+
+#. TRANSLATORS src/components/CollectionView.vue:185
+msgid "Filter by genre"
+msgstr ""
+
+#. TRANSLATORS src/components/CollectionView.vue:167
+msgid "Filter by year"
+msgstr ""
+
+#. TRANSLATORS src/components/CollectionView.vue:161
+msgid "Filters"
+msgstr ""
+
+#: src/utils/categoryFormats.js:183
+msgid "Flexi-disc"
+msgstr ""
+
+#. TRANSLATORS src/components/AddEditModal.vue:71
+#. TRANSLATORS the kind of file to export, CSV or XLSX (src/components/ExportModal.vue:77)
+msgid "Format"
+msgstr ""
+
+msgid "Format / Platform"
+msgstr ""
+
+#. TRANSLATORS src/components/CollectionView.vue:54
+msgid "Format A–Z"
+msgstr ""
+
+#. TRANSLATORS src/components/CollectionView.vue:57
+msgid "Format Z–A"
+msgstr ""
+
+#: lib/Service/ShareService.php:357
+msgid "Game"
+msgstr ""
+
+msgid "Game A–Z"
+msgstr ""
+
+#: src/utils/categoryFormats.js:274
+msgid "Game Title"
+msgstr ""
+
+msgid "Game Z–A"
+msgstr ""
+
+msgid "Game metadata and cover art via the {linkStart}RAWG API{linkEnd}."
+msgstr ""
+
+#: lib/Controller/RawgController.php:50
+msgid "Game not found or no RAWG API key configured"
+msgstr ""
+
+msgid "Game of the Day"
+msgstr ""
+
+#: src/utils/categoryFormats.js:19
+msgid "Games"
+msgstr ""
+
+#. TRANSLATORS src/components/ItemDetailView.vue:218
+msgid "Genres"
+msgstr ""
+
+#: src/utils/categoryFormats.js:205
+msgid "Graphic Novel"
+msgstr ""
+
+#: src/utils/categoryFormats.js:197
+msgid "Hardcover"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:17
+msgid "Hide categories you don't use. Hidden categories disappear from the sidebar and the Home view, and won't show up in search. At least one category must remain visible."
+msgstr ""
+
+#. TRANSLATORS src/App.vue:6
+msgid "Home"
+msgstr ""
+
+#: src/utils/categoryFormats.js:269
+msgid "ISBN"
+msgstr ""
+
+msgid "ISBN not found in Open Library"
+msgstr ""
+
+#. TRANSLATORS src/components/ItemDetailView.vue:340
+msgid "If you like this…"
+msgstr ""
+
+#: lib/Controller/ArtworkController.php:294
+#: lib/Controller/PhotoController.php:179
+msgid "Image dimensions too large"
+msgstr ""
+
+#. TRANSLATORS button that opens the dialog for importing items from a file (src/components/CollectionView.vue:139)
+msgid "Import"
+msgstr ""
+
+#. TRANSLATORS src/components/ImportModal.vue:233
+msgid "Import %n row"
+msgid_plural "Import %n rows"
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRANSLATORS src/components/ImportModal.vue:10
+msgid "Import collection"
+msgstr ""
+
+msgid "Import failed."
+msgstr ""
+
+msgid "Import into whose collection?"
+msgstr ""
+
+#. TRANSLATORS src/components/ImportModal.vue:232
+msgid "Importing…"
+msgstr ""
+
+#. TRANSLATORS heading over the optional sets of columns to add to the exported file (src/components/ExportModal.vue:98)
+msgid "Include"
+msgstr ""
+
+#: lib/Controller/OpenLibraryController.php:49
+msgid "Invalid ISBN"
+msgstr ""
+
+#: lib/Service/MediaService.php:306
+msgid "Invalid artworkPath."
+msgstr ""
+
+#: lib/Controller/MediaController.php:170
+#: lib/Controller/MediaController.php:231
+msgid "Invalid category"
+msgstr ""
+
+#: lib/Controller/MediaController.php:167
+#: lib/Controller/MediaController.php:228
+msgid "Invalid status"
+msgstr ""
+
+#: lib/Service/ShareService.php:332
+msgid "Item"
+msgstr ""
+
+#. TRANSLATORS: {rail} is the title of the row of suggestions on an item's page, "More from your crate"
+msgid "Items show a \"{rail}\" row, suggesting similar things you already own or want. That's worked out locally from your own collection and needs no setup."
+msgstr ""
+
+#. TRANSLATORS src/components/ExportModal.vue:49
+msgid "Items to export"
+msgstr ""
+
+#. TRANSLATORS src/components/CollectionView.vue:382
+msgid "Jump to section"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:261
+msgid "Keys are stored on your Nextcloud server and are never shown again once saved. Books need no key — Open Library is open."
+msgstr ""
+
+#. TRANSLATORS: a record label, the company that released the album
+#: src/utils/categoryFormats.js:290
+msgid "Label"
+msgstr ""
+
+msgid "Last month"
+msgstr ""
+
+msgid "Last week"
+msgstr ""
+
+msgid "Last year"
+msgstr ""
+
+#: src/utils/categoryFormats.js:187
+msgid "Lathe Cut"
+msgstr ""
+
+#. TRANSLATORS: a share of someone's whole collection
+msgid "Library"
+msgstr ""
+
+#: lib/Service/ShareService.php:113
+msgid "Library already shared with this user."
+msgstr ""
+
+#: src/utils/categoryFormats.js:225
+msgid "Limited Series"
+msgstr ""
+
+#. TRANSLATORS src/components/CollectionView.vue:88
+msgid "List view"
+msgstr ""
+
+#. TRANSLATORS src/components/AddToPlaylistModal.vue:20
+msgid "Loading playlists…"
+msgstr ""
+
+#. TRANSLATORS src/components/CollectionView.vue:232
+#. TRANSLATORS src/components/HomeView.vue:10
+#. TRANSLATORS src/components/ImportModal.vue:86
+#. TRANSLATORS src/components/PlaylistsView.vue:23
+#. TRANSLATORS src/components/SharedByMeView.vue:13
+#. TRANSLATORS src/components/SharedHomeView.vue:16
+#. TRANSLATORS src/components/SharedPlaylistsView.vue:13
+msgid "Loading…"
+msgstr ""
+
+#. TRANSLATORS: button that looks up a book by its ISBN
+msgid "Look up"
+msgstr ""
+
+msgid "Looking up…"
+msgstr ""
+
+#. TRANSLATORS market price of the game or comic on its own, without box or extras (src/components/ItemDetailView.vue:179)
+msgid "Loose"
+msgstr ""
+
+#. TRANSLATORS: {ignore} is the column-mapping choice "ignore", shown in italics
+msgid "Map your columns to Crate fields. Columns marked {ignore} will be skipped."
+msgstr ""
+
+#. TRANSLATORS src/components/ExportModal.vue:116
+msgid "Market data"
+msgstr ""
+
+#. TRANSLATORS src/components/ImportModal.vue:311
+msgid "Market rates complete — {done} of %n item priced via {service}."
+msgid_plural "Market rates complete — {done} of %n items priced via {service}."
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:181
+msgid "Market values"
+msgstr ""
+
+#: src/utils/categoryFormats.js:201
+msgid "Mass Market Paperback"
+msgstr ""
+
+#. TRANSLATORS src/components/ItemDetailView.vue:325
+msgid "Members:"
+msgstr ""
+
+msgid "Metadata, artwork, tracklists and artist info via the {linkStart}Discogs API{linkEnd}."
+msgstr ""
+
+#: src/utils/categoryFormats.js:195
+msgid "Microcassette"
+msgstr ""
+
+#: src/utils/categoryFormats.js:223
+msgid "Mini-Series"
+msgstr ""
+
+#. TRANSLATORS src/components/ItemDetailView.vue:334
+msgid "More from your crate"
+msgstr ""
+
+#. TRANSLATORS src/components/HomeView.vue:108
+msgid "Most Valuable"
+msgstr ""
+
+#: lib/Controller/TmdbController.php:50
+msgid "Movie not found or no TMDB token configured"
+msgstr ""
+
+#: lib/Service/ShareService.php:354 src/utils/categoryFormats.js:13
+msgid "Music"
+msgstr ""
+
+msgid "Music market values come from Discogs; game and comic prices come from {linkStart}PriceCharting{linkEnd} (paid API — requires a subscription). Both keys live under API keys. Films and books have no market-value source."
+msgstr ""
+
+#. TRANSLATORS src/components/PlaylistDetailView.vue:140
+#. TRANSLATORS src/components/PlaylistsView.vue:104
+msgid "Name"
+msgstr ""
+
+#: lib/Controller/PlaylistController.php:140
+#, php-format
+msgid "Name exceeds %s characters"
+msgstr ""
+
+#: lib/Controller/PlaylistController.php:137
+msgid "Name is required"
+msgstr ""
+
+#: src/utils/apiErrors.js:36
+msgid "Network error. Check your connection."
+msgstr ""
+
+#. TRANSLATORS market price of a new, sealed copy (src/components/ItemDetailView.vue:195)
+msgid "New"
+msgstr ""
+
+#. TRANSLATORS src/components/PlaylistsView.vue:15
+#. TRANSLATORS src/components/PlaylistsView.vue:98
+msgid "New playlist"
+msgstr ""
+
+#. TRANSLATORS src/components/AddToPlaylistModal.vue:62
+msgid "New playlist name…"
+msgstr ""
+
+#. TRANSLATORS src/components/CollectionView.vue:29
+msgid "Newest First"
+msgstr ""
+
+#. TRANSLATORS src/components/ImportModal.vue:114
+msgid "Next"
+msgstr ""
+
+msgid "Nextcloud file picker is not available."
+msgstr ""
+
+msgid "No Books items yet."
+msgstr ""
+
+msgid "No Collection items yet."
+msgstr ""
+
+#: src/utils/enrichmentProviders.js:88
+msgid "No ComicVine API key saved — add one in Settings to enable comic search."
+msgstr ""
+
+#: lib/Service/EnrichmentService.php:224
+msgid "No ComicVine match found. Add a ComicVine API key in Settings."
+msgstr ""
+
+#: lib/Service/EnrichmentService.php:232
+msgid "No ComicVine volume ID available."
+msgstr ""
+
+msgid "No Comics items yet."
+msgstr ""
+
+#: lib/Service/EnrichmentService.php:66 lib/Service/EnrichmentService.php:80
+msgid "No Discogs match found for this item."
+msgstr ""
+
+#: src/utils/enrichmentProviders.js:31
+msgid "No Discogs token saved — add one in Settings to enable search and enrichment."
+msgstr ""
+
+msgid "No Films items yet."
+msgstr ""
+
+msgid "No Games items yet."
+msgstr ""
+
+msgid "No Music items yet."
+msgstr ""
+
+#: src/utils/enrichmentProviders.js:75
+msgid "No RAWG API key saved — add one in Settings to enable game search."
+msgstr ""
+
+#: lib/Service/EnrichmentService.php:205
+msgid "No RAWG ID available."
+msgstr ""
+
+#: lib/Service/EnrichmentService.php:198
+msgid "No RAWG match found. Add a RAWG API key in Settings."
+msgstr ""
+
+#: lib/Service/EnrichmentService.php:126
+msgid "No TMDB ID available."
+msgstr ""
+
+#: lib/Service/EnrichmentService.php:119
+msgid "No TMDB match found. Add a TMDB token in Settings."
+msgstr ""
+
+#: src/utils/enrichmentProviders.js:43
+msgid "No TMDB token saved — add one in Settings to enable film search."
+msgstr ""
+
+#: lib/Controller/ArtworkController.php:261
+#: lib/Controller/ImportController.php:65
+#: lib/Controller/ImportController.php:100
+#: lib/Controller/PhotoController.php:149
+msgid "No file uploaded"
+msgstr ""
+
+#. TRANSLATORS src/components/PlaylistDetailView.vue:81
+msgid "No items in this playlist yet. Open any item and use \"Add to playlist\" to add it here."
+msgstr ""
+
+#. TRANSLATORS src/components/ExportModal.vue:135
+msgid "No items match this selection — the file will contain only a header row."
+msgstr ""
+
+#: lib/Controller/MediaController.php:464
+msgid "No market value available — this category may have no price source, no match was found, or (for music) the item needs a Discogs ID first."
+msgstr ""
+
+#: lib/Service/EnrichmentService.php:146
+msgid "No match found on Open Library."
+msgstr ""
+
+#. TRANSLATORS src/components/SharedPlaylistsView.vue:20
+msgid "No playlists have been shared with you yet."
+msgstr ""
+
+#. TRANSLATORS src/components/AddToPlaylistModal.vue:53
+msgid "No playlists yet."
+msgstr ""
+
+#. TRANSLATORS src/components/PlaylistsView.vue:30
+msgid "No playlists yet. Create one to organise your collection."
+msgstr ""
+
+#: lib/Controller/ExportController.php:76
+msgid "No read access to that collection"
+msgstr ""
+
+#. TRANSLATORS src/components/EnrichmentSearch.vue:36
+msgid "No results found."
+msgstr ""
+
+#. TRANSLATORS src/components/UserSearchField.vue:30
+msgid "No users found."
+msgstr ""
+
+#: lib/Controller/ImportController.php:148
+msgid "No write access to that collection"
+msgstr ""
+
+#: lib/Service/MediaService.php:208
+msgid "No write access to that collection."
+msgstr ""
+
+#. TRANSLATORS: {filters} is the active decade, genre and format filters, e.g. "1990s Rock Vinyl"
+msgid "No {filters} items in your collection."
+msgstr ""
+
+#. TRANSLATORS: {filters} is the active decade, genre and format filters, e.g. "1990s Rock Vinyl"
+msgid "No {filters} items in your wanted list."
+msgstr ""
+
+#: lib/Controller/ArtworkController.php:249
+#: lib/Controller/ArtworkController.php:352
+#: lib/Controller/PhotoController.php:134
+#: lib/Controller/PhotoController.php:234
+msgid "Not authenticated"
+msgstr ""
+
+#: src/utils/apiErrors.js:31
+msgid "Not authorised for this action."
+msgstr ""
+
+#: lib/Controller/ArtworkController.php:256
+#: lib/Controller/ArtworkController.php:359
+#: lib/Controller/MediaController.php:133
+#: lib/Controller/MediaController.php:256
+#: lib/Controller/MediaController.php:333
+#: lib/Controller/MediaController.php:388
+#: lib/Controller/MediaController.php:433
+#: lib/Controller/MediaController.php:472
+#: lib/Controller/MediaController.php:498
+#: lib/Controller/PhotoController.php:144
+#: lib/Controller/PhotoController.php:244
+#: lib/Controller/PlaylistController.php:60
+#: lib/Controller/PlaylistController.php:94
+#: lib/Controller/PlaylistController.php:105
+msgid "Not found"
+msgstr ""
+
+#: lib/Controller/ExportController.php:63
+msgid "Not logged in"
+msgstr ""
+
+#. TRANSLATORS src/components/AddEditModal.vue:211
+#. TRANSLATORS src/components/ItemDetailView.vue:236
+msgid "Notes"
+msgstr ""
+
+#. TRANSLATORS src/components/SharedHomeView.vue:23
+msgid "Nothing has been shared with you yet."
+msgstr ""
+
+#. TRANSLATORS {category} is a category name, e.g. "Films" (src/components/SharedHomeView.vue:121)
+msgid "Nothing here yet. Open {category} to add the first item."
+msgstr ""
+
+#. TRANSLATORS src/components/CollectionView.vue:32
+msgid "Oldest First"
+msgstr ""
+
+#: src/utils/categoryFormats.js:227
+msgid "Omnibus"
+msgstr ""
+
+msgid "One row per album. If you own the same album on multiple formats, add a row for each. A Discogs collection export (CSV) imports as it is."
+msgstr ""
+
+msgid "One row per book."
+msgstr ""
+
+msgid "One row per film. If you own the same film on multiple formats (Blu-ray, DVD, etc.), add a row for each."
+msgstr ""
+
+msgid "One row per game. If you own the same game on multiple platforms, add a row for each."
+msgstr ""
+
+msgid "One row per issue or volume."
+msgstr ""
+
+#: src/utils/categoryFormats.js:221
+msgid "One-Shot"
+msgstr ""
+
+#. TRANSLATORS heading over the setting that looks up recommendations on online services (src/components/SettingsPanel.vue:164)
+msgid "Online"
+msgstr ""
+
+#. TRANSLATORS src/components/CollectionView.vue:308
+#. TRANSLATORS src/components/MediaCard.vue:9
+msgid "Open {item}"
+msgstr ""
+
+#. TRANSLATORS label before the list of columns an import file may also have (src/components/ImportModal.vue:22)
+msgid "Optional:"
+msgstr ""
+
+#. TRANSLATORS src/components/AddEditModal.vue:180
+#. TRANSLATORS src/components/ItemDetailView.vue:146
+msgid "Original price"
+msgstr ""
+
+#. TRANSLATORS src/components/ExportModal.vue:124
+msgid "Original price paid"
+msgstr ""
+
+msgid "Overview"
+msgstr ""
+
+#: src/utils/categoryFormats.js:29
+msgid "Owned"
+msgstr ""
+
+#: src/utils/categoryFormats.js:199
+msgid "Paperback"
+msgstr ""
+
+msgid "Paste your API key here"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:353
+msgid "Permanently delete selected data from your collection. You choose what to wipe in the confirmation dialog. This cannot be undone."
+msgstr ""
+
+#. TRANSLATORS src/components/ItemDetailView.vue:258
+msgid "Photo {number}"
+msgstr ""
+
+msgid "Photo {slot} upload failed"
+msgstr ""
+
+#. TRANSLATORS src/components/ItemDetailView.vue:251
+msgid "Photos"
+msgstr ""
+
+#. TRANSLATORS: physical film formats, as opposed to digital ones
+#: src/utils/categoryFormats.js:151
+msgid "Physical"
+msgstr ""
+
+msgid "Physical media catalogue"
+msgstr ""
+
+#. TRANSLATORS "Files" is the Nextcloud Files app (src/components/AddEditModal.vue:256)
+#. TRANSLATORS src/components/PhotoSlot.vue:37
+msgid "Pick from Files"
+msgstr ""
+
+#. TRANSLATORS src/components/ImportModal.vue:87
+msgid "Pick from Nextcloud Files"
+msgstr ""
+
+#: src/utils/categoryFormats.js:181
+msgid "Picture Disc"
+msgstr ""
+
+#: lib/Service/ShareService.php:337 lib/Service/ShareService.php:339
+msgid "Playlist"
+msgstr ""
+
+#: lib/Controller/PlaylistController.php:125
+#: lib/Controller/ShareController.php:124
+#: lib/Controller/ShareController.php:136
+msgid "Playlist not found"
+msgstr ""
+
+#: lib/Controller/PlaylistController.php:115
+msgid "Playlist or item not found"
+msgstr ""
+
+#. TRANSLATORS src/App.vue:20
+#. TRANSLATORS src/components/PlaylistsView.vue:6
+msgid "Playlists"
+msgstr ""
+
+msgid "Playlists and shares"
+msgstr ""
+
+msgid "Powers comic enrichment. Get a free API key at {linkStart}comicvine.gamespot.com/api{linkEnd}."
+msgstr ""
+
+msgid "Powers film enrichment. Generate an API Read Access Token at {linkStart}themoviedb.org/settings/api{linkEnd}."
+msgstr ""
+
+msgid "Powers game and comic market values. API access is a paid subscription — see the {linkStart}API documentation{linkEnd} for pricing and details."
+msgstr ""
+
+msgid "Powers game enrichment. Get a free API key at {linkStart}rawg.io/apidocs{linkEnd}."
+msgstr ""
+
+msgid "Powers music enrichment and music market values. Generate a personal access token at {linkStart}discogs.com/settings/developers{linkEnd}."
+msgstr ""
+
+#. TRANSLATORS src/components/ExportModal.vue:162
+msgid "Preparing download…"
+msgstr ""
+
+#. TRANSLATORS src/components/ImportModal.vue:149
+msgid "Preview (first %n row):"
+msgid_plural "Preview (first %n rows):"
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:334
+msgid "PriceCharting API key"
+msgstr ""
+
+#: lib/Controller/MediaController.php:480
+msgid "PriceCharting rate limit reached. Try again shortly."
+msgstr ""
+
+msgid "PriceCharting token"
+msgstr ""
+
+#: src/utils/categoryFormats.js:153
+msgid "Print"
+msgstr ""
+
+#: src/utils/categoryFormats.js:268 src/utils/categoryFormats.js:275
+#: src/utils/categoryFormats.js:282
+msgid "Publisher"
+msgstr ""
+
+#. TRANSLATORS src/components/ItemDetailView.vue:161
+msgid "Purchase and market currencies differ — no gain/loss shown"
+msgstr ""
+
+msgid "Purchase currency"
+msgstr ""
+
+msgid "Purchase price"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:300
+msgid "RAWG API key"
+msgstr ""
+
+msgid "RAWG key"
+msgstr ""
+
+#: src/utils/apiErrors.js:29
+msgid "Rate limit reached. Please wait and try again."
+msgstr ""
+
+#. TRANSLATORS: fetch the item's details from the online service again
+msgid "Re-enrich"
+msgstr ""
+
+#. TRANSLATORS src/components/ShareModal.vue:64
+#. TRANSLATORS src/components/SharedByMeView.vue:42
+msgid "Read-only"
+msgstr ""
+
+#. TRANSLATORS src/components/ImportModal.vue:113
+msgid "Reading…"
+msgstr ""
+
+msgid "Ready to export {strongStart}%n{strongEnd} item."
+msgid_plural "Ready to export {strongStart}%n{strongEnd} items."
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRANSLATORS src/components/HomeView.vue:93
+msgid "Recently Added"
+msgstr ""
+
+#. TRANSLATORS src/components/SharedHomeView.vue:88
+msgid "Recently Shared"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:158
+msgid "Recommendations"
+msgstr ""
+
+#: src/utils/categoryFormats.js:191
+msgid "Reel-to-Reel"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:237
+msgid "Refresh all market rates"
+msgstr ""
+
+msgid "Refresh market rate"
+msgstr ""
+
+#. TRANSLATORS button that removes the artwork (src/components/AddEditModal.vue:266)
+#. TRANSLATORS src/components/PhotoSlot.vue:46
+#. TRANSLATORS src/components/PlaylistDetailView.vue:125
+#. TRANSLATORS src/components/ShareModal.vue:72
+#. TRANSLATORS src/components/settings/TokenField.vue:39
+msgid "Remove"
+msgstr ""
+
+#. TRANSLATORS button that removes the details fetched from an online service (Discogs, TMDB…) (src/components/ItemDetailView.vue:37)
+msgid "Remove data"
+msgstr ""
+
+#. TRANSLATORS src/components/PlaylistDetailView.vue:122
+msgid "Remove {title} from playlist"
+msgstr ""
+
+#. TRANSLATORS src/components/ItemDetailView.vue:54
+msgid "Removing…"
+msgstr ""
+
+#. TRANSLATORS src/components/PlaylistsView.vue:82
+msgid "Rename"
+msgstr ""
+
+#. TRANSLATORS src/components/PlaylistsView.vue:149
+msgid "Rename playlist"
+msgstr ""
+
+#. TRANSLATORS src/components/PlaylistsView.vue:79
+msgid "Rename {name}"
+msgstr ""
+
+msgid "Replace"
+msgstr ""
+
+#. TRANSLATORS src/components/ImportModal.vue:20
+msgid "Required columns:"
+msgstr ""
+
+#: lib/Service/ImportService.php:1195 lib/Service/ImportService.php:1246
+#: lib/Service/ImportService.php:1257
+#, php-format
+msgid "Row %1$s: %2$s — skipped"
+msgstr ""
+
+#: lib/Service/ImportService.php:1167
+#, php-format
+msgid "Row %1$s: unrecognised format \"%2$s\" - skipped"
+msgstr ""
+
+#: lib/Service/ImportService.php:1221
+#, php-format
+msgid "Row %1$s: unrecognised year \"%2$s\" — imported without a year"
+msgstr ""
+
+#: lib/Service/ImportService.php:1291
+#, php-format
+msgid "Row %s: could not be saved — skipped"
+msgstr ""
+
+#: lib/Service/ImportService.php:1151
+#, php-format
+msgid "Row %s: missing Artist or Title — skipped"
+msgstr ""
+
+#: lib/Service/ImportService.php:1157
+#, php-format
+msgid "Row %s: missing Format — skipped"
+msgstr ""
+
+#. TRANSLATORS src/components/PlaylistDetailView.vue:174
+#. TRANSLATORS src/components/PlaylistsView.vue:190
+#. TRANSLATORS src/components/settings/TokenField.vue:31
+msgid "Save"
+msgstr ""
+
+msgid "Save changes"
+msgstr ""
+
+#: src/composables/useTokenSetting.js:52
+msgid "Saved!"
+msgstr ""
+
+#. TRANSLATORS src/components/PlaylistDetailView.vue:173
+#. TRANSLATORS src/components/PlaylistsView.vue:189
+#. TRANSLATORS src/components/settings/TokenField.vue:30
+msgid "Saving…"
+msgstr ""
+
+#. TRANSLATORS: button that runs the search
+msgid "Search"
+msgstr ""
+
+#: src/utils/enrichmentProviders.js:87
+msgid "Search ComicVine (series title…)"
+msgstr ""
+
+#: src/utils/enrichmentProviders.js:27
+msgid "Search Discogs (artist, album, barcode…)"
+msgstr ""
+
+#: src/utils/enrichmentProviders.js:55
+msgid "Search Open Library (title, author…)"
+msgstr ""
+
+#: src/utils/enrichmentProviders.js:74
+msgid "Search RAWG (game title…)"
+msgstr ""
+
+#: src/utils/enrichmentProviders.js:42
+msgid "Search TMDB (film title…)"
+msgstr ""
+
+msgid "Search users by name or username…"
+msgstr ""
+
+msgid "Searching…"
+msgstr ""
+
+msgid "Select CSV or XLSX file"
+msgstr ""
+
+msgid "Select artwork"
+msgstr ""
+
+msgid "Select photo {number}"
+msgstr ""
+
+#. TRANSLATORS the empty choice of a dropdown, asking the user to pick a format (src/components/AddEditModal.vue:82)
+msgid "Select…"
+msgstr ""
+
+#: src/utils/categoryFormats.js:281
+msgid "Series / Volume Title"
+msgstr ""
+
+#: src/utils/apiErrors.js:33
+msgid "Server error. Please try again."
+msgstr ""
+
+#. TRANSLATORS src/App.vue:59
+msgid "Settings"
+msgstr ""
+
+#. TRANSLATORS button that opens the dialog for sharing this collection (src/components/CollectionView.vue:123)
+#. TRANSLATORS src/components/ItemDetailView.vue:71
+#. TRANSLATORS verb; button that opens the dialog for sharing this playlist with other users (src/components/PlaylistDetailView.vue:30)
+#. TRANSLATORS src/components/ShareCollectionModal.vue:104
+#. TRANSLATORS: verb; heading of the dialog for sharing an item or a playlist with other users
+msgid "Share"
+msgstr ""
+
+msgid "Share category"
+msgstr ""
+
+#. TRANSLATORS src/components/ShareCollectionModal.vue:10
+msgid "Share collection"
+msgstr ""
+
+#: lib/Controller/ShareController.php:215
+msgid "Share not found"
+msgstr ""
+
+msgid "Share whole library"
+msgstr ""
+
+#. TRANSLATORS src/components/ShareCollectionModal.vue:52
+msgid "Share with"
+msgstr ""
+
+#. TRANSLATORS src/components/ShareCollectionModal.vue:13
+msgid "Share your whole library or individual categories with another Nextcloud user. Read-only lets them browse; read/write also lets them add and edit items (but not delete them)."
+msgstr ""
+
+#. TRANSLATORS: result shown next to a library or category: the share was created
+msgid "Shared"
+msgstr ""
+
+#. TRANSLATORS src/components/SharedHomeView.vue:141
+msgid "Shared Playlists"
+msgstr ""
+
+#. TRANSLATORS src/App.vue:51
+#. TRANSLATORS src/components/SharedByMeView.vue:5
+msgid "Shared by me"
+msgstr ""
+
+#. TRANSLATORS src/components/MediaCard.vue:34
+msgid "Shared by {name}"
+msgstr ""
+
+msgid "Shared by {name} · can edit"
+msgstr ""
+
+msgid "Shared by {name} · read-only"
+msgstr ""
+
+#. TRANSLATORS src/components/CollectionView.vue:17
+msgid "Shared by {owner}"
+msgstr ""
+
+#. TRANSLATORS src/components/SharedHomeView.vue:53
+msgid "Shared by {user}"
+msgstr ""
+
+msgid "Shared by {user} · can edit"
+msgstr ""
+
+msgid "Shared by {user} · read-only"
+msgstr ""
+
+#. TRANSLATORS src/components/SharedPlaylistsView.vue:5
+msgid "Shared playlists"
+msgstr ""
+
+#. TRANSLATORS src/components/ShareModal.vue:50
+msgid "Shared with"
+msgstr ""
+
+#. TRANSLATORS src/App.vue:26
+#. TRANSLATORS src/components/CollectionView.vue:11
+#. TRANSLATORS src/components/SharedHomeView.vue:8
+msgid "Shared with me"
+msgstr ""
+
+#. TRANSLATORS src/components/SharedByMeView.vue:36
+msgid "Shared with {user}"
+msgstr ""
+
+msgid "Shared with {user}."
+msgstr ""
+
+msgid "Sharees can view every item in your collection. Read-only."
+msgstr ""
+
+msgid "Sharees can view every item in your collection. They can add and edit items, but not delete them."
+msgstr ""
+
+msgid "Sharees can view items in this category. Read-only."
+msgstr ""
+
+msgid "Sharees can view items in this category. They can add and edit items, but not delete them."
+msgstr ""
+
+#. TRANSLATORS src/components/ShareCollectionModal.vue:103
+msgid "Sharing…"
+msgstr ""
+
+#: src/utils/categoryFormats.js:185
+msgid "Shellac"
+msgstr ""
+
+#. TRANSLATORS src/components/ItemDetailView.vue:126
+msgid "Show all {decade} items"
+msgstr ""
+
+#. TRANSLATORS src/components/ItemDetailView.vue:113
+msgid "Show all {format} items"
+msgstr ""
+
+#. TRANSLATORS src/components/ItemDetailView.vue:224
+msgid "Show all {genre} items"
+msgstr ""
+
+#: src/utils/categoryFormats.js:213
+msgid "Single Issue"
+msgstr ""
+
+#: src/utils/categoryFormats.js:157
+msgid "Single Issues"
+msgstr ""
+
+#. TRANSLATORS an empty position for an item photo; {number} counts the photo positions 1, 2, 3… (src/components/PhotoSlot.vue:12)
+msgid "Slot {number}"
+msgstr ""
+
+#. TRANSLATORS src/components/CollectionView.vue:26
+msgid "Sort order"
+msgstr ""
+
+#. TRANSLATORS: a one-off special comic issue
+#: src/utils/categoryFormats.js:219
+msgid "Special"
+msgstr ""
+
+#: lib/Service/ImportService.php:563 lib/Service/ImportService.php:985
+msgid "Spreadsheet contents too large to process"
+msgstr ""
+
+#: lib/Service/ImportService.php:557
+msgid "Spreadsheet has too many distinct text values to process"
+msgstr ""
+
+#: lib/Service/ImportService.php:994
+msgid "Spreadsheet rejected: implausible compression ratio"
+msgstr ""
+
+#: lib/Service/ImportService.php:853
+msgid "Spreadsheet rejected: unexpected document type declaration"
+msgstr ""
+
+#. TRANSLATORS src/components/AddEditModal.vue:41
+msgid "Status"
+msgstr ""
+
+#. TRANSLATORS: {owned} and {wanted} are the values a file's status column takes; they stay in English
+msgid "Status ({owned} / {wanted})"
+msgstr ""
+
+#. TRANSLATORS src/App.vue:276
+#. TRANSLATORS src/components/SettingsPanel.vue:70
+msgid "Stop"
+msgstr ""
+
+#. TRANSLATORS src/components/SharedByMeView.vue:51
+msgid "Stop sharing"
+msgstr ""
+
+#: src/utils/categoryFormats.js:261
+msgid "Studio"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:283
+msgid "TMDB API Read Access Token"
+msgstr ""
+
+msgid "TMDB token"
+msgstr ""
+
+#: src/utils/categoryFormats.js:146
+msgid "Tape"
+msgstr ""
+
+#. TRANSLATORS src/components/OwnerPickerModal.vue:13
+msgid "This category is shared with you by several people. Choose whose collection to add to."
+msgstr ""
+
+#: lib/Controller/ArtworkController.php:304
+#: lib/Controller/PhotoController.php:189
+msgid "This image could not be processed. Re-save it as JPEG or PNG and try again."
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:377
+msgid "Tick the categories you want to permanently delete. There is no undo."
+msgstr ""
+
+#: src/utils/categoryFormats.js:267
+msgid "Title"
+msgstr ""
+
+msgid "Title A–Z"
+msgstr ""
+
+msgid "Title Z–A"
+msgstr ""
+
+msgid "Today"
+msgstr ""
+
+#: lib/Service/ImportService.php:1102
+#, php-format
+msgid "Too many rows (%1$s) — the limit is %2$s rows per import"
+msgstr ""
+
+#: lib/Service/ImportService.php:454 lib/Service/ImportService.php:683
+#, php-format
+msgid "Too many rows — the limit is %s rows per import"
+msgstr ""
+
+#. TRANSLATORS src/components/ItemDetailView.vue:277
+msgid "Tracklist"
+msgstr ""
+
+#: src/utils/categoryFormats.js:203
+msgid "Trade Paperback"
+msgstr ""
+
+#. TRANSLATORS: heading for the items with no year, date added or format
+msgid "Unknown"
+msgstr ""
+
+#: lib/Service/ShareService.php:419
+msgid "Unknown category."
+msgstr ""
+
+#: lib/Service/EnrichmentService.php:52
+#, php-format
+msgid "Unknown category: %s"
+msgstr ""
+
+#: lib/Service/ShareService.php:397
+msgid "Unknown permission."
+msgstr ""
+
+#: lib/Controller/MediaController.php:361
+#, php-format
+msgid "Unknown wipe scope(s): %s"
+msgstr ""
+
+#. TRANSLATORS src/components/ShareModal.vue:69
+msgid "Unshare with {user}"
+msgstr ""
+
+#: lib/Controller/ArtworkController.php:276
+#: lib/Controller/PhotoController.php:161
+msgid "Unsupported file type"
+msgstr ""
+
+#: lib/Service/ImportService.php:403
+#, php-format
+msgid "Unsupported file type: .%s"
+msgstr ""
+
+#: lib/Controller/MediaController.php:322
+msgid "Unsupported purchasePriceCurrency"
+msgstr ""
+
+msgid "Upload"
+msgstr ""
+
+#. TRANSLATORS src/components/ImportModal.vue:16
+msgid "Upload a CSV or XLSX file."
+msgstr ""
+
+#. TRANSLATORS src/components/AddEditModal.vue:247
+msgid "Upload from computer"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:212
+msgid "Used for Discogs (music) prices. PriceCharting (games & comics) prices are always in USD."
+msgstr ""
+
+#: src/composables/useUserSearch.js:56
+msgid "User search failed"
+msgstr ""
+
+#. TRANSLATORS sort by market value, most valuable first (src/components/CollectionView.vue:63)
+msgid "Value (Highest)"
+msgstr ""
+
+#. TRANSLATORS sort by market value, least valuable first (src/components/CollectionView.vue:67)
+msgid "Value (Lowest)"
+msgstr ""
+
+#. TRANSLATORS src/components/HomeView.vue:85
+#. TRANSLATORS src/components/SharedHomeView.vue:76
+msgid "View details"
+msgstr ""
+
+#. TRANSLATORS src/components/CollectionView.vue:76
+msgid "View mode"
+msgstr ""
+
+#: src/utils/categoryFormats.js:144 src/utils/categoryFormats.js:175
+msgid "Vinyl"
+msgstr ""
+
+#. TRANSLATORS: sort comics by the title of their volume (series)
+msgid "Volume A–Z"
+msgstr ""
+
+#. TRANSLATORS: sort comics by the title of their volume (series)
+msgid "Volume Z–A"
+msgstr ""
+
+#: lib/Controller/ComicVineController.php:50
+msgid "Volume not found or no ComicVine API key configured"
+msgstr ""
+
+#. TRANSLATORS src/components/CollectionView.vue:113
+#. TRANSLATORS src/components/ExportModal.vue:63
+#: src/utils/categoryFormats.js:29
+msgid "Wanted"
+msgstr ""
+
+#. TRANSLATORS src/components/ShareCollectionModal.vue:18
+msgid "What to share"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:226
+msgid "When enabled, opening an item triggers a live price lookup for the applicable categories."
+msgstr ""
+
+#. TRANSLATORS src/components/ShareCollectionModal.vue:24
+#: lib/Service/ShareService.php:342
+msgid "Whole library"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:373
+msgid "Wipe data"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:363
+msgid "Wipe data…"
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:402
+msgid "Wipe selected"
+msgstr ""
+
+msgid "Wiped: {scopes}."
+msgstr ""
+
+#. TRANSLATORS src/components/SettingsPanel.vue:362
+msgid "Wiping…"
+msgstr ""
+
+#: lib/Controller/OpenLibraryController.php:66
+msgid "Work not found"
+msgstr ""
+
+#: src/utils/categoryFormats.js:280
+msgid "Writer"
+msgstr ""
+
+msgid "Writer A–Z"
+msgstr ""
+
+msgid "Writer Z–A"
+msgstr ""
+
+#. TRANSLATORS src/components/AddEditModal.vue:117
+msgid "Year"
+msgstr ""
+
+#. TRANSLATORS src/components/CollectionView.vue:50
+msgid "Year (Newest)"
+msgstr ""
+
+#. TRANSLATORS src/components/CollectionView.vue:47
+msgid "Year (Oldest)"
+msgstr ""
+
+msgid "Yesterday"
+msgstr ""
+
+#: lib/Activity/Provider.php:62
+#, php-format
+msgid "You added %1$s to your %2$s collection"
+msgstr ""
+
+#: lib/Activity/Provider.php:58
+#, php-format
+msgid "You added {item} to your %s collection"
+msgstr ""
+
+#. TRANSLATORS src/components/ImportModal.vue:294
+msgid "You can safely close this dialog — enrichment will continue in the background."
+msgstr ""
+
+#: lib/Activity/Provider.php:92
+#, php-format
+msgid "You enriched %1$s with metadata"
+msgstr ""
+
+#: lib/Activity/Provider.php:88
+msgid "You enriched {item} with metadata"
+msgstr ""
+
+#. TRANSLATORS src/components/SharedByMeView.vue:20
+msgid "You haven't shared anything yet."
+msgstr ""
+
+#: lib/Activity/Provider.php:82
+#, php-format
+msgid "You removed %1$s from your %2$s collection"
+msgstr ""
+
+#: lib/Activity/Provider.php:78
+#, php-format
+msgid "You removed {item} from your %s collection"
+msgstr ""
+
+#: lib/Activity/Provider.php:72
+#, php-format
+msgid "You updated %1$s in your %2$s collection"
+msgstr ""
+
+#: lib/Activity/Provider.php:68
+#, php-format
+msgid "You updated {item} in your %s collection"
+msgstr ""
+
+#. TRANSLATORS src/components/HomeView.vue:15
+msgid "Your collection is empty."
+msgstr ""
+
+msgid "Your wanted list is empty."
+msgstr ""
+
+msgid "all available enriched fields across every category"
+msgstr ""
+
+#. TRANSLATORS when the market price was fetched; {date} is a date such as "21 Oct 2026" (src/components/ItemDetailView.vue:207)
+msgid "as of {date}"
+msgstr ""
+
+#. TRANSLATORS src/components/ItemDetailView.vue:163
+msgid "currencies differ"
+msgstr ""
+
+#. TRANSLATORS under the number of rows left out because the item is already in the collection (src/components/ImportModal.vue:249)
+msgid "duplicate skipped"
+msgid_plural "duplicates skipped"
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRANSLATORS src/components/PlaylistsView.vue:109
+msgid "e.g. Road trip vibes"
+msgstr ""
+
+#. TRANSLATORS: an example shown in an empty form field; {example} is a name, title or number such as Pink Floyd
+msgid "e.g. {example}"
+msgstr ""
+
+#. TRANSLATORS: a playlist with nothing in it
+#: src/utils/categoryFormats.js:40
+msgid "empty"
+msgstr ""
+
+msgid "genres and metadata fields"
+msgstr ""
+
+msgid "genres, country, overview"
+msgstr ""
+
+msgid "genres, country, tracklist, pressing notes, artist bio, members"
+msgstr ""
+
+msgid "genres, description"
+msgstr ""
+
+msgid "genres, description, author bio"
+msgstr ""
+
+#. TRANSLATORS: the column-mapping choice that leaves a column out of the import
+msgid "ignore"
+msgstr ""
+
+#. TRANSLATORS under the number of items the import added, which is shown above it (src/components/ImportModal.vue:244)
+msgid "item added"
+msgid_plural "items added"
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRANSLATORS: a playlist holding items from more than one category
+#: src/utils/categoryFormats.js:44
+msgid "mixed"
+msgstr ""
+
+#. TRANSLATORS between the file drop zone and the button that picks a file from Nextcloud Files (src/components/ImportModal.vue:75)
+msgid "or"
+msgstr ""
+
+#: lib/Service/ImportService.php:305
+msgid "purchase price out of range"
+msgstr ""
+
+#: lib/Service/ImportService.php:368
+msgid "purchase price requires a currency"
+msgstr ""
+
+#: lib/Controller/MediaController.php:315
+msgid "purchasePrice out of range"
+msgstr ""
+
+#: lib/Controller/MediaController.php:319
+msgid "purchasePriceCurrency is required when purchasePrice is set"
+msgstr ""
+
+#. TRANSLATORS under the number of rows the import could not use (src/components/ImportModal.vue:254)
+msgid "row skipped"
+msgid_plural "rows skipped"
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRANSLATORS: stands in for a service's name, such as Discogs, in "Enrich from {service} after importing"
+msgid "the enrichment service"
+msgstr ""
+
+#: lib/Service/ImportService.php:301
+#, php-format
+msgid "unparseable purchase price \"%s\""
+msgstr ""
+
+#: lib/Service/ImportService.php:371
+#, php-format
+msgid "unsupported purchase currency \"%s\""
+msgstr ""
+
+#. TRANSLATORS credits the service the suggestions came from, e.g. "via TMDB" (src/components/RecommendationRail.vue:20)
+msgid "via {source}"
+msgstr ""
+
+#: lib/Dto/MediaItemData.php:103
+msgid "year out of range"
+msgstr ""
+
+#. TRANSLATORS: {count} is what the playlist holds, e.g. "3 films"; {user} is who shared it
+msgid "{count} · by {user}"
+msgstr ""
+
+#. TRANSLATORS: a decade named by its first year: "1990s" for {decade} = 1990, or "90s" for {decade} = 90
+#: src/utils/genres.js:75
+msgid "{decade}s"
+msgstr ""
+
+#. TRANSLATORS: {name} is a key's name, e.g. "Discogs token" or "RAWG key"
+#: src/composables/useTokenSetting.js:71
+msgid "{name} removed."
+msgstr ""
+
+msgid "{provider} search failed"
+msgstr ""
+
+#. TRANSLATORS src/components/ImportModal.vue:301
+msgid "{service} enrichment skipped — no API key configured."
+msgstr ""
+
+msgid "{strongStart}Do not navigate away from Crate{strongEnd} or the browser tab, or progress will be lost."
+msgstr ""
+
+msgid "— not available for books"
+msgstr ""
+
+msgid "— not available for films"
+msgstr ""
