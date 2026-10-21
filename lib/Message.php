@@ -10,10 +10,12 @@ use OCP\IL10N;
  * A message for the user, kept untranslated until it is shown.
  *
  * A service says what happened without knowing who will read it. Whatever
- * turns the message into a response translates it for whoever asked, so
- * nothing the services produce, store or cache depends on a language. The
- * constructors are named t() and n() because the translation tooling collects
- * the strings passed to calls of those names.
+ * turns the message into a response translates it for whoever asked, so no
+ * message a service produces, stores or caches depends on a language. (Data
+ * from a provider is another matter: it comes in the language of the user who
+ * asked for it; see Service\EnrichmentLanguage.) The constructors are named
+ * t() and n() because the translation tooling collects the strings passed to
+ * calls of those names.
  */
 final class Message implements \Stringable
 {

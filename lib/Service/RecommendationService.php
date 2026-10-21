@@ -50,6 +50,7 @@ class RecommendationService
         private readonly ICacheFactory $cacheFactory,
         private readonly IConfig $config,
         private readonly LoggerInterface $logger,
+        private readonly EnrichmentLanguage $language,
     ) {
     }
 
@@ -243,14 +244,29 @@ class RecommendationService
      * derived from stored genres rather than the id alone, by those genres too
      * — so re-enriching an item with different genres doesn't keep serving
      * suggestions built from the old ones.
+     *
+     * Film and book suggestions come back in the requesting user's language
+     * (see EnrichmentLanguage), so their key carries the language the provider
+     * was asked for, region included: pt-BR and pt-PT titles differ. English,
+     * and any language the provider can't serve, keep the key they had before
+     * languages, so those users share one entry.
      */
     private function cacheKey(MediaItem $item): string
     {
-        return implode('-', [
+        $parts = [
             (string)$item->getCategory(),
             (string)$item->getDiscogsId(),
             substr(sha1((string)$item->getGenres()), 0, 12),
-        ]);
+        ];
+        $language = match ($item->getCategory()) {
+            CrateCategories::FILM => $this->language->tmdb(),
+            CrateCategories::BOOK => $this->language->openLibrary(),
+            default => null,
+        };
+        if ($language !== null) {
+            $parts[] = $language;
+        }
+        return implode('-', $parts);
     }
 
     /** Provider name for the rail's attribution line. */

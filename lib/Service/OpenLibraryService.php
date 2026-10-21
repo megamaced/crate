@@ -4,10 +4,39 @@ declare(strict_types=1);
 
 namespace OCA\Crate\Service;
 
+use OCP\Http\Client\IClientService;
+use OCP\Security\ICredentialsManager;
+use Psr\Log\LoggerInterface;
+
+/**
+ * Books from Open Library.
+ *
+ * A search, or a subject's read-alikes, prefers an edition in the requesting
+ * user's language (see EnrichmentLanguage). Open Library returns the one
+ * edition it ranks best for that language, and a row shows that edition when
+ * it is in the language, or failing that in English, with the edition's own
+ * cover, ISBN and publisher; otherwise the row is the work's, as before. Only
+ * titles change: work descriptions are in whatever language they were written
+ * in, ISBN lookups return the book scanned, and a book already linked to its
+ * work isn't looked up again in another language.
+ */
 class OpenLibraryService extends AbstractApiService
 {
     private const SEARCH_URL = 'https://openlibrary.org/search.json';
     private const COVER_BASE = 'https://covers.openlibrary.org/b/';
+
+    /** The fields of the one edition Open Library returns for a language. */
+    private const EDITION_FIELDS = ',editions,editions.key,editions.title,editions.language,'
+        . 'editions.cover_i,editions.isbn,editions.publisher';
+
+    public function __construct(
+        IClientService $clientService,
+        ICredentialsManager $credentialsManager,
+        LoggerInterface $logger,
+        private readonly EnrichmentLanguage $language,
+    ) {
+        parent::__construct($clientService, $credentialsManager, $logger);
+    }
 
     /**
      * Fields asked of search.json: everything normaliseDoc() reads, including
@@ -31,14 +60,14 @@ class OpenLibraryService extends AbstractApiService
      */
     public function search(string $query): array
     {
-        $body = $this->getJson(self::SEARCH_URL, [
+        $body = $this->getJson(self::SEARCH_URL, $this->inLanguage([
             'q'      => $query,
             'limit'  => '10',
             'fields' => self::SEARCH_FIELDS,
-        ]);
+        ]));
 
         $docs = array_slice((array)($body['docs'] ?? []), 0, 10);
-        return array_values(array_map(fn(array $d) => $this->normaliseDoc($d), $docs));
+        return array_values(array_map(fn(array $d) => $this->normaliseDoc($d, $this->editionLanguages()), $docs));
     }
 
     /**
@@ -93,13 +122,13 @@ class OpenLibraryService extends AbstractApiService
 
         // fetchList, not getJson: a failed or malformed search must not read
         // as "no suggestions", which the caller would keep for a week.
-        $docs = $this->fetchList(self::SEARCH_URL, 'docs', [
+        $docs = $this->fetchList(self::SEARCH_URL, 'docs', $this->inLanguage([
             // Quoted so multi-word subjects match as a phrase.
             'q'      => 'subject:"' . $subject . '"',
             'sort'   => 'readinglog',
             'limit'  => (string)($limit + 1),
             'fields' => self::SEARCH_FIELDS,
-        ]);
+        ]));
 
         $out = [];
         foreach ($docs as $doc) {
@@ -110,13 +139,45 @@ class OpenLibraryService extends AbstractApiService
             if ($key === '' || ($excludeKey !== null && $key === $excludeKey)) {
                 continue;
             }
-            $out[] = $this->normaliseDoc($doc);
+            $out[] = $this->normaliseDoc($doc, $this->editionLanguages());
             if (count($out) >= $limit) {
                 break;
             }
         }
 
         return $out;
+    }
+
+    /**
+     * A search query asking Open Library for the user's language: its edition
+     * fields, and `lang`, which ranks the editions in that language first.
+     * Unchanged when the user reads English.
+     *
+     * @param array<string, string> $query
+     * @return array<string, string>
+     */
+    private function inLanguage(array $query): array
+    {
+        $lang = $this->language->openLibrary();
+        if ($lang === null) {
+            return $query;
+        }
+        $query['lang']    = $lang;
+        $query['fields'] .= self::EDITION_FIELDS;
+        return $query;
+    }
+
+    /**
+     * The MARC codes of the editions a row may show: the user's language's,
+     * then English. Empty when no edition was asked for.
+     *
+     * @return list<string>
+     */
+    private function editionLanguages(): array
+    {
+        $lang = $this->language->openLibrary();
+        $marc = $lang !== null ? EnrichmentLanguage::marcCodes($lang) : [];
+        return $marc !== [] ? [...$marc, EnrichmentLanguage::ENGLISH_MARC] : [];
     }
 
     /**
@@ -285,8 +346,12 @@ class OpenLibraryService extends AbstractApiService
         ];
     }
 
-    /** @param array<string, mixed> $d */
-    private function normaliseDoc(array $d): array
+    /**
+     * @param array<string, mixed> $d
+     * @param list<string> $editionLanguages MARC codes of the editions the row
+     *        may show, best first; see editionLanguages()
+     */
+    private function normaliseDoc(array $d, array $editionLanguages = []): array
     {
         $authors = (array)($d['author_name'] ?? []);
         $artist  = !empty($authors[0]) ? (string)$authors[0] : null;
@@ -305,7 +370,7 @@ class OpenLibraryService extends AbstractApiService
         $subjects = array_slice((array)($d['subject'] ?? []), 0, 10);
         $genres   = $subjects ? implode(', ', $subjects) : null;
 
-        return [
+        $row = [
             'workKey'    => (string)($d['key'] ?? ''),
             'title'      => $d['title'] ?? '',
             'artist'     => $artist,
@@ -316,6 +381,64 @@ class OpenLibraryService extends AbstractApiService
             'barcode'    => $barcode,
             'genres'     => $genres,
         ];
+
+        $edition = self::editionIn($d, $editionLanguages);
+        return $edition !== null ? self::asEdition($row, $edition) : $row;
+    }
+
+    /**
+     * The edition Open Library returned with a search doc, when it is in one
+     * of the wanted languages and has a title.
+     *
+     * @param array<string, mixed> $d
+     * @param list<string> $languages MARC codes
+     * @return array<string, mixed>|null
+     */
+    private static function editionIn(array $d, array $languages): ?array
+    {
+        $edition = ((array)($d['editions']['docs'] ?? []))[0] ?? null;
+        if (!is_array($edition) || trim((string)($edition['title'] ?? '')) === '') {
+            return null;
+        }
+        $editionLanguages = array_map('strval', (array)($edition['language'] ?? []));
+        return array_intersect($languages, $editionLanguages) !== [] ? $edition : null;
+    }
+
+    /**
+     * A search row showing one edition. Its title, ISBN, publisher and cover
+     * are that edition's, or absent when the edition has none, so the row
+     * never pairs one edition's title with another's cover or ISBN. Without a
+     * cover id, the cover is asked for by the edition's own Open Library id;
+     * an edition with no cover at all then shows as one. The author,
+     * first-publication year and subjects belong to the work.
+     *
+     * `coverFromEdition` tells the work-detail merge (web) and enrichment
+     * (server) to keep the edition's cover rather than the work's.
+     *
+     * @param array<string, mixed> $row
+     * @param array<string, mixed> $edition
+     * @return array<string, mixed>
+     */
+    private static function asEdition(array $row, array $edition): array
+    {
+        $title = (string)preg_replace('/\s+/u', ' ', trim((string)$edition['title']));
+        $coverId = isset($edition['cover_i']) ? (int)$edition['cover_i'] : 0;
+        $isbns = (array)($edition['isbn'] ?? []);
+        $publishers = (array)($edition['publisher'] ?? []);
+
+        $row['title']   = $title;
+        $row['barcode'] = !empty($isbns[0]) ? (string)$isbns[0] : null;
+        $row['label']   = !empty($publishers[0]) ? (string)$publishers[0] : null;
+        $olid = preg_match('#^/books/(OL[0-9]+M)$#', (string)($edition['key'] ?? ''), $m) === 1 ? $m[1] : null;
+        $cover = match (true) {
+            $coverId > 0  => 'id/' . $coverId,
+            $olid !== null => 'olid/' . $olid,
+            default       => null,
+        };
+        $row['thumb']            = $cover !== null ? self::COVER_BASE . $cover . '-M.jpg' : null;
+        $row['artworkUrl']       = $cover !== null ? self::COVER_BASE . $cover . '-L.jpg' : null;
+        $row['coverFromEdition'] = true;
+        return $row;
     }
 
     /**

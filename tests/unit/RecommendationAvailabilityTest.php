@@ -136,7 +136,7 @@ class RecommendationAvailabilityTest extends TestCase
         }
 
         $this->responses = [json_encode(['error' => 'busy'])];
-        $openLibrary = new OpenLibraryService($this->clients(), $this->credentials(''), $logger);
+        $openLibrary = new OpenLibraryService($this->clients(), $this->credentials(''), $logger, new FixedLanguage());
         try {
             $openLibrary->similarBySubject('Detective and mystery stories', '/works/OL1W');
             self::fail('Open Library without a docs list must not read as no suggestions.');
@@ -200,6 +200,7 @@ class RecommendationAvailabilityTest extends TestCase
             $this->clients(),
             $this->credentials(''),
             $this->createStub(LoggerInterface::class),
+            new FixedLanguage(),
         );
 
         self::assertSame([], $openLibrary->similarBySubject('Detective and mystery stories', '/works/OL1W'));
@@ -269,6 +270,7 @@ class RecommendationAvailabilityTest extends TestCase
             $this->clients(),
             $this->credentials(''),
             $this->createStub(LoggerInterface::class),
+            new FixedLanguage(),
         );
         $this->expectException(\RuntimeException::class);
         $openLibrary->similarBySubject('Detective and mystery stories', '/works/OL1W');
@@ -288,7 +290,12 @@ class RecommendationAvailabilityTest extends TestCase
 
     private function tmdb(string $token): TmdbService
     {
-        return new TmdbService($this->clients(), $this->credentials($token), $this->createStub(LoggerInterface::class));
+        return new TmdbService(
+            $this->clients(),
+            $this->credentials($token),
+            $this->createStub(LoggerInterface::class),
+            new FixedLanguage(),
+        );
     }
 
     private function clients(): IClientService
@@ -377,6 +384,7 @@ class RecommendationAvailabilityTest extends TestCase
             $cacheFactory,
             $config,
             $logger ?? $this->createStub(LoggerInterface::class),
+            new FixedLanguage(),
         );
     }
 }

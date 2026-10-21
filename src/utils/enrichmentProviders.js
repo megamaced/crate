@@ -61,8 +61,14 @@ export const ENRICHMENT_PROVIDERS = {
       `/apps/crate/api/v1/openlibrary/work/${encodeURIComponent(result.workKey.replace(/^\/works\//, ''))}`,
     ),
     // A work response carries description/cover/author bio but not the search
-    // row's edition fields, so the two are merged rather than swapped.
-    mergeDetail: (result, detail) => ({ ...result, ...detail }),
+    // row's edition fields, so the two are merged rather than swapped. A row
+    // showing an edition in the user's language keeps that edition's cover,
+    // which matches its title, over the work's.
+    mergeDetail: (result, detail) => ({
+      ...result,
+      ...detail,
+      ...(result.coverFromEdition ? { artworkUrl: result.artworkUrl, thumb: result.thumb } : {}),
+    }),
     idKey: 'workKey',
     thumbShape: 'portrait',
     showArtist: true,

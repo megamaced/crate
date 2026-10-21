@@ -35,6 +35,11 @@ class EnrichmentService
     /**
      * Dispatch by item category. Returns an EnrichmentResult that the
      * controller can translate into a DataResponse.
+     *
+     * Film and book data comes in the requesting user's language (see
+     * EnrichmentLanguage). A read/write sharee enriching an owner's item
+     * therefore writes their language into the one stored item, which every
+     * viewer of it then sees.
      */
     public function enrich(int $id, string $userId): EnrichmentResult
     {
@@ -149,6 +154,12 @@ class EnrichmentService
         }
 
         $work = $this->openLibraryService->getWork($workKey);
+        // A book already linked to its work keeps the cover it has: it was
+        // added from a search row, which may have shown an edition in the
+        // user's language that the work record knows nothing about.
+        if ($storedKey !== '' && (string)$item->getArtworkPath() !== '') {
+            unset($work['artworkUrl']);
+        }
         // A stored work key Open Library will not resolve leaves nothing to
         // apply. Saying so beats reporting a success that changed no field —
         // which is indistinguishable, from the user's side, from a button that
