@@ -487,23 +487,23 @@ msgstr ""
 msgid "Condition, purchase details, thoughts…"
 msgstr ""
 
-#: lib/Service/EnrichmentService.php:131
+#: lib/Service/EnrichmentService.php:136
 msgid "Could not fetch film from TMDB. Check your token."
 msgstr ""
 
-#: lib/Service/EnrichmentService.php:210
+#: lib/Service/EnrichmentService.php:221
 msgid "Could not fetch game from RAWG. Check your API key."
 msgstr ""
 
-#: lib/Service/EnrichmentService.php:90
+#: lib/Service/EnrichmentService.php:95
 msgid "Could not fetch release from Discogs. Check your token."
 msgstr ""
 
-#: lib/Service/EnrichmentService.php:158
+#: lib/Service/EnrichmentService.php:169
 msgid "Could not fetch this book from Open Library."
 msgstr ""
 
-#: lib/Service/EnrichmentService.php:239
+#: lib/Service/EnrichmentService.php:250
 msgid "Could not fetch volume from ComicVine. Check your API key."
 msgstr ""
 
@@ -654,7 +654,7 @@ msgstr ""
 msgid "Discogs personal access token"
 msgstr ""
 
-#: lib/Service/EnrichmentService.php:106
+#: lib/Service/EnrichmentService.php:111
 msgid "Discogs rate limit exceeded. The queue will retry automatically."
 msgstr ""
 
@@ -1332,22 +1332,22 @@ msgstr ""
 msgid "No Collection items yet."
 msgstr ""
 
-#: src/utils/enrichmentProviders.js:88
+#: src/utils/enrichmentProviders.js:94
 msgid "No ComicVine API key saved — add one in Settings to enable comic search."
 msgstr ""
 
-#: lib/Service/EnrichmentService.php:224
+#: lib/Service/EnrichmentService.php:235
 msgid "No ComicVine match found. Add a ComicVine API key in Settings."
 msgstr ""
 
-#: lib/Service/EnrichmentService.php:232
+#: lib/Service/EnrichmentService.php:243
 msgid "No ComicVine volume ID available."
 msgstr ""
 
 msgid "No Comics items yet."
 msgstr ""
 
-#: lib/Service/EnrichmentService.php:66 lib/Service/EnrichmentService.php:80
+#: lib/Service/EnrichmentService.php:71 lib/Service/EnrichmentService.php:85
 msgid "No Discogs match found for this item."
 msgstr ""
 
@@ -1364,23 +1364,23 @@ msgstr ""
 msgid "No Music items yet."
 msgstr ""
 
-#: src/utils/enrichmentProviders.js:75
+#: src/utils/enrichmentProviders.js:81
 msgid "No RAWG API key saved — add one in Settings to enable game search."
 msgstr ""
 
-#: lib/Service/EnrichmentService.php:205
+#: lib/Service/EnrichmentService.php:216
 msgid "No RAWG ID available."
 msgstr ""
 
-#: lib/Service/EnrichmentService.php:198
+#: lib/Service/EnrichmentService.php:209
 msgid "No RAWG match found. Add a RAWG API key in Settings."
 msgstr ""
 
-#: lib/Service/EnrichmentService.php:126
+#: lib/Service/EnrichmentService.php:131
 msgid "No TMDB ID available."
 msgstr ""
 
-#: lib/Service/EnrichmentService.php:119
+#: lib/Service/EnrichmentService.php:124
 msgid "No TMDB match found. Add a TMDB token in Settings."
 msgstr ""
 
@@ -1407,7 +1407,7 @@ msgstr ""
 msgid "No market value available — this category may have no price source, no match was found, or (for music) the item needs a Discogs ID first."
 msgstr ""
 
-#: lib/Service/EnrichmentService.php:146
+#: lib/Service/EnrichmentService.php:151
 msgid "No match found on Open Library."
 msgstr ""
 
@@ -1843,7 +1843,7 @@ msgstr ""
 msgid "Search"
 msgstr ""
 
-#: src/utils/enrichmentProviders.js:87
+#: src/utils/enrichmentProviders.js:93
 msgid "Search ComicVine (series title…)"
 msgstr ""
 
@@ -1855,7 +1855,7 @@ msgstr ""
 msgid "Search Open Library (title, author…)"
 msgstr ""
 
-#: src/utils/enrichmentProviders.js:74
+#: src/utils/enrichmentProviders.js:80
 msgid "Search RAWG (game title…)"
 msgstr ""
 
@@ -2135,7 +2135,7 @@ msgstr ""
 msgid "Unknown category."
 msgstr ""
 
-#: lib/Service/EnrichmentService.php:52
+#: lib/Service/EnrichmentService.php:57
 #, php-format
 msgid "Unknown category: %s"
 msgstr ""
