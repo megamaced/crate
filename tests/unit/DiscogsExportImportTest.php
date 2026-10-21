@@ -47,6 +47,7 @@ class DiscogsExportImportTest extends TestCase
                 'Title'            => 'title',
                 'Label'            => 'label',
                 'Format'           => 'format',
+                'Rating'           => 'rating',
                 'Released'         => 'year',
                 'release_id'       => 'discogsId',
                 'Collection Notes' => 'notes',
@@ -58,13 +59,13 @@ class DiscogsExportImportTest extends TestCase
     public function testExportRowsImport(): void
     {
         $result = $this->import([
-            '"SHVL 804","Pink Floyd","The Dark Side Of The Moon","Harvest","LP, Album, Gat","","1973","1873013",'
+            '"SHVL 804","Pink Floyd","The Dark Side Of The Moon","Harvest","LP, Album, Gat","5","1973","1873013",'
                 . '"Uncategorized","2019-01-01 12:00:00","Very Good Plus (VG+)","Very Good (VG)","First UK pressing"',
-            '"BEC5772","Justice (3)","Cross","Ed Banger Records","2xCD, Album","","0","1150016",'
+            '"BEC5772","Justice (3)","Cross","Ed Banger Records","2xCD, Album","0","0","1150016",'
                 . '"Uncategorized","2020-02-02 10:00:00","","",""',
             '"0","The Beatles","The Beatles In Mono","Apple Records","Box, Comp, Mono, Ltd, RE, RM, 180 + 14xLP, '
                 . 'Album, Mono","","2014","5953463","Uncategorized","2021-03-03 09:00:00","","",""',
-            '"none","Eat (2), Die Warzau","Split","Fiction","7""","","1989","15169049","Uncategorized",'
+            '"none","Eat (2), Die Warzau","Split","Fiction","7""","4","1989","15169049","Uncategorized",'
                 . '"2021-03-03 09:00:00","","",""',
             '"none","Ween","Live In Chicago","Sanctuary","DVD, NTSC + CD","","2004","2","Uncategorized",'
                 . '"2021-03-03 09:00:00","","",""',
@@ -90,10 +91,14 @@ class DiscogsExportImportTest extends TestCase
         self::assertSame('1873013', $floyd->getDiscogsId());
         self::assertSame('Harvest', $floyd->getLabel());
         self::assertSame('First UK pressing', $floyd->getNotes());
+        self::assertSame(5, $floyd->getRating());
 
         self::assertSame('Justice', $justice->getArtist());
         self::assertSame('CD', $justice->getFormat());
         self::assertNull($justice->getYear());
+        // Discogs writes an unrated release as 0, or leaves the cell blank.
+        self::assertNull($justice->getRating());
+        self::assertNull($beatles->getRating());
 
         // Longer than the 50-character format column, but it's the canonical
         // value that gets stored.
@@ -102,9 +107,46 @@ class DiscogsExportImportTest extends TestCase
         // Every artist of a multi-artist row loses its suffix.
         self::assertSame('Eat, Die Warzau', $split->getArtist());
         self::assertSame('7" Single', $split->getFormat());
+        self::assertSame(4, $split->getRating());
 
         // The CD in a DVD + CD set is the music carrier.
         self::assertSame('CD', $ween->getFormat());
+    }
+
+    public function testUnrecognisedRatingImportsTheRowWithoutOne(): void
+    {
+        $result = $this->import([
+            '"SHVL 804","Pink Floyd","Animals","Harvest","LP, Album","7","1977","1",'
+                . '"Uncategorized","2019-01-01 12:00:00","","",""',
+            '"SHVL 805","Pink Floyd","Wish You Were Here","Harvest","LP, Album","4.5","1975","2",'
+                . '"Uncategorized","2019-01-01 12:00:00","","",""',
+        ]);
+
+        self::assertSame(2, $result['created']);
+        self::assertSame(
+            [
+                'Row 2: unrecognised rating "7" — imported without a rating',
+                'Row 3: unrecognised rating "4.5" — imported without a rating',
+            ],
+            array_map('strval', $result['errors']),
+        );
+        self::assertNull($this->inserted[0]->getRating());
+        self::assertNull($this->inserted[1]->getRating());
+    }
+
+    public function testAZeroPaddedRatingImportsAsUnrated(): void
+    {
+        $result = $this->import([
+            '"SHVL 804","Pink Floyd","Animals","Harvest","LP, Album","00","1977","1",'
+                . '"Uncategorized","2019-01-01 12:00:00","","",""',
+            '"SHVL 805","Pink Floyd","Wish You Were Here","Harvest","LP, Album","04","1975","2",'
+                . '"Uncategorized","2019-01-01 12:00:00","","",""',
+        ]);
+
+        self::assertSame(2, $result['created']);
+        self::assertSame([], $result['errors']);
+        self::assertNull($this->inserted[0]->getRating());
+        self::assertSame(4, $this->inserted[1]->getRating());
     }
 
     /**

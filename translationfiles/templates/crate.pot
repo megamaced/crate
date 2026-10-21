@@ -18,13 +18,13 @@ msgstr ""
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
 #. TRANSLATORS: %1$s is a field's name as the API spells it, %2$s its maximum length
-#: lib/Dto/MediaItemData.php:97
+#: lib/Dto/MediaItemData.php:106
 #, php-format
 msgid "%1$s exceeds %2$s characters"
 msgstr ""
 
 #. TRANSLATORS: %1$s is a field's name as the import spells it, %2$s its maximum length
-#: lib/Service/ImportService.php:1189
+#: lib/Service/ImportService.php:1192
 #, php-format
 msgid "%1$s exceeds %2$s chars"
 msgstr ""
@@ -83,8 +83,14 @@ msgid_plural "%n rows in file."
 msgstr[0] ""
 msgstr[1] ""
 
+#: src/utils/rating.js:15
+msgid "%n star"
+msgid_plural "%n stars"
+msgstr[0] ""
+msgstr[1] ""
+
 #. TRANSLATORS: %s is the field's name as the API spells it (title, artist, format)
-#: lib/Dto/MediaItemData.php:87
+#: lib/Dto/MediaItemData.php:96
 #, php-format
 msgid "%s is required"
 msgstr ""
@@ -118,7 +124,7 @@ msgstr ""
 msgid "7\" Single"
 msgstr ""
 
-#: lib/Service/ImportService.php:636
+#: lib/Service/ImportService.php:639
 #, php-format
 msgid "A cell holds more than %s characters, the most a spreadsheet cell can hold. Shorten it, or import the collection as CSV."
 msgstr ""
@@ -179,7 +185,7 @@ msgstr ""
 msgid "Add game"
 msgstr ""
 
-#. TRANSLATORS src/components/CollectionView.vue:149
+#. TRANSLATORS src/components/CollectionView.vue:157
 msgid "Add item"
 msgstr ""
 
@@ -205,7 +211,7 @@ msgstr ""
 msgid "Add {title} to your wishlist"
 msgstr ""
 
-#. TRANSLATORS src/components/AddEditModal.vue:279
+#. TRANSLATORS src/components/AddEditModal.vue:286
 msgid "Additional photos"
 msgstr ""
 
@@ -229,7 +235,7 @@ msgstr ""
 msgid "Album of the Day"
 msgstr ""
 
-#. TRANSLATORS filter chip that shows every format; {count} is how many items there are (src/components/CollectionView.vue:205)
+#. TRANSLATORS filter chip that shows every format; {count} is how many items there are (src/components/CollectionView.vue:213)
 msgid "All ({count})"
 msgstr ""
 
@@ -269,11 +275,11 @@ msgstr ""
 msgid "Annual"
 msgstr ""
 
-#. TRANSLATORS src/components/CollectionView.vue:188
+#. TRANSLATORS src/components/CollectionView.vue:196
 msgid "Any genre ({count})"
 msgstr ""
 
-#. TRANSLATORS src/components/CollectionView.vue:170
+#. TRANSLATORS src/components/CollectionView.vue:178
 msgid "Any year ({count})"
 msgstr ""
 
@@ -291,7 +297,7 @@ msgstr ""
 msgid "Artist Z–A"
 msgstr ""
 
-#. TRANSLATORS src/components/AddEditModal.vue:222
+#. TRANSLATORS src/components/AddEditModal.vue:229
 msgid "Artwork"
 msgstr ""
 
@@ -365,7 +371,7 @@ msgstr ""
 msgid "By category"
 msgstr ""
 
-#. TRANSLATORS short for "complete in box": market price with the original box and manual (src/components/ItemDetailView.vue:187)
+#. TRANSLATORS short for "complete in box": market price with the original box and manual (src/components/ItemDetailView.vue:194)
 msgid "CIB"
 msgstr ""
 
@@ -375,7 +381,7 @@ msgid "Can edit"
 msgstr ""
 
 #. TRANSLATORS src/App.vue:236
-#. TRANSLATORS src/components/AddEditModal.vue:310
+#. TRANSLATORS src/components/AddEditModal.vue:317
 #. TRANSLATORS src/components/ExportModal.vue:154
 #. TRANSLATORS src/components/ImportModal.vue:104
 #. TRANSLATORS src/components/OwnerPickerModal.vue:34
@@ -389,7 +395,7 @@ msgstr ""
 msgid "Cannot share with that user."
 msgstr ""
 
-#. TRANSLATORS src/components/CollectionView.vue:80
+#. TRANSLATORS src/components/CollectionView.vue:88
 msgid "Card view"
 msgstr ""
 
@@ -411,7 +417,7 @@ msgstr ""
 msgid "Category already shared with this user."
 msgstr ""
 
-#: lib/Service/ImportService.php:629
+#: lib/Service/ImportService.php:632
 #, php-format
 msgid "Cell %1$s holds more than %2$s characters, the most a spreadsheet cell can hold. Shorten it, or import the collection as CSV."
 msgstr ""
@@ -420,7 +426,7 @@ msgstr ""
 msgid "Change"
 msgstr ""
 
-#. TRANSLATORS src/components/CollectionView.vue:222
+#. TRANSLATORS src/components/CollectionView.vue:230
 msgid "Clear filters"
 msgstr ""
 
@@ -428,7 +434,7 @@ msgstr ""
 msgid "Click or drag a CSV / XLSX file here"
 msgstr ""
 
-#. TRANSLATORS src/components/ItemDetailView.vue:368
+#. TRANSLATORS src/components/ItemDetailView.vue:375
 #. TRANSLATORS src/components/ShareCollectionModal.vue:95
 msgid "Close"
 msgstr ""
@@ -438,7 +444,7 @@ msgstr ""
 msgid "Collected"
 msgstr ""
 
-#. TRANSLATORS tab listing the items the user owns, next to the Wanted tab (src/components/CollectionView.vue:107)
+#. TRANSLATORS tab listing the items the user owns, next to the Wanted tab (src/components/CollectionView.vue:115)
 msgid "Collection"
 msgstr ""
 
@@ -446,7 +452,7 @@ msgstr ""
 msgid "Collection (owned)"
 msgstr ""
 
-#. TRANSLATORS src/components/CollectionView.vue:100
+#. TRANSLATORS src/components/CollectionView.vue:108
 msgid "Collection or Wanted"
 msgstr ""
 
@@ -478,7 +484,7 @@ msgstr ""
 msgid "Compendium"
 msgstr ""
 
-#. TRANSLATORS src/components/AddEditModal.vue:216
+#. TRANSLATORS src/components/AddEditModal.vue:223
 msgid "Condition, purchase details, thoughts…"
 msgstr ""
 
@@ -502,15 +508,15 @@ msgstr ""
 msgid "Could not fetch volume from ComicVine. Check your API key."
 msgstr ""
 
-#: lib/Service/ImportService.php:494
+#: lib/Service/ImportService.php:497
 msgid "Could not open spreadsheet file"
 msgstr ""
 
-#: lib/Controller/ImportController.php:185 lib/Service/ImportService.php:418
+#: lib/Controller/ImportController.php:185 lib/Service/ImportService.php:421
 msgid "Could not read file"
 msgstr ""
 
-#: lib/Service/ImportService.php:509 lib/Service/ImportService.php:652
+#: lib/Service/ImportService.php:512 lib/Service/ImportService.php:655
 msgid "Could not read worksheet from spreadsheet"
 msgstr ""
 
@@ -576,7 +582,7 @@ msgid "Danger zone"
 msgstr ""
 
 #. TRANSLATORS src/App.vue:242
-#. TRANSLATORS src/components/CollectionView.vue:363
+#. TRANSLATORS src/components/CollectionView.vue:371
 #. TRANSLATORS src/components/ItemDetailView.vue:85
 #. TRANSLATORS src/components/PlaylistDetailView.vue:198
 #. TRANSLATORS src/components/PlaylistsView.vue:89
@@ -593,7 +599,7 @@ msgstr ""
 msgid "Delete playlist"
 msgstr ""
 
-#. TRANSLATORS src/components/CollectionView.vue:360
+#. TRANSLATORS src/components/CollectionView.vue:368
 msgid "Delete {item}"
 msgstr ""
 
@@ -653,7 +659,7 @@ msgstr ""
 msgid "Discogs rate limit exceeded. The queue will retry automatically."
 msgstr ""
 
-#: lib/Controller/MediaController.php:475
+#: lib/Controller/MediaController.php:517
 msgid "Discogs rate limit exceeded. Try again shortly."
 msgstr ""
 
@@ -685,7 +691,7 @@ msgstr ""
 msgid "Earlier this year"
 msgstr ""
 
-#. TRANSLATORS src/components/CollectionView.vue:355
+#. TRANSLATORS src/components/CollectionView.vue:363
 #. TRANSLATORS src/components/ItemDetailView.vue:78
 #. TRANSLATORS src/components/PlaylistDetailView.vue:22
 msgid "Edit"
@@ -713,7 +719,7 @@ msgstr ""
 msgid "Edit playlist"
 msgstr ""
 
-#. TRANSLATORS src/components/CollectionView.vue:352
+#. TRANSLATORS src/components/CollectionView.vue:360
 msgid "Edit {item}"
 msgstr ""
 
@@ -795,7 +801,7 @@ msgstr[1] ""
 msgid "Everything at once"
 msgstr ""
 
-#. TRANSLATORS button that opens the dialog for exporting this collection to a file (src/components/CollectionView.vue:131)
+#. TRANSLATORS button that opens the dialog for exporting this collection to a file (src/components/CollectionView.vue:139)
 msgid "Export"
 msgstr ""
 
@@ -969,8 +975,8 @@ msgid "File picker not available."
 msgstr ""
 
 #: lib/Controller/ArtworkController.php:267
-#: lib/Controller/PhotoController.php:154 lib/Service/ImportService.php:412
-#: lib/Service/ImportService.php:489
+#: lib/Controller/PhotoController.php:154 lib/Service/ImportService.php:415
+#: lib/Service/ImportService.php:492
 msgid "File too large (max 10 MB)"
 msgstr ""
 
@@ -1002,15 +1008,15 @@ msgstr ""
 msgid "Films"
 msgstr ""
 
-#. TRANSLATORS src/components/CollectionView.vue:185
+#. TRANSLATORS src/components/CollectionView.vue:193
 msgid "Filter by genre"
 msgstr ""
 
-#. TRANSLATORS src/components/CollectionView.vue:167
+#. TRANSLATORS src/components/CollectionView.vue:175
 msgid "Filter by year"
 msgstr ""
 
-#. TRANSLATORS src/components/CollectionView.vue:161
+#. TRANSLATORS src/components/CollectionView.vue:169
 msgid "Filters"
 msgstr ""
 
@@ -1026,11 +1032,11 @@ msgstr ""
 msgid "Format / Platform"
 msgstr ""
 
-#. TRANSLATORS src/components/CollectionView.vue:54
+#. TRANSLATORS src/components/CollectionView.vue:62
 msgid "Format A–Z"
 msgstr ""
 
-#. TRANSLATORS src/components/CollectionView.vue:57
+#. TRANSLATORS src/components/CollectionView.vue:65
 msgid "Format Z–A"
 msgstr ""
 
@@ -1062,7 +1068,7 @@ msgstr ""
 msgid "Games"
 msgstr ""
 
-#. TRANSLATORS src/components/ItemDetailView.vue:218
+#. TRANSLATORS src/components/ItemDetailView.vue:225
 msgid "Genres"
 msgstr ""
 
@@ -1089,7 +1095,7 @@ msgstr ""
 msgid "ISBN not found in Open Library"
 msgstr ""
 
-#. TRANSLATORS src/components/ItemDetailView.vue:340
+#. TRANSLATORS src/components/ItemDetailView.vue:347
 msgid "If you like this…"
 msgstr ""
 
@@ -1098,7 +1104,7 @@ msgstr ""
 msgid "Image dimensions too large"
 msgstr ""
 
-#. TRANSLATORS button that opens the dialog for importing items from a file (src/components/CollectionView.vue:139)
+#. TRANSLATORS button that opens the dialog for importing items from a file (src/components/CollectionView.vue:147)
 msgid "Import"
 msgstr ""
 
@@ -1130,17 +1136,17 @@ msgstr ""
 msgid "Invalid ISBN"
 msgstr ""
 
-#: lib/Service/MediaService.php:306
+#: lib/Service/MediaService.php:312
 msgid "Invalid artworkPath."
 msgstr ""
 
 #: lib/Controller/MediaController.php:170
-#: lib/Controller/MediaController.php:231
+#: lib/Controller/MediaController.php:236
 msgid "Invalid category"
 msgstr ""
 
 #: lib/Controller/MediaController.php:167
-#: lib/Controller/MediaController.php:228
+#: lib/Controller/MediaController.php:233
 msgid "Invalid status"
 msgstr ""
 
@@ -1156,7 +1162,7 @@ msgstr ""
 msgid "Items to export"
 msgstr ""
 
-#. TRANSLATORS src/components/CollectionView.vue:382
+#. TRANSLATORS src/components/CollectionView.vue:390
 msgid "Jump to section"
 msgstr ""
 
@@ -1194,7 +1200,7 @@ msgstr ""
 msgid "Limited Series"
 msgstr ""
 
-#. TRANSLATORS src/components/CollectionView.vue:88
+#. TRANSLATORS src/components/CollectionView.vue:96
 msgid "List view"
 msgstr ""
 
@@ -1202,7 +1208,7 @@ msgstr ""
 msgid "Loading playlists…"
 msgstr ""
 
-#. TRANSLATORS src/components/CollectionView.vue:232
+#. TRANSLATORS src/components/CollectionView.vue:240
 #. TRANSLATORS src/components/HomeView.vue:10
 #. TRANSLATORS src/components/ImportModal.vue:86
 #. TRANSLATORS src/components/PlaylistsView.vue:23
@@ -1219,7 +1225,7 @@ msgstr ""
 msgid "Looking up…"
 msgstr ""
 
-#. TRANSLATORS market price of the game or comic on its own, without box or extras (src/components/ItemDetailView.vue:179)
+#. TRANSLATORS market price of the game or comic on its own, without box or extras (src/components/ItemDetailView.vue:186)
 msgid "Loose"
 msgstr ""
 
@@ -1245,7 +1251,7 @@ msgstr ""
 msgid "Mass Market Paperback"
 msgstr ""
 
-#. TRANSLATORS src/components/ItemDetailView.vue:325
+#. TRANSLATORS src/components/ItemDetailView.vue:332
 msgid "Members:"
 msgstr ""
 
@@ -1260,7 +1266,7 @@ msgstr ""
 msgid "Mini-Series"
 msgstr ""
 
-#. TRANSLATORS src/components/ItemDetailView.vue:334
+#. TRANSLATORS src/components/ItemDetailView.vue:341
 msgid "More from your crate"
 msgstr ""
 
@@ -1297,7 +1303,7 @@ msgstr ""
 msgid "Network error. Check your connection."
 msgstr ""
 
-#. TRANSLATORS market price of a new, sealed copy (src/components/ItemDetailView.vue:195)
+#. TRANSLATORS market price of a new, sealed copy (src/components/ItemDetailView.vue:202)
 msgid "New"
 msgstr ""
 
@@ -1398,7 +1404,7 @@ msgstr ""
 msgid "No items match this selection — the file will contain only a header row."
 msgstr ""
 
-#: lib/Controller/MediaController.php:464
+#: lib/Controller/MediaController.php:506
 msgid "No market value available — this category may have no price source, no match was found, or (for music) the item needs a Discogs ID first."
 msgstr ""
 
@@ -1460,12 +1466,12 @@ msgstr ""
 #: lib/Controller/ArtworkController.php:256
 #: lib/Controller/ArtworkController.php:359
 #: lib/Controller/MediaController.php:133
-#: lib/Controller/MediaController.php:256
-#: lib/Controller/MediaController.php:333
-#: lib/Controller/MediaController.php:388
-#: lib/Controller/MediaController.php:433
-#: lib/Controller/MediaController.php:472
-#: lib/Controller/MediaController.php:498
+#: lib/Controller/MediaController.php:266
+#: lib/Controller/MediaController.php:375
+#: lib/Controller/MediaController.php:430
+#: lib/Controller/MediaController.php:475
+#: lib/Controller/MediaController.php:514
+#: lib/Controller/MediaController.php:540
 #: lib/Controller/PhotoController.php:144
 #: lib/Controller/PhotoController.php:244
 #: lib/Controller/PlaylistController.php:60
@@ -1478,8 +1484,13 @@ msgstr ""
 msgid "Not logged in"
 msgstr ""
 
-#. TRANSLATORS src/components/AddEditModal.vue:211
-#. TRANSLATORS src/components/ItemDetailView.vue:236
+#. TRANSLATORS: heading for the items that have no star rating
+#. TRANSLATORS the choice that leaves an item without a star rating (src/components/StarRating.vue:59)
+msgid "Not rated"
+msgstr ""
+
+#. TRANSLATORS src/components/AddEditModal.vue:218
+#. TRANSLATORS src/components/ItemDetailView.vue:243
 msgid "Notes"
 msgstr ""
 
@@ -1522,7 +1533,7 @@ msgstr ""
 msgid "Online"
 msgstr ""
 
-#. TRANSLATORS src/components/CollectionView.vue:308
+#. TRANSLATORS src/components/CollectionView.vue:316
 #. TRANSLATORS src/components/MediaCard.vue:9
 msgid "Open {item}"
 msgstr ""
@@ -1532,7 +1543,7 @@ msgid "Optional:"
 msgstr ""
 
 #. TRANSLATORS src/components/AddEditModal.vue:180
-#. TRANSLATORS src/components/ItemDetailView.vue:146
+#. TRANSLATORS src/components/ItemDetailView.vue:153
 msgid "Original price"
 msgstr ""
 
@@ -1558,14 +1569,14 @@ msgstr ""
 msgid "Permanently delete selected data from your collection. You choose what to wipe in the confirmation dialog. This cannot be undone."
 msgstr ""
 
-#. TRANSLATORS src/components/ItemDetailView.vue:258
+#. TRANSLATORS src/components/ItemDetailView.vue:265
 msgid "Photo {number}"
 msgstr ""
 
 msgid "Photo {slot} upload failed"
 msgstr ""
 
-#. TRANSLATORS src/components/ItemDetailView.vue:251
+#. TRANSLATORS src/components/ItemDetailView.vue:258
 msgid "Photos"
 msgstr ""
 
@@ -1577,7 +1588,7 @@ msgstr ""
 msgid "Physical media catalogue"
 msgstr ""
 
-#. TRANSLATORS "Files" is the Nextcloud Files app (src/components/AddEditModal.vue:256)
+#. TRANSLATORS "Files" is the Nextcloud Files app (src/components/AddEditModal.vue:263)
 #. TRANSLATORS src/components/PhotoSlot.vue:37
 msgid "Pick from Files"
 msgstr ""
@@ -1641,7 +1652,7 @@ msgstr[1] ""
 msgid "PriceCharting API key"
 msgstr ""
 
-#: lib/Controller/MediaController.php:480
+#: lib/Controller/MediaController.php:522
 msgid "PriceCharting rate limit reached. Try again shortly."
 msgstr ""
 
@@ -1657,7 +1668,7 @@ msgstr ""
 msgid "Publisher"
 msgstr ""
 
-#. TRANSLATORS src/components/ItemDetailView.vue:161
+#. TRANSLATORS src/components/ItemDetailView.vue:168
 msgid "Purchase and market currencies differ — no gain/loss shown"
 msgstr ""
 
@@ -1676,6 +1687,22 @@ msgstr ""
 
 #: src/utils/apiErrors.js:29
 msgid "Rate limit reached. Please wait and try again."
+msgstr ""
+
+#. TRANSLATORS src/components/AddEditModal.vue:213
+msgid "Rating"
+msgstr ""
+
+#. TRANSLATORS: an import column holding a star rating, a whole number from 1 to 5
+msgid "Rating (1–5)"
+msgstr ""
+
+#. TRANSLATORS sort by star rating, most stars first; unrated items come last (src/components/CollectionView.vue:54)
+msgid "Rating (Highest)"
+msgstr ""
+
+#. TRANSLATORS sort by star rating, fewest stars first; unrated items come last (src/components/CollectionView.vue:58)
+msgid "Rating (Lowest)"
 msgstr ""
 
 #. TRANSLATORS: fetch the item's details from the online service again
@@ -1719,7 +1746,7 @@ msgstr ""
 msgid "Refresh market rate"
 msgstr ""
 
-#. TRANSLATORS button that removes the artwork (src/components/AddEditModal.vue:266)
+#. TRANSLATORS button that removes the artwork (src/components/AddEditModal.vue:273)
 #. TRANSLATORS src/components/PhotoSlot.vue:46
 #. TRANSLATORS src/components/PlaylistDetailView.vue:125
 #. TRANSLATORS src/components/ShareModal.vue:72
@@ -1758,33 +1785,38 @@ msgstr ""
 msgid "Required columns:"
 msgstr ""
 
-#: lib/Service/ImportService.php:1195 lib/Service/ImportService.php:1246
-#: lib/Service/ImportService.php:1257
+#: lib/Service/ImportService.php:1198 lib/Service/ImportService.php:1263
+#: lib/Service/ImportService.php:1274
 #, php-format
 msgid "Row %1$s: %2$s — skipped"
 msgstr ""
 
-#: lib/Service/ImportService.php:1167
+#: lib/Service/ImportService.php:1170
 #, php-format
 msgid "Row %1$s: unrecognised format \"%2$s\" - skipped"
 msgstr ""
 
-#: lib/Service/ImportService.php:1221
+#: lib/Service/ImportService.php:1238
+#, php-format
+msgid "Row %1$s: unrecognised rating \"%2$s\" — imported without a rating"
+msgstr ""
+
+#: lib/Service/ImportService.php:1224
 #, php-format
 msgid "Row %1$s: unrecognised year \"%2$s\" — imported without a year"
 msgstr ""
 
-#: lib/Service/ImportService.php:1291
+#: lib/Service/ImportService.php:1309
 #, php-format
 msgid "Row %s: could not be saved — skipped"
 msgstr ""
 
-#: lib/Service/ImportService.php:1151
+#: lib/Service/ImportService.php:1154
 #, php-format
 msgid "Row %s: missing Artist or Title — skipped"
 msgstr ""
 
-#: lib/Service/ImportService.php:1157
+#: lib/Service/ImportService.php:1160
 #, php-format
 msgid "Row %s: missing Format — skipped"
 msgstr ""
@@ -1863,7 +1895,7 @@ msgstr ""
 msgid "Settings"
 msgstr ""
 
-#. TRANSLATORS button that opens the dialog for sharing this collection (src/components/CollectionView.vue:123)
+#. TRANSLATORS button that opens the dialog for sharing this collection (src/components/CollectionView.vue:131)
 #. TRANSLATORS src/components/ItemDetailView.vue:71
 #. TRANSLATORS verb; button that opens the dialog for sharing this playlist with other users (src/components/PlaylistDetailView.vue:30)
 #. TRANSLATORS src/components/ShareCollectionModal.vue:104
@@ -1979,7 +2011,7 @@ msgstr ""
 msgid "Show all {format} items"
 msgstr ""
 
-#. TRANSLATORS src/components/ItemDetailView.vue:224
+#. TRANSLATORS src/components/ItemDetailView.vue:231
 msgid "Show all {genre} items"
 msgstr ""
 
@@ -2004,19 +2036,19 @@ msgstr ""
 msgid "Special"
 msgstr ""
 
-#: lib/Service/ImportService.php:563 lib/Service/ImportService.php:985
+#: lib/Service/ImportService.php:566 lib/Service/ImportService.php:988
 msgid "Spreadsheet contents too large to process"
 msgstr ""
 
-#: lib/Service/ImportService.php:557
+#: lib/Service/ImportService.php:560
 msgid "Spreadsheet has too many distinct text values to process"
 msgstr ""
 
-#: lib/Service/ImportService.php:994
+#: lib/Service/ImportService.php:997
 msgid "Spreadsheet rejected: implausible compression ratio"
 msgstr ""
 
-#: lib/Service/ImportService.php:853
+#: lib/Service/ImportService.php:856
 msgid "Spreadsheet rejected: unexpected document type declaration"
 msgstr ""
 
@@ -2078,17 +2110,17 @@ msgstr ""
 msgid "Today"
 msgstr ""
 
-#: lib/Service/ImportService.php:1102
+#: lib/Service/ImportService.php:1105
 #, php-format
 msgid "Too many rows (%1$s) — the limit is %2$s rows per import"
 msgstr ""
 
-#: lib/Service/ImportService.php:454 lib/Service/ImportService.php:683
+#: lib/Service/ImportService.php:457 lib/Service/ImportService.php:686
 #, php-format
 msgid "Too many rows — the limit is %s rows per import"
 msgstr ""
 
-#. TRANSLATORS src/components/ItemDetailView.vue:277
+#. TRANSLATORS src/components/ItemDetailView.vue:284
 msgid "Tracklist"
 msgstr ""
 
@@ -2113,7 +2145,7 @@ msgstr ""
 msgid "Unknown permission."
 msgstr ""
 
-#: lib/Controller/MediaController.php:361
+#: lib/Controller/MediaController.php:403
 #, php-format
 msgid "Unknown wipe scope(s): %s"
 msgstr ""
@@ -2127,12 +2159,12 @@ msgstr ""
 msgid "Unsupported file type"
 msgstr ""
 
-#: lib/Service/ImportService.php:403
+#: lib/Service/ImportService.php:406
 #, php-format
 msgid "Unsupported file type: .%s"
 msgstr ""
 
-#: lib/Controller/MediaController.php:322
+#: lib/Controller/MediaController.php:364
 msgid "Unsupported purchasePriceCurrency"
 msgstr ""
 
@@ -2143,7 +2175,7 @@ msgstr ""
 msgid "Upload a CSV or XLSX file."
 msgstr ""
 
-#. TRANSLATORS src/components/AddEditModal.vue:247
+#. TRANSLATORS src/components/AddEditModal.vue:254
 msgid "Upload from computer"
 msgstr ""
 
@@ -2155,11 +2187,11 @@ msgstr ""
 msgid "User search failed"
 msgstr ""
 
-#. TRANSLATORS sort by market value, most valuable first (src/components/CollectionView.vue:63)
+#. TRANSLATORS sort by market value, most valuable first (src/components/CollectionView.vue:71)
 msgid "Value (Highest)"
 msgstr ""
 
-#. TRANSLATORS sort by market value, least valuable first (src/components/CollectionView.vue:67)
+#. TRANSLATORS sort by market value, least valuable first (src/components/CollectionView.vue:75)
 msgid "Value (Lowest)"
 msgstr ""
 
@@ -2168,7 +2200,7 @@ msgstr ""
 msgid "View details"
 msgstr ""
 
-#. TRANSLATORS src/components/CollectionView.vue:76
+#. TRANSLATORS src/components/CollectionView.vue:84
 msgid "View mode"
 msgstr ""
 
@@ -2188,7 +2220,7 @@ msgstr ""
 msgid "Volume not found or no ComicVine API key configured"
 msgstr ""
 
-#. TRANSLATORS src/components/CollectionView.vue:113
+#. TRANSLATORS src/components/CollectionView.vue:121
 #. TRANSLATORS src/components/ExportModal.vue:63
 #: src/utils/categoryFormats.js:29
 msgid "Wanted"
@@ -2312,11 +2344,11 @@ msgstr ""
 msgid "all available enriched fields across every category"
 msgstr ""
 
-#. TRANSLATORS when the market price was fetched; {date} is a date such as "21 Oct 2026" (src/components/ItemDetailView.vue:207)
+#. TRANSLATORS when the market price was fetched; {date} is a date such as "21 Oct 2026" (src/components/ItemDetailView.vue:214)
 msgid "as of {date}"
 msgstr ""
 
-#. TRANSLATORS src/components/ItemDetailView.vue:163
+#. TRANSLATORS src/components/ItemDetailView.vue:170
 msgid "currencies differ"
 msgstr ""
 
@@ -2373,20 +2405,28 @@ msgstr ""
 msgid "or"
 msgstr ""
 
-#: lib/Service/ImportService.php:305
+#: lib/Service/ImportService.php:308
 msgid "purchase price out of range"
 msgstr ""
 
-#: lib/Service/ImportService.php:368
+#: lib/Service/ImportService.php:371
 msgid "purchase price requires a currency"
 msgstr ""
 
-#: lib/Controller/MediaController.php:315
+#: lib/Controller/MediaController.php:357
 msgid "purchasePrice out of range"
 msgstr ""
 
-#: lib/Controller/MediaController.php:319
+#: lib/Controller/MediaController.php:361
 msgid "purchasePriceCurrency is required when purchasePrice is set"
+msgstr ""
+
+#: lib/Controller/MediaController.php:332
+msgid "rating must be a whole number"
+msgstr ""
+
+#: lib/Controller/MediaController.php:335 lib/Dto/MediaItemData.php:116
+msgid "rating out of range"
 msgstr ""
 
 #. TRANSLATORS under the number of rows the import could not use (src/components/ImportModal.vue:256)
@@ -2395,12 +2435,12 @@ msgid_plural "rows skipped"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/Service/ImportService.php:301
+#: lib/Service/ImportService.php:304
 #, php-format
 msgid "unparseable purchase price \"%s\""
 msgstr ""
 
-#: lib/Service/ImportService.php:371
+#: lib/Service/ImportService.php:374
 #, php-format
 msgid "unsupported purchase currency \"%s\""
 msgstr ""
@@ -2409,7 +2449,7 @@ msgstr ""
 msgid "via {source}"
 msgstr ""
 
-#: lib/Dto/MediaItemData.php:103
+#: lib/Dto/MediaItemData.php:112
 msgid "year out of range"
 msgstr ""
 
@@ -2432,6 +2472,11 @@ msgstr ""
 
 #. TRANSLATORS {service} is the name of the online service items are enriched from, such as Discogs or TMDB (src/components/ImportModal.vue:306)
 msgid "{service} enrichment skipped — no API key configured."
+msgstr ""
+
+#. TRANSLATORS: an item's star rating, read out by a screen reader: "4 out of 5 stars"
+#: src/utils/rating.js:26
+msgid "{stars} out of {max} stars"
 msgstr ""
 
 msgid "{strongStart}Do not navigate away from Crate{strongEnd} or the browser tab, or progress will be lost."

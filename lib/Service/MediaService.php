@@ -227,6 +227,7 @@ class MediaService
         $item->setCountry($data->country);
         $item->setPurchasePrice($data->purchasePrice);
         $item->setPurchasePriceCurrency($data->purchasePriceCurrency);
+        $item->setRating($data->rating ?: null);
         $item->setCategory($data->category ?? \OCA\Crate\CrateCategories::MUSIC);
         $now = (new \DateTime())->format('Y-m-d H:i:s');
         $item->setCreatedAt($now);
@@ -270,6 +271,11 @@ class MediaService
         // explicitly clears the field. This matches year/notes/status behaviour.
         $item->setPurchasePrice($data->purchasePrice);
         $item->setPurchasePriceCurrency($data->purchasePriceCurrency);
+        // A client that predates ratings sends none, so null keeps the stored
+        // rating rather than wiping it; 0 clears it.
+        if ($data->rating !== null) {
+            $item->setRating($data->rating !== 0 ? $data->rating : null);
+        }
         // Preserve existing category on partial updates (caller omitted it)
         if ($data->category !== null) {
             $item->setCategory($data->category);

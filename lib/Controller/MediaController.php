@@ -173,6 +173,10 @@ class MediaController extends OCSController
         if (isset($priceResult['error'])) {
             return new DataResponse(['error' => $priceResult['error']->translate($this->l)], Http::STATUS_BAD_REQUEST);
         }
+        $ratingResult = self::normaliseRating($this->request->getParam('rating'));
+        if (isset($ratingResult['error'])) {
+            return new DataResponse(['error' => $ratingResult['error']->translate($this->l)], Http::STATUS_BAD_REQUEST);
+        }
         // MediaItemData bounds every value against its column, so a payload
         // the schema cannot hold is a 400 here rather than a driver exception
         // (or a silent truncation) further down.
@@ -192,6 +196,7 @@ class MediaController extends OCSController
                 $category,
                 $priceResult['price'],
                 $priceResult['currency'],
+                $ratingResult['rating'],
             );
         } catch (UserFacingException $e) {
             return $this->userError($e);
@@ -234,6 +239,10 @@ class MediaController extends OCSController
         if (isset($priceResult['error'])) {
             return new DataResponse(['error' => $priceResult['error']->translate($this->l)], Http::STATUS_BAD_REQUEST);
         }
+        $ratingResult = self::normaliseRating($this->request->getParam('rating'));
+        if (isset($ratingResult['error'])) {
+            return new DataResponse(['error' => $ratingResult['error']->translate($this->l)], Http::STATUS_BAD_REQUEST);
+        }
         try {
             $data = new MediaItemData(
                 $title,
@@ -250,6 +259,7 @@ class MediaController extends OCSController
                 $category,
                 $priceResult['price'],
                 $priceResult['currency'],
+                $ratingResult['rating'],
             );
             return new DataResponse($this->mediaService->update($id, $this->userId(), $data));
         } catch (DoesNotExistException) {
@@ -293,6 +303,38 @@ class MediaController extends OCSController
         return $parsed
             ->setTimezone(new \DateTimeZone(date_default_timezone_get()))
             ->format('Y-m-d H:i:s');
+    }
+
+    /**
+     * Read the request's star rating as it was sent. It is not a typed action
+     * parameter because the dispatcher would cast it first, and settype()
+     * turns "abc" into 0, which clears a rating, and 1.5 into 1.
+     *
+     * Absent and null both mean "leave the rating as it is" (MediaService
+     * reads them alike); 0 clears it; 1 to MediaItemData::MAX_RATING sets it.
+     * A whole number may arrive as an int, an integral float or a string of
+     * digits, as JSON and form bodies carry it; anything else is an error.
+     *
+     * @return array{rating?: ?int, error?: Message}
+     */
+    public static function normaliseRating(mixed $raw): array
+    {
+        if ($raw === null) {
+            return ['rating' => null];
+        }
+        if (is_int($raw)) {
+            $rating = $raw;
+        } elseif (is_float($raw) && is_finite($raw) && floor($raw) === $raw && abs($raw) <= 100) {
+            $rating = (int) $raw;
+        } elseif (is_string($raw) && preg_match('/^[0-9]{1,3}$/', trim($raw)) === 1) {
+            $rating = (int) trim($raw);
+        } else {
+            return ['error' => Message::t('rating must be a whole number')];
+        }
+        if ($rating < 0 || $rating > MediaItemData::MAX_RATING) {
+            return ['error' => Message::t('rating out of range')];
+        }
+        return ['rating' => $rating];
     }
 
     /**

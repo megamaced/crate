@@ -96,6 +96,7 @@ class ExportService
             'Format',
             'Year',
             'Status',
+            'Rating',
             'EnrichmentId',
         ];
 
@@ -174,6 +175,7 @@ class ExportService
             $item->getFormat()    ?? '',
             $item->getYear() !== null ? (string) $item->getYear() : '',
             $item->getStatus()    ?? '',
+            $item->getRating() !== null ? (string) $item->getRating() : '',
             $item->getDiscogsId() ?? '',
         ];
 

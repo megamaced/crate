@@ -1,6 +1,9 @@
+import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
+  // Compiles the single-file components the component tests mount.
+  plugins: [vue()],
   resolve: {
     alias: {
       // The full build, which can compile the templates the tests mount.

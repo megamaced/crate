@@ -46,6 +46,9 @@ class MediaItemData
      */
     private const MIN_YEAR = 1000;
 
+    /** Most stars an item can have. */
+    public const MAX_RATING = 5;
+
     /** Trimmed: the three NOT NULL columns the forms and the import require. */
     public readonly string $title;
     public readonly string $artist;
@@ -73,6 +76,12 @@ class MediaItemData
          */
         public readonly ?float $purchasePrice = null,
         public readonly ?string $purchasePriceCurrency = null,
+        /**
+         * Star rating, 1 to 5. MediaService::update reads null as "leave
+         * unchanged" (a client that predates ratings never sends one) and 0
+         * as "clear"; on create both mean unrated.
+         */
+        public readonly ?int $rating = null,
     ) {
         $this->title  = trim($title);
         $this->artist = trim($artist);
@@ -101,6 +110,10 @@ class MediaItemData
 
         if ($year !== null && ($year < self::MIN_YEAR || $year > (int) date('Y') + 1)) {
             throw new UserFacingException(Message::t('year out of range'));
+        }
+
+        if ($rating !== null && ($rating < 0 || $rating > self::MAX_RATING)) {
+            throw new UserFacingException(Message::t('rating out of range'));
         }
     }
 }

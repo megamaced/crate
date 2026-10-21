@@ -421,6 +421,8 @@ const mappableFields = computed(() => {
     { value: 'year',      label: t('crate', 'Year') },
     { value: 'notes',     label: t('crate', 'Notes') },
     { value: 'status',    label: statusFieldLabel },
+    // TRANSLATORS: an import column holding a star rating, a whole number from 1 to 5
+    { value: 'rating',    label: t('crate', 'Rating (1–5)') },
     { value: 'discogsId', label: t('crate', 'Enrichment ID') },
     { value: 'barcode',   label: labels.barcode },
     { value: 'label',     label: labels.label },
@@ -475,7 +477,7 @@ const hintRequired = computed(() => {
 
 const hintOptional = computed(() => {
   const cfg = FIELD_CONFIG[selectedCategory.value] ?? FIELD_CONFIG.music
-  return ['Year', 'Notes', 'Status', 'EnrichmentId', cfg.barcode, cfg.label].join(', ')
+  return ['Year', 'Notes', 'Status', 'Rating', 'EnrichmentId', cfg.barcode, cfg.label].join(', ')
 })
 
 // Reset mapping when category changes (field labels differ)
