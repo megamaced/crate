@@ -3,7 +3,7 @@
     <!-- Toolbar -->
     <div class="pv-toolbar">
       <h2 class="pv-heading">
-        Playlists
+        {{ t('crate', 'Playlists') }}
       </h2>
       <NcButton
         variant="primary"
@@ -12,7 +12,7 @@
         <template #icon>
           <span class="pv-plus">+</span>
         </template>
-        New playlist
+        {{ t('crate', 'New playlist') }}
       </NcButton>
     </div>
 
@@ -20,19 +20,19 @@
       v-if="loading"
       class="pv-status"
     >
-      Loading…
+      {{ t('crate', 'Loading…') }}
     </p>
 
     <div
       v-else-if="playlists.length === 0"
       class="pv-empty"
     >
-      <p>No playlists yet. Create one to organise your collection.</p>
+      <p>{{ t('crate', 'No playlists yet. Create one to organise your collection.') }}</p>
       <NcButton
         variant="primary"
         @click="showCreate = true"
       >
-        Create a playlist
+        {{ t('crate', 'Create a playlist') }}
       </NcButton>
     </div>
 
@@ -76,17 +76,17 @@
         >
           <NcButton
             variant="tertiary"
-            :aria-label="'Rename ' + pl.name"
+            :aria-label="t('crate', 'Rename {name}', { name: pl.name })"
             @click="startRename(pl)"
           >
-            Rename
+            {{ t('crate', 'Rename') }}
           </NcButton>
           <NcButton
             variant="error"
-            :aria-label="'Delete ' + pl.name"
+            :aria-label="t('crate', 'Delete {name}', { name: pl.name })"
             @click="confirmDelete(pl)"
           >
-            Delete
+            {{ t('crate', 'Delete') }}
           </NcButton>
         </div>
       </div>
@@ -95,30 +95,30 @@
     <!-- Create dialog -->
     <NcDialog
       v-if="showCreate"
-      name="New playlist"
+      :name="t('crate', 'New playlist')"
       :open="showCreate"
       @closing="showCreate = false"
     >
       <div class="pv-dialog-form">
         <div class="pv-field">
-          <label for="pl-name-new">Name</label>
+          <label for="pl-name-new">{{ t('crate', 'Name') }}</label>
           <input
             id="pl-name-new"
             v-model="createName"
             type="text"
-            placeholder="e.g. Road trip vibes"
+            :placeholder="t('crate', 'e.g. Road trip vibes')"
             maxlength="500"
             autocomplete="off"
             @keydown.enter="doCreate"
           >
         </div>
         <div class="pv-field">
-          <label for="pl-desc-new">Description (optional)</label>
+          <label for="pl-desc-new">{{ t('crate', 'Description (optional)') }}</label>
           <input
             id="pl-desc-new"
             v-model="createDesc"
             type="text"
-            placeholder="A short description"
+            :placeholder="t('crate', 'A short description')"
             maxlength="500"
             autocomplete="off"
           >
@@ -129,14 +129,16 @@
           variant="tertiary"
           @click="showCreate = false"
         >
-          Cancel
+          {{ t('crate', 'Cancel') }}
         </NcButton>
         <NcButton
           variant="primary"
           :disabled="!createName.trim() || creating"
           @click="doCreate"
         >
-          {{ creating ? 'Creating…' : 'Create' }}
+          {{ creating
+            ? t('crate', 'Creating…')
+            : t('crate', 'Create') }}
         </NcButton>
       </template>
     </NcDialog>
@@ -144,13 +146,13 @@
     <!-- Rename dialog -->
     <NcDialog
       v-if="renamingPlaylist"
-      name="Rename playlist"
+      :name="t('crate', 'Rename playlist')"
       :open="!!renamingPlaylist"
       @closing="renamingPlaylist = null"
     >
       <div class="pv-dialog-form">
         <div class="pv-field">
-          <label for="pl-name-edit">Name</label>
+          <label for="pl-name-edit">{{ t('crate', 'Name') }}</label>
           <input
             id="pl-name-edit"
             v-model="renameValue"
@@ -161,7 +163,7 @@
           >
         </div>
         <div class="pv-field">
-          <label for="pl-desc-edit">Description (optional)</label>
+          <label for="pl-desc-edit">{{ t('crate', 'Description (optional)') }}</label>
           <input
             id="pl-desc-edit"
             v-model="renameDesc"
@@ -176,14 +178,16 @@
           variant="tertiary"
           @click="renamingPlaylist = null"
         >
-          Cancel
+          {{ t('crate', 'Cancel') }}
         </NcButton>
         <NcButton
           variant="primary"
           :disabled="!renameValue.trim() || renaming"
           @click="doRename"
         >
-          {{ renaming ? 'Saving…' : 'Save' }}
+          {{ renaming
+            ? t('crate', 'Saving…')
+            : t('crate', 'Save') }}
         </NcButton>
       </template>
     </NcDialog>
@@ -191,23 +195,23 @@
     <!-- Delete confirm -->
     <NcDialog
       v-if="deletingPlaylist"
-      name="Delete playlist"
+      :name="t('crate', 'Delete playlist')"
       :open="!!deletingPlaylist"
       @closing="deletingPlaylist = null"
     >
-      <p>Delete <strong>{{ deletingPlaylist.name }}</strong>? The items in it won't be deleted.</p>
+      <p>{{ deletePrompt.before }}<strong>{{ deletingPlaylist.name }}</strong>{{ deletePrompt.after }}</p>
       <template #actions>
         <NcButton
           variant="tertiary"
           @click="deletingPlaylist = null"
         >
-          Cancel
+          {{ t('crate', 'Cancel') }}
         </NcButton>
         <NcButton
           variant="error"
           @click="doDelete"
         >
-          Delete
+          {{ t('crate', 'Delete') }}
         </NcButton>
       </template>
     </NcDialog>
@@ -215,13 +219,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { NcButton, NcDialog } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
 import { artworkStyleForId } from '../composables/useArtworkStyle.js'
 import { showError } from '../utils/toast.js'
 import { playlistCountLabel } from '../utils/categoryFormats.js'
+import { splitAt, t } from '../l10n.js'
 
 defineEmits(['open'])
 
@@ -240,6 +245,15 @@ const renaming = ref(false)
 
 const deletingPlaylist = ref(null)
 
+/**
+ * The delete question, cut around its {name} placeholder so the template can
+ * set the playlist's name in bold between the two halves.
+ */
+const deletePrompt = computed(() => {
+  // TRANSLATORS: {name} is the name of the playlist being deleted, shown in bold
+  return splitAt(t('crate', 'Delete {name}? The items in it won\'t be deleted.'), 'name')
+})
+
 async function load() {
   loading.value = true
   try {
@@ -247,7 +261,7 @@ async function load() {
     playlists.value = res.data.ocs?.data ?? []
   } catch (e) {
     console.error('Failed to load playlists', e)
-    showError('Failed to load playlists')
+    showError(t('crate', 'Failed to load playlists'))
   } finally {
     loading.value = false
   }
@@ -268,7 +282,7 @@ async function doCreate() {
     createDesc.value = ''
   } catch (e) {
     console.error('Failed to create playlist', e)
-    showError('Failed to create playlist')
+    showError(t('crate', 'Failed to create playlist'))
   } finally {
     creating.value = false
   }
@@ -296,7 +310,7 @@ async function doRename() {
     renamingPlaylist.value = null
   } catch (e) {
     console.error('Failed to rename playlist', e)
-    showError('Failed to rename playlist')
+    showError(t('crate', 'Failed to rename playlist'))
   } finally {
     renaming.value = false
   }
@@ -314,7 +328,7 @@ async function doDelete() {
     deletingPlaylist.value = null
   } catch (e) {
     console.error('Failed to delete playlist', e)
-    showError('Failed to delete playlist')
+    showError(t('crate', 'Failed to delete playlist'))
   }
 }
 

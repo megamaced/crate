@@ -4,7 +4,7 @@
       <input
         v-model="query"
         type="search"
-        :placeholder="provider.placeholder"
+        :placeholder="provider.placeholder()"
         :disabled="busy"
         @keydown.enter.prevent="search"
       >
@@ -13,7 +13,7 @@
         :disabled="busy || query.trim() === ''"
         @click="search"
       >
-        {{ searching ? 'Searching…' : 'Search' }}
+        {{ searchButtonLabel }}
       </NcButton>
     </div>
 
@@ -21,19 +21,19 @@
       v-if="missingCredential"
       class="enrichment-hint enrichment-hint--warn"
     >
-      {{ provider.credentialHint }}
+      {{ provider.credentialHint() }}
     </p>
     <p
       v-else-if="selecting"
       class="enrichment-hint"
     >
-      Fetching details from {{ provider.label }}…
+      {{ t('crate', 'Fetching details from {provider}…', { provider: provider.label }) }}
     </p>
     <p
       v-else-if="searched && results.length === 0"
       class="enrichment-hint"
     >
-      No results found.
+      {{ t('crate', 'No results found.') }}
     </p>
 
     <ul
@@ -91,13 +91,15 @@ import { computed, ref } from 'vue'
 import { NcButton } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { showError, showWarning } from '../utils/toast.js'
+import { t } from '../l10n.js'
+import { resultMetaLine } from '../utils/enrichmentProviders.js'
 
 const props = defineProps({
   /** A descriptor from utils/enrichmentProviders.js. */
   provider: { type: Object, required: true },
   /**
    * Whether the user has saved the credential this provider needs. Ignored for
-   * providers that need none (their `credentialHint` is null).
+   * providers that need none (they have no `credentialHint`).
    */
   hasCredential: { type: Boolean, default: false },
 })
@@ -117,11 +119,14 @@ const missingCredential = computed(() =>
   !!props.provider.credentialHint && !props.hasCredential,
 )
 
+const searchButtonLabel = computed(() => {
+  if (searching.value) return t('crate', 'Searching…')
+  // TRANSLATORS: button that runs the search
+  return t('crate', 'Search')
+})
+
 function metaLine(result) {
-  return (props.provider.metaFields ?? [])
-    .map(field => result[field])
-    .filter(Boolean)
-    .join(', ')
+  return resultMetaLine(props.provider, result)
 }
 
 async function search() {
@@ -137,7 +142,7 @@ async function search() {
     results.value = Array.isArray(data) ? data : []
   } catch (e) {
     console.error(`${props.provider.label} search failed`, e)
-    showError(`${props.provider.label} search failed`)
+    showError(t('crate', '{provider} search failed', { provider: props.provider.label }))
   } finally {
     searched.value = true
     searching.value = false
@@ -168,7 +173,7 @@ async function select(result) {
       // The thin search row is still usable, but the user asked for the full
       // record — say so rather than letting the gaps look like missing data.
       console.error(`${props.provider.label} detail fetch failed`, e)
-      showWarning(`Couldn't fetch full details from ${props.provider.label} — using the search result.`)
+      showWarning(t('crate', 'Couldn\'t fetch full details from {provider} — using the search result.', { provider: props.provider.label }))
       emit('select', result)
     }
   } finally {

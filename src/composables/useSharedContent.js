@@ -8,7 +8,7 @@
 import { ref, computed } from 'vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
-import { CATEGORY_LABELS } from '../utils/categoryFormats.js'
+import { categoryLabel } from '../utils/categoryFormats.js'
 
 // Standard category order used across the app (mirrors HomeView's display
 // order and useSettings' ALL_CATEGORIES).
@@ -118,7 +118,7 @@ const sharedCategories = computed(() => {
     .filter(cat => (map[cat]?.length ?? 0) > 0 || writable.has(cat))
     .map(cat => ({
       category: cat,
-      label: CATEGORY_LABELS[cat] ?? cat,
+      label: categoryLabel(cat),
       count: map[cat]?.length ?? 0,
       items: map[cat] ?? [],
     }))

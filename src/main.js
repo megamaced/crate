@@ -15,7 +15,7 @@ app.config.globalProperties.n = n
 
 app.config.errorHandler = (err) => {
   console.error('[Crate] Unhandled error:', err)
-  showError('An unexpected error occurred.')
+  showError(t('crate', 'An unexpected error occurred.'))
 }
 
 app.mount('#app')

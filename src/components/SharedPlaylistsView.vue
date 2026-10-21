@@ -2,7 +2,7 @@
   <div class="spv-view">
     <div class="spv-toolbar">
       <h2 class="spv-heading">
-        Shared playlists
+        {{ t('crate', 'Shared playlists') }}
       </h2>
     </div>
 
@@ -10,14 +10,14 @@
       v-if="loading"
       class="spv-status"
     >
-      Loading…
+      {{ t('crate', 'Loading…') }}
     </p>
 
     <div
       v-else-if="sharedPlaylists.length === 0"
       class="spv-empty"
     >
-      <p>No playlists have been shared with you yet.</p>
+      <p>{{ t('crate', 'No playlists have been shared with you yet.') }}</p>
     </div>
 
     <div
@@ -36,7 +36,7 @@
         />
         <div class="spv-card-info">
           <span class="spv-card-name">{{ pl.name }}</span>
-          <span class="spv-card-meta">{{ playlistCountLabel(pl.itemCount, pl.categories) }} · by {{ pl.sharedByUser }}</span>
+          <span class="spv-card-meta">{{ playlistMeta(pl) }}</span>
         </div>
       </div>
     </div>
@@ -47,12 +47,19 @@
 import { onMounted } from 'vue'
 import { generateUrl } from '@nextcloud/router'
 import { playlistCountLabel } from '../utils/categoryFormats.js'
+import { t } from '../l10n.js'
 import { artworkStyleFor } from '../composables/useArtworkStyle.js'
 import { useSharedContent } from '../composables/useSharedContent.js'
 
 defineEmits(['playlist'])
 
 const { loading, sharedPlaylists, load } = useSharedContent()
+
+function playlistMeta(pl) {
+  const count = playlistCountLabel(pl.itemCount, pl.categories)
+  // TRANSLATORS: {count} is what the playlist holds, e.g. "3 films"; {user} is who shared it
+  return t('crate', '{count} · by {user}', { count, user: pl.sharedByUser })
+}
 
 function coverStyle(pl) {
   if (pl.coverId) {

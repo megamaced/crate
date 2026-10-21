@@ -10,8 +10,7 @@
         {{ title }}
       </h2>
       <p class="owner-picker-hint">
-        This category is shared with you by several people. Choose whose
-        collection to add to.
+        {{ t('crate', 'This category is shared with you by several people. Choose whose collection to add to.') }}
       </p>
       <ul class="owner-picker-list">
         <li
@@ -32,7 +31,7 @@
           variant="tertiary"
           @click="$emit('close')"
         >
-          Cancel
+          {{ t('crate', 'Cancel') }}
         </NcButton>
       </div>
     </div>
@@ -41,11 +40,12 @@
 
 <script setup>
 import { NcModal, NcButton } from '@nextcloud/vue'
+import { t } from '../l10n.js'
 
 defineProps({
   show:   { type: Boolean, required: true },
   owners: { type: Array,   default: () => [] },
-  title:  { type: String,  default: 'Add to whose collection?' },
+  title:  { type: String,  default: () => t('crate', 'Add to whose collection?') },
 })
 
 defineEmits(['select', 'close'])

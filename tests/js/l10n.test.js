@@ -1,7 +1,7 @@
 import { register } from '@nextcloud/l10n'
 import { describe, expect, it } from 'vitest'
 import { createApp } from 'vue'
-import { n, t } from '../../src/l10n.js'
+import { n, splitAround, splitAt, t } from '../../src/l10n.js'
 
 // What a template shows, rendered by Vue the way Crate's components render it.
 function rendered(template, data = {}) {
@@ -41,5 +41,23 @@ describe('translations show as written text', () => {
 
   it('leaves a placeholder with no value as written', () => {
     expect(t('crate', 'Hello {name}')).toBe('Hello {name}')
+  })
+})
+
+describe('cutting a translated sentence for markup', () => {
+  it('splits at a placeholder', () => {
+    expect(splitAt('Supprimer {name} ? Rien ne sera perdu.', 'name'))
+      .toEqual({ before: 'Supprimer ', after: ' ? Rien ne sera perdu.' })
+  })
+
+  it('splits around a pair of markers', () => {
+    expect(splitAround('Voir la {linkStart}documentation{linkEnd} & co.', 'linkStart', 'linkEnd'))
+      .toEqual({ before: 'Voir la ', inner: 'documentation', after: ' & co.' })
+  })
+
+  it('shows a translation that lost its markers as plain text', () => {
+    expect(splitAt('Supprimer ?', 'name')).toEqual({ before: 'Supprimer ?', after: '' })
+    expect(splitAround('Voir la documentation.', 'linkStart', 'linkEnd'))
+      .toEqual({ before: 'Voir la documentation.', inner: '', after: '' })
   })
 })

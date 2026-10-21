@@ -3,7 +3,7 @@
     <NcAppNavigation>
       <template #list>
         <NcAppNavigationItem
-          name="Home"
+          :name="t('crate', 'Home')"
           :active="view === 'home'"
           href="#/"
           @click="switchView('home')"
@@ -11,19 +11,19 @@
         <NcAppNavigationItem
           v-for="item in visibleNavItems"
           :key="item.view"
-          :name="item.name"
+          :name="categoryLabel(item.category)"
           :active="view === item.view"
           :href="'#/' + item.view"
           @click="switchView(item.view)"
         />
         <NcAppNavigationItem
-          name="Playlists"
+          :name="t('crate', 'Playlists')"
           :active="view === 'playlists' || view === 'playlist-detail'"
           href="#/playlists"
           @click="switchView('playlists')"
         />
         <NcAppNavigationItem
-          name="Shared with me"
+          :name="t('crate', 'Shared with me')"
           :active="view === 'shared'"
           :allow-collapse="true"
           :open="sharedNavOpen"
@@ -41,14 +41,14 @@
           />
           <NcAppNavigationItem
             v-if="sharedPlaylists.length > 0"
-            name="Playlists"
+            :name="t('crate', 'Playlists')"
             :active="view === 'shared-playlists'"
             href="#/shared-playlists"
             @click="switchView('shared-playlists')"
           />
         </NcAppNavigationItem>
         <NcAppNavigationItem
-          name="Shared by me"
+          :name="t('crate', 'Shared by me')"
           :active="view === 'shared-by-me'"
           href="#/shared-by-me"
           @click="switchView('shared-by-me')"
@@ -56,7 +56,7 @@
       </template>
       <template #footer>
         <NcAppNavigationSettings
-          name="Settings"
+          :name="t('crate', 'Settings')"
           @click="settingsOpen = true"
         />
       </template>
@@ -223,23 +223,23 @@
 
     <NcDialog
       v-if="deletingItem"
-      name="Delete item"
+      :name="t('crate', 'Delete item')"
       :open="!!deletingItem"
       @closing="deletingItem = null"
     >
-      <p>Delete <strong>{{ deletingItem.artist }} — {{ deletingItem.title }}</strong>? This cannot be undone.</p>
+      <p>{{ deletePrompt.before }}<strong>{{ deletingItem.artist }} — {{ deletingItem.title }}</strong>{{ deletePrompt.after }}</p>
       <template #actions>
         <NcButton
           variant="tertiary"
           @click="deletingItem = null"
         >
-          Cancel
+          {{ t('crate', 'Cancel') }}
         </NcButton>
         <NcButton
           variant="error"
           @click="deleteItem"
         >
-          Delete
+          {{ t('crate', 'Delete') }}
         </NcButton>
       </template>
     </NcDialog>
@@ -264,7 +264,7 @@
         v-if="activeQueue && !importOpen"
         class="enrich-chip"
       >
-        <span class="enrich-chip__text">{{ activeQueue.label }} {{ activeQueue.queue.done.value }} / {{ activeQueue.queue.total.value }}</span>
+        <span class="enrich-chip__text">{{ activeQueue.label }}</span>
         <div class="enrich-chip__bar-wrap">
           <div
             class="enrich-chip__bar"
@@ -273,7 +273,7 @@
         </div>
         <button
           class="enrich-chip__cancel"
-          title="Stop"
+          :title="t('crate', 'Stop')"
           @click="activeQueue.queue.cancel()"
         >
           ✕
@@ -291,7 +291,9 @@ import {
 } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl, generateUrl } from '@nextcloud/router'
+import { splitAt, t } from './l10n.js'
 import { showError } from './utils/toast.js'
+import { categoryLabel } from './utils/categoryFormats.js'
 import CollectionView from './components/CollectionView.vue'
 import HomeView from './components/HomeView.vue'
 import ItemDetailView from './components/ItemDetailView.vue'
@@ -326,15 +328,16 @@ const market = useMarketValueQueue()
 const { autoEnrichOnClick, hiddenCategories } = useSettings()
 
 // View key → category key map used a few places below; mirror order to the
-// nav items so the computed visibility set tracks 1:1.
+// nav items so the computed visibility set tracks 1:1. Each item's name is its
+// category's label, looked up when the nav renders.
 const NAV_ITEMS = [
-  { name: 'Books',  view: 'books',  category: 'book' },
-  { name: 'Comics', view: 'comics', category: 'comic' },
-  { name: 'Films',  view: 'films',  category: 'film' },
-  { name: 'Games',  view: 'games',  category: 'game' },
-  { name: 'Music',  view: 'music',  category: 'music' },
+  { view: 'books',  category: 'book' },
+  { view: 'comics', category: 'comic' },
+  { view: 'films',  category: 'film' },
+  { view: 'games',  category: 'game' },
+  { view: 'music',  category: 'music' },
 ]
-const visibleNavItems = computed(() => NAV_ITEMS.filter(n => !hiddenCategories.value.includes(n.category)))
+const visibleNavItems = computed(() => NAV_ITEMS.filter(navItem => !hiddenCategories.value.includes(navItem.category)))
 const {
   view, previousView, setHash, hashForView,
   parseHash, consumePendingHash, saveScroll, restoreScroll,
@@ -362,8 +365,18 @@ const activeQueue = computed(() => {
   // all five categories, and since successive start() calls now append
   // rather than getting dropped, a single drain may contain a mix (e.g.
   // music + books). "Items" is the only label that's always accurate.
-  if (enrich.running.value) return { queue: enrich, label: 'Enriching items' }
-  if (market.running.value) return { queue: market, label: 'Fetching market rates' }
+  if (enrich.running.value) {
+    return {
+      queue: enrich,
+      label: t('crate', 'Enriching items {done} / {total}', { done: enrich.done.value, total: enrich.total.value }),
+    }
+  }
+  if (market.running.value) {
+    return {
+      queue: market,
+      label: t('crate', 'Fetching market rates {done} / {total}', { done: market.done.value, total: market.total.value }),
+    }
+  }
   return null
 })
 
@@ -446,6 +459,12 @@ const suggestionPrefill = ref(null)
 const suggestionCategory = ref(null)
 const modalDefaultStatus = computed(() => (suggestionPrefill.value ? 'wanted' : 'owned'))
 const deletingItem = ref(null)
+// The delete confirmation names the item in bold, so the sentence is split
+// around its {item} placeholder and the name is rendered between the halves.
+const deletePrompt = computed(() => {
+  // TRANSLATORS: {item} is the artist and title of the item being deleted, shown in bold
+  return splitAt(t('crate', 'Delete {item}? This cannot be undone.'), 'item')
+})
 const importOpen = ref(false)
 // When importing into a read/write shared library/category, the rows must be
 // created in the owner's collection: `importOwner` becomes the `owner` form
@@ -460,8 +479,8 @@ const ownerPickerMode = ref(null) // 'add' | 'import'
 const ownerPickerCategory = ref(null)
 const ownerPickerTitle = computed(() =>
   ownerPickerMode.value === 'import'
-    ? 'Import into whose collection?'
-    : 'Add to whose collection?',
+    ? t('crate', 'Import into whose collection?')
+    : t('crate', 'Add to whose collection?'),
 )
 const hasDiscogsToken = ref(false)
 const hasTmdbToken = ref(false)
@@ -626,7 +645,7 @@ async function openPlaylistById(playlistId) {
 function handleBeforeUnload(e) {
   if (enrich.running.value || market.running.value) {
     e.preventDefault()
-    e.returnValue = 'An enrichment or market-value fetch is still running. Leaving the page will stop it.'
+    e.returnValue = t('crate', 'An enrichment or market-value fetch is still running. Leaving the page will stop it.')
   }
 }
 
@@ -816,7 +835,7 @@ async function handleDeletePlaylist(playlist) {
     await axios.delete(generateOcsUrl(`/apps/crate/api/v1/playlists/${playlist.id}`))
   } catch (e) {
     console.error('Failed to delete playlist', e)
-    showError('Failed to delete playlist')
+    showError(t('crate', 'Failed to delete playlist'))
   }
   view.value = 'playlists'
   selectedPlaylist.value = null
@@ -1070,7 +1089,7 @@ async function saveItem(payload) {
           }
         } catch (e) {
           console.error('Artwork upload failed', e)
-          showError('Artwork upload failed')
+          showError(t('crate', 'Artwork upload failed'))
         }
       } else if (removeArtwork) {
         try {
@@ -1084,7 +1103,7 @@ async function saveItem(payload) {
           }
         } catch (e) {
           console.error('Artwork removal failed', e)
-          showError('Failed to remove artwork')
+          showError(t('crate', 'Failed to remove artwork'))
         }
       } else if (replaceArtwork) {
         // Re-fetch so the detail view picks up the new artworkPath the PUT
@@ -1146,7 +1165,7 @@ async function saveItem(payload) {
     }
   } catch (e) {
     console.error('Failed to save item', e)
-    showError('Failed to save item')
+    showError(t('crate', 'Failed to save item'))
     // The modal is still open with the user's input — let it accept a retry.
     addEditModal.value?.resetSaving()
   }
@@ -1165,14 +1184,14 @@ async function uploadOrDeletePhoto(itemId, slot, file, remove) {
       await axios.post(generateUrl(`/apps/crate/photo/${itemId}/${slot}`), fd)
     } catch (e) {
       console.error(`Photo slot ${slot} upload failed`, e)
-      showError(`Photo ${slot} upload failed`)
+      showError(t('crate', 'Photo {slot} upload failed', { slot }))
     }
   } else if (remove) {
     try {
       await axios.delete(generateUrl(`/apps/crate/photo/${itemId}/${slot}`))
     } catch (e) {
       console.error(`Photo slot ${slot} delete failed`, e)
-      showError(`Failed to remove photo ${slot}`)
+      showError(t('crate', 'Failed to remove photo {slot}', { slot }))
     }
   }
 }
@@ -1197,7 +1216,7 @@ async function deleteItem() {
     }
   } catch (e) {
     console.error('Failed to delete item', e)
-    showError('Failed to delete item')
+    showError(t('crate', 'Failed to delete item'))
   }
 }
 

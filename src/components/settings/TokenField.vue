@@ -16,7 +16,7 @@
         type="password"
         autocomplete="off"
         :value="modelValue"
-        :placeholder="hasValue ? '(saved — paste a new one to replace)' : 'Paste your API key here'"
+        :placeholder="placeholder"
         @input="$emit('update:modelValue', $event.target.value)"
       >
     </div>
@@ -26,7 +26,9 @@
         :disabled="saving || modelValue === ''"
         @click="$emit('save')"
       >
-        {{ saving ? 'Saving…' : 'Save' }}
+        {{ saving
+          ? t('crate', 'Saving…')
+          : t('crate', 'Save') }}
       </NcButton>
       <NcButton
         v-if="hasValue"
@@ -34,7 +36,7 @@
         :disabled="saving"
         @click="$emit('remove')"
       >
-        Remove
+        {{ t('crate', 'Remove') }}
       </NcButton>
       <span
         v-if="message"
@@ -45,9 +47,11 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { NcButton } from '@nextcloud/vue'
+import { t } from '../../l10n.js'
 
-defineProps({
+const props = defineProps({
   /** DOM id tying the label to the input. */
   inputId:    { type: String,  required: true },
   label:      { type: String,  required: true },
@@ -61,6 +65,10 @@ defineProps({
 })
 
 defineEmits(['update:modelValue', 'save', 'remove'])
+
+const placeholder = computed(() => props.hasValue
+  ? t('crate', '(saved — paste a new one to replace)')
+  : t('crate', 'Paste your API key here'))
 </script>
 
 <style scoped>

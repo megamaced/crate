@@ -13,3 +13,36 @@ export const t = (app, text, vars, count, options) =>
 
 export const n = (app, singular, plural, count, vars, options) =>
   translatePlural(app, singular, plural, count, vars, { escape: false, sanitize: false, ...options })
+
+/**
+ * Cuts a translated sentence at a {placeholder}, so a template can put markup
+ * there (a name in bold, say) while translators see one whole sentence.
+ * A translation that lost the placeholder shows as plain text.
+ *
+ * @param {string} text translated sentence
+ * @param {string} placeholder name between the braces
+ * @return {{before: string, after: string}}
+ */
+export function splitAt(text, placeholder) {
+  const marker = `{${placeholder}}`
+  const at = text.indexOf(marker)
+  return at === -1
+    ? { before: text, after: '' }
+    : { before: text.slice(0, at), after: text.slice(at + marker.length) }
+}
+
+/**
+ * Cuts a translated sentence at a pair of markers such as {linkStart} and
+ * {linkEnd}, so the words between them can be wrapped in a link or <strong>.
+ * A translation that lost its markers shows as plain text.
+ *
+ * @param {string} text translated sentence
+ * @param {string} start name of the opening marker
+ * @param {string} end name of the closing marker
+ * @return {{before: string, inner: string, after: string}}
+ */
+export function splitAround(text, start, end) {
+  const { before, after: rest } = splitAt(text, start)
+  const { before: inner, after } = splitAt(rest, end)
+  return { before, inner, after }
+}

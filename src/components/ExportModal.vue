@@ -14,7 +14,7 @@
         <label
           class="export-label"
           for="export-category"
-        >Category</label>
+        >{{ t('crate', 'Category') }}</label>
         <select
           id="export-category"
           v-model="selectedCategory"
@@ -22,58 +22,59 @@
           :disabled="!!owner"
         >
           <option value="book">
-            Books
+            {{ categoryLabel('book') }}
           </option>
           <option value="comic">
-            Comics
+            {{ categoryLabel('comic') }}
           </option>
           <option value="film">
-            Films
+            {{ categoryLabel('film') }}
           </option>
           <option value="game">
-            Games
+            {{ categoryLabel('game') }}
           </option>
           <option value="music">
-            Music
+            {{ categoryLabel('music') }}
           </option>
           <option
             v-if="!owner"
             value="all"
           >
-            All categories
+            {{ t('crate', 'All categories') }}
           </option>
         </select>
       </div>
 
       <div class="export-field">
-        <label class="export-label">Items to export</label>
+        <label class="export-label">{{ t('crate', 'Items to export') }}</label>
         <div class="export-radio-group">
           <label class="export-radio-label">
             <input
               v-model="selectedScope"
               type="radio"
               value="owned"
-            > Collection (owned)
+            > {{ t('crate', 'Collection (owned)') }}
           </label>
           <label class="export-radio-label">
             <input
               v-model="selectedScope"
               type="radio"
               value="wanted"
-            > Wanted
+            > {{ t('crate', 'Wanted') }}
           </label>
           <label class="export-radio-label">
             <input
               v-model="selectedScope"
               type="radio"
               value="all"
-            > All items
+            > {{ t('crate', 'All items') }}
           </label>
         </div>
       </div>
 
       <div class="export-field">
-        <label class="export-label">Format</label>
+        <!-- TRANSLATORS: the kind of file to export, CSV or XLSX -->
+        <label class="export-label">{{ t('crate', 'Format') }}</label>
         <div class="export-radio-group">
           <label class="export-radio-label">
             <input
@@ -93,7 +94,8 @@
       </div>
 
       <div class="export-field">
-        <label class="export-label">Include</label>
+        <!-- TRANSLATORS: heading over the optional sets of columns to add to the exported file -->
+        <label class="export-label">{{ t('crate', 'Include') }}</label>
         <label class="export-checkbox-label">
           <input
             v-model="includeEnriched"
@@ -111,7 +113,7 @@
             type="checkbox"
             :disabled="!categoryHasMarket"
           >
-          Market data
+          {{ t('crate', 'Market data') }}
           <span class="export-hint">{{ marketHint }}</span>
         </label>
         <label class="export-checkbox-label">
@@ -119,8 +121,8 @@
             v-model="includePrice"
             type="checkbox"
           >
-          Original price paid
-          <span class="export-hint">(purchase price + currency you entered)</span>
+          {{ t('crate', 'Original price paid') }}
+          <span class="export-hint">{{ t('crate', '(purchase price + currency you entered)') }}</span>
         </label>
       </div>
 
@@ -130,10 +132,10 @@
         :class="{ 'export-count--empty': itemCount === 0 }"
       >
         <template v-if="itemCount === 0">
-          No items match this selection — the file will contain only a header row.
+          {{ t('crate', 'No items match this selection — the file will contain only a header row.') }}
         </template>
         <template v-else>
-          Ready to export <strong>{{ itemCount }}</strong> {{ itemCount === 1 ? 'item' : 'items' }}.
+          {{ readyToExport.before }}<strong>{{ readyToExport.inner }}</strong>{{ readyToExport.after }}
         </template>
       </p>
 
@@ -149,14 +151,16 @@
           variant="tertiary"
           @click="onCancel"
         >
-          Cancel
+          {{ t('crate', 'Cancel') }}
         </NcButton>
         <NcButton
           variant="primary"
           :disabled="exporting"
           @click="doExport"
         >
-          {{ exporting ? 'Preparing download…' : 'Download' }}
+          {{ exporting
+            ? t('crate', 'Preparing download…')
+            : t('crate', 'Download') }}
         </NcButton>
       </div>
     </div>
@@ -168,7 +172,9 @@ import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { NcModal, NcButton } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateUrl, generateOcsUrl } from '@nextcloud/router'
+import { n, splitAround, t } from '../l10n.js'
 import { showError } from '../utils/toast.js'
+import { categoryLabel } from '../utils/categoryFormats.js'
 
 const props = defineProps({
   show:                   { type: Boolean, required: true },
@@ -197,35 +203,62 @@ const error            = ref('')
 const itemCount        = ref(null)
 
 // ── category-aware copy ──────────────────────────────────────────────────────
-const TITLES = {
-  music: 'Export music collection',
-  film:  'Export film collection',
-  book:  'Export book collection',
-  game:  'Export game collection',
-  comic: 'Export comic collection',
-  all:   'Export entire collection',
-}
-const title = computed(() => TITLES[selectedCategory.value] ?? 'Export collection')
+const title = computed(() => {
+  switch (selectedCategory.value) {
+    case 'music':
+      return t('crate', 'Export music collection')
+    case 'film':
+      return t('crate', 'Export film collection')
+    case 'book':
+      return t('crate', 'Export book collection')
+    case 'game':
+      return t('crate', 'Export game collection')
+    case 'comic':
+      return t('crate', 'Export comic collection')
+    case 'all':
+      return t('crate', 'Export entire collection')
+    default:
+      return t('crate', 'Export collection')
+  }
+})
 
-const ENRICHED_LABELS = {
-  music: 'Enriched Discogs data',
-  film:  'Enriched TMDB data',
-  book:  'Enriched Open Library data',
-  game:  'Enriched RAWG data',
-  comic: 'Enriched ComicVine data',
-  all:   'Enriched metadata (from all sources)',
+// Where each category's enriched data comes from. Service names are names and
+// are shown as they are.
+const ENRICH_PROVIDERS = {
+  music: 'Discogs',
+  film:  'TMDB',
+  book:  'Open Library',
+  game:  'RAWG',
+  comic: 'ComicVine',
 }
-const enrichedLabel = computed(() => ENRICHED_LABELS[selectedCategory.value] ?? 'Enriched metadata')
+const enrichedLabel = computed(() => {
+  const provider = ENRICH_PROVIDERS[selectedCategory.value]
+  if (provider) {
+    // TRANSLATORS: {provider} is the service the details were fetched from, e.g. Discogs or TMDB
+    return t('crate', 'Enriched {provider} data', { provider })
+  }
+  return selectedCategory.value === 'all'
+    ? t('crate', 'Enriched metadata (from all sources)')
+    : t('crate', 'Enriched metadata')
+})
 
-const ENRICHED_HINTS = {
-  music: 'genres, country, tracklist, pressing notes, artist bio, members',
-  film:  'genres, country, overview',
-  book:  'genres, description, author bio',
-  game:  'genres, description',
-  comic: 'genres, description',
-  all:   'all available enriched fields across every category',
-}
-const enrichedHint = computed(() => ENRICHED_HINTS[selectedCategory.value] ?? 'genres and metadata fields')
+const enrichedHint = computed(() => {
+  switch (selectedCategory.value) {
+    case 'music':
+      return t('crate', 'genres, country, tracklist, pressing notes, artist bio, members')
+    case 'film':
+      return t('crate', 'genres, country, overview')
+    case 'book':
+      return t('crate', 'genres, description, author bio')
+    case 'game':
+    case 'comic':
+      return t('crate', 'genres, description')
+    case 'all':
+      return t('crate', 'all available enriched fields across every category')
+    default:
+      return t('crate', 'genres and metadata fields')
+  }
+})
 
 // Market value availability:
 //   - music uses Discogs (single price in display currency)
@@ -242,15 +275,30 @@ const categoryHasMarket = computed(() => {
   return props.hasDiscogsToken || props.hasPriceChartingToken
 })
 
-const MARKET_HINTS = {
-  music: '(Discogs lowest price, currency, fetched date)',
-  game:  '(PriceCharting loose / CIB / new in USD, fetched date)',
-  comic: '(PriceCharting loose / CIB / new in USD, fetched date)',
-  all:   '(Discogs for music; PriceCharting loose / CIB / new for games and comics)',
-  film:  '— not available for films',
-  book:  '— not available for books',
-}
-const marketHint = computed(() => MARKET_HINTS[selectedCategory.value] ?? '')
+const marketHint = computed(() => {
+  switch (selectedCategory.value) {
+    case 'music':
+      return t('crate', '(Discogs lowest price, currency, fetched date)')
+    case 'game':
+    case 'comic':
+      // TRANSLATORS: loose, CIB (complete in box) and new are the conditions PriceCharting prices a game or comic in
+      return t('crate', '(PriceCharting loose / CIB / new in USD, fetched date)')
+    case 'all':
+      return t('crate', '(Discogs for music; PriceCharting loose / CIB / new for games and comics)')
+    case 'film':
+      return t('crate', '— not available for films')
+    case 'book':
+      return t('crate', '— not available for books')
+    default:
+      return ''
+  }
+})
+
+// "Ready to export N items.", cut around the count it shows in bold.
+const readyToExport = computed(() => {
+  const text = n('crate', 'Ready to export {strongStart}%n{strongEnd} item.', 'Ready to export {strongStart}%n{strongEnd} items.', itemCount.value ?? 0)
+  return splitAround(text, 'strongStart', 'strongEnd')
+})
 
 let abortController = null
 
@@ -378,11 +426,11 @@ async function doExport() {
     }
     console.error('Export failed', e)
     if (e.code === 'ECONNABORTED') {
-      showError('Export timed out')
-      error.value = 'Export took too long — try exporting without enriched/market data.'
+      showError(t('crate', 'Export timed out'))
+      error.value = t('crate', 'Export took too long — try exporting without enriched/market data.')
     } else {
-      showError('Export failed')
-      error.value = 'Export failed — please try again.'
+      showError(t('crate', 'Export failed'))
+      error.value = t('crate', 'Export failed — please try again.')
     }
   } finally {
     exporting.value = false

@@ -7,7 +7,7 @@
   >
     <div class="atp-modal">
       <h2 id="atp-modal-title">
-        Add to playlist
+        {{ t('crate', 'Add to playlist') }}
       </h2>
       <p class="atp-subtitle">
         <strong>{{ item?.artist }}</strong> — {{ item?.title }}
@@ -17,7 +17,7 @@
         v-if="loading"
         class="atp-status"
       >
-        Loading playlists…
+        {{ t('crate', 'Loading playlists…') }}
       </p>
 
       <div
@@ -50,7 +50,7 @@
           v-if="playlists.length === 0"
           class="atp-empty"
         >
-          No playlists yet.
+          {{ t('crate', 'No playlists yet.') }}
         </div>
       </div>
 
@@ -59,7 +59,7 @@
         <input
           v-model="newName"
           type="text"
-          placeholder="New playlist name…"
+          :placeholder="t('crate', 'New playlist name…')"
           class="atp-input"
           maxlength="500"
           @keydown.enter="createAndAdd"
@@ -69,7 +69,9 @@
           :disabled="!newName.trim() || creating"
           @click="createAndAdd"
         >
-          {{ creating ? 'Creating…' : 'Create & add' }}
+          {{ creating
+            ? t('crate', 'Creating…')
+            : t('crate', 'Create & add') }}
         </NcButton>
       </div>
     </div>
@@ -84,6 +86,7 @@ import { generateOcsUrl } from '@nextcloud/router'
 import { artworkStyleForId } from '../composables/useArtworkStyle.js'
 import { showError } from '../utils/toast.js'
 import { playlistCountLabel } from '../utils/categoryFormats.js'
+import { t } from '../l10n.js'
 
 const props = defineProps({
   show: { type: Boolean, required: true },
@@ -116,7 +119,7 @@ watch(() => props.show, async (open) => {
     )
   } catch (e) {
     console.error('Failed to load playlists', e)
-    showError('Failed to load playlists')
+    showError(t('crate', 'Failed to load playlists'))
   } finally {
     loading.value = false
   }
@@ -134,7 +137,7 @@ async function addTo(pl) {
     if (idx !== -1) playlists.value[idx] = { ...playlists.value[idx], itemCount: (playlists.value[idx].itemCount ?? 0) + 1 }
   } catch (e) {
     console.error('Failed to add to playlist', e)
-    showError('Failed to add to playlist')
+    showError(t('crate', 'Failed to add to playlist'))
   }
 }
 
@@ -172,7 +175,7 @@ async function createAndAdd() {
     newName.value = ''
   } catch (e) {
     console.error('Failed to create playlist and add item', e)
-    showError('Failed to create playlist')
+    showError(t('crate', 'Failed to create playlist'))
   } finally {
     creating.value = false
   }

@@ -7,24 +7,24 @@
   <NcAppSettingsDialog
     :open="open"
     show-navigation
-    name="Crate settings"
+    :name="t('crate', 'Crate settings')"
     @update:open="$emit('update:open', $event)"
   >
     <!-- ── Categories ── -->
     <NcAppSettingsSection
       id="crate-settings-categories"
-      name="Categories"
-      description="Hide categories you don't use. Hidden categories disappear from the sidebar and the Home view, and won't show up in search. At least one category must remain visible."
+      :name="t('crate', 'Categories')"
+      :description="t('crate', 'Hide categories you don\'t use. Hidden categories disappear from the sidebar and the Home view, and won\'t show up in search. At least one category must remain visible.')"
     >
       <div class="settings-stack">
         <NcCheckboxRadioSwitch
           v-for="cat in categoryToggles"
-          :key="cat.value"
-          :model-value="!hiddenCategories.includes(cat.value)"
-          :disabled="!hiddenCategories.includes(cat.value) && hiddenCategories.length >= categoryToggles.length - 1"
-          @update:model-value="setCategoryVisible(cat.value, $event)"
+          :key="cat"
+          :model-value="!hiddenCategories.includes(cat)"
+          :disabled="!hiddenCategories.includes(cat) && hiddenCategories.length >= categoryToggles.length - 1"
+          @update:model-value="setCategoryVisible(cat, $event)"
         >
-          {{ cat.label }}
+          {{ categoryLabel(cat) }}
         </NcCheckboxRadioSwitch>
       </div>
     </NcAppSettingsSection>
@@ -32,24 +32,25 @@
     <!-- ── Enrichment ── -->
     <NcAppSettingsSection
       id="crate-settings-enrichment"
-      name="Enrichment"
-      description="Fill items in with metadata, artwork and descriptions from each category's provider. Every provider except Open Library needs a key, set under API keys."
+      :name="t('crate', 'Enrichment')"
+      :description="t('crate', 'Fill items in with metadata, artwork and descriptions from each category\'s provider. Every provider except Open Library needs a key, set under API keys.')"
     >
       <div class="settings-group">
         <h4 class="settings-group__label">
-          Automatic
+          <!-- TRANSLATORS: heading over the setting that enriches items without being asked -->
+          {{ t('crate', 'Automatic') }}
         </h4>
         <NcCheckboxRadioSwitch v-model="autoEnrichOnClick">
-          Auto-enrich items when opening them
+          {{ t('crate', 'Auto-enrich items when opening them') }}
         </NcCheckboxRadioSwitch>
         <p class="settings-sub-hint">
-          Applies to Music (Discogs), Films (TMDB), Books (Open Library — no key needed), Games (RAWG), and Comics (ComicVine). Requires the relevant API key to be configured.
+          {{ t('crate', 'Applies to Music (Discogs), Films (TMDB), Books (Open Library — no key needed), Games (RAWG), and Comics (ComicVine). Requires the relevant API key to be configured.') }}
         </p>
       </div>
 
       <div class="settings-group">
         <h4 class="settings-group__label">
-          Everything at once
+          {{ t('crate', 'Everything at once') }}
         </h4>
         <div class="settings-actions">
           <NcButton
@@ -58,100 +59,94 @@
             @click="enrichAll()"
           >
             {{ enrich.running.value
-              ? `Enriching… ${enrich.done.value} / ${enrich.total.value}`
-              : 'Enrich all items (every category)' }}
+              ? t('crate', 'Enriching… {done} / {total}', { done: enrich.done.value, total: enrich.total.value })
+              : t('crate', 'Enrich all items (every category)') }}
           </NcButton>
           <NcButton
             v-if="enrich.running.value"
             variant="tertiary"
             @click="enrich.cancel()"
           >
-            Stop
+            {{ t('crate', 'Stop') }}
           </NcButton>
         </div>
         <p class="settings-hint settings-hint--tight">
-          Enriches every un-enriched item across every category, using whichever API keys you have configured.
+          {{ t('crate', 'Enriches every un-enriched item across every category, using whichever API keys you have configured.') }}
         </p>
       </div>
 
       <div class="settings-group">
         <h4 class="settings-group__label">
-          By category
+          {{ t('crate', 'By category') }}
         </h4>
         <div class="settings-stack settings-stack--wide">
           <EnrichProviderRow
-            label="Books"
-            action-label="Enrich all un-enriched books"
+            :label="categoryLabel('book')"
+            :action-label="t('crate', 'Enrich all un-enriched books')"
             :disabled="enrich.running.value || marketQueue.running.value"
             @enrich="enrichAll('book')"
           >
-            Book metadata, covers and author bios via the
-            <a
+            {{ providerHelp.book.before }}<a
               href="https://openlibrary.org/developers/api"
               target="_blank"
               rel="noopener"
-            >Open Library API</a>.
-            No API key is required.
+            >{{ providerHelp.book.inner }}</a>{{ providerHelp.book.after }}
           </EnrichProviderRow>
 
           <EnrichProviderRow
-            label="Comics"
-            action-label="Enrich all un-enriched comics"
+            :label="categoryLabel('comic')"
+            :action-label="t('crate', 'Enrich all un-enriched comics')"
             :disabled="!comicVine.hasValue.value || enrich.running.value || marketQueue.running.value"
-            :hint="comicVine.hasValue.value ? '' : 'Add a ComicVine API key under API keys to enable enrichment.'"
+            :hint="comicVine.hasValue.value ? '' : t('crate', 'Add a ComicVine API key under API keys to enable enrichment.')"
             @enrich="enrichAll('comic')"
           >
-            Comic volume metadata, artwork, genres and descriptions via the
-            <a
+            {{ providerHelp.comic.before }}<a
               href="https://comicvine.gamespot.com/api/"
               target="_blank"
               rel="noopener"
-            >ComicVine API</a>.
+            >{{ providerHelp.comic.inner }}</a>{{ providerHelp.comic.after }}
           </EnrichProviderRow>
 
           <EnrichProviderRow
-            label="Films"
-            action-label="Enrich all un-enriched films"
+            :label="categoryLabel('film')"
+            :action-label="t('crate', 'Enrich all un-enriched films')"
             :disabled="!tmdb.hasValue.value || enrich.running.value || marketQueue.running.value"
-            :hint="tmdb.hasValue.value ? '' : 'Add a TMDB API key under API keys to enable enrichment.'"
+            :hint="tmdb.hasValue.value ? '' : t('crate', 'Add a TMDB API key under API keys to enable enrichment.')"
             @enrich="enrichAll('film')"
           >
-            Film metadata, posters and director info via the
-            <a
+            {{ providerHelp.film.before }}<a
               href="https://www.themoviedb.org/"
               target="_blank"
               rel="noopener"
-            >TMDB API</a>.
+            >{{ providerHelp.film.inner }}</a>{{ providerHelp.film.after }}
           </EnrichProviderRow>
 
           <EnrichProviderRow
-            label="Games"
-            action-label="Enrich all un-enriched games"
+            :label="categoryLabel('game')"
+            :action-label="t('crate', 'Enrich all un-enriched games')"
             :disabled="!rawg.hasValue.value || enrich.running.value || marketQueue.running.value"
-            :hint="rawg.hasValue.value ? '' : 'Add a RAWG API key under API keys to enable enrichment.'"
+            :hint="rawg.hasValue.value ? '' : t('crate', 'Add a RAWG API key under API keys to enable enrichment.')"
             @enrich="enrichAll('game')"
           >
-            Game metadata and cover art via the
-            <a
+            {{ providerHelp.game.before }}<a
               href="https://rawg.io/"
               target="_blank"
               rel="noopener"
-            >RAWG API</a>.
+            >{{ providerHelp.game.inner }}</a>{{ providerHelp.game.after }}
           </EnrichProviderRow>
 
           <EnrichProviderRow
-            label="Music"
-            action-label="Enrich all un-enriched music"
+            :label="categoryLabel('music')"
+            :action-label="t('crate', 'Enrich all un-enriched music')"
             :disabled="!discogs.hasValue.value || enrich.running.value || marketQueue.running.value"
-            :hint="discogs.hasValue.value ? '' : 'Add a Discogs API key under API keys to enable enrichment.'"
+            :hint="discogs.hasValue.value ? '' : t('crate', 'Add a Discogs API key under API keys to enable enrichment.')"
             @enrich="enrichAll('music')"
           >
-            Metadata, artwork, tracklists and artist info via the
-            <a
+            {{ providerHelp.music.before }}<a
               href="https://www.discogs.com/developers/"
               target="_blank"
               rel="noopener"
-            >Discogs API</a>.
+            >{{ providerHelp.music.inner }}</a>{{ providerHelp.music.after }}
           </EnrichProviderRow>
         </div>
       </div>
@@ -160,21 +155,22 @@
     <!-- ── Recommendations ── -->
     <NcAppSettingsSection
       id="crate-settings-recommendations"
-      name="Recommendations"
-      description="Items show a &quot;More from your crate&quot; row, suggesting similar things you already own or want. That's worked out locally from your own collection and needs no setup."
+      :name="t('crate', 'Recommendations')"
+      :description="recommendationsDescription"
     >
       <div class="settings-group">
         <h4 class="settings-group__label">
-          Online
+          <!-- TRANSLATORS: heading over the setting that looks up recommendations on online services -->
+          {{ t('crate', 'Online') }}
         </h4>
         <NcCheckboxRadioSwitch
           :model-value="onlineRecommendations"
           @update:model-value="onlineRecommendations = $event"
         >
-          Enable online recommendations
+          {{ t('crate', 'Enable online recommendations') }}
         </NcCheckboxRadioSwitch>
         <p class="settings-sub-hint">
-          Also suggest things you don't own yet, from the same service that enriched the item — Discogs for music, TMDB for films, Open Library for books, RAWG for games. Only enriched items can have these, since suggestions are looked up by the ID enrichment stores. Results are cached, so re-opening an item won't re-query the service. Comics aren't covered: ComicVine publishes no similarity data.
+          {{ t('crate', 'Also suggest things you don\'t own yet, from the same service that enriched the item — Discogs for music, TMDB for films, Open Library for books, RAWG for games. Only enriched items can have these, since suggestions are looked up by the ID enrichment stores. Results are cached, so re-opening an item won\'t re-query the service. Comics aren\'t covered: ComicVine publishes no similarity data.') }}
         </p>
       </div>
     </NcAppSettingsSection>
@@ -182,23 +178,23 @@
     <!-- ── Market values ── -->
     <NcAppSettingsSection
       id="crate-settings-market"
-      name="Market values"
+      :name="t('crate', 'Market values')"
     >
       <p class="settings-hint">
-        Music market values come from Discogs; game and comic prices come from
-        <a
+        {{ marketSourcesHelp.before }}<a
           href="https://www.pricecharting.com/"
           target="_blank"
           rel="noopener"
-        >PriceCharting</a> (paid API &mdash; requires a subscription). Both keys live under API keys. Films and books have no market-value source.
+        >{{ marketSourcesHelp.inner }}</a>{{ marketSourcesHelp.after }}
       </p>
 
       <div class="settings-group">
         <h4 class="settings-group__label">
-          Display
+          <!-- TRANSLATORS: heading over the setting for the currency prices are shown in -->
+          {{ t('crate', 'Display') }}
         </h4>
         <div class="settings-field settings-field--inline">
-          <label for="market-currency">Display currency</label>
+          <label for="market-currency">{{ t('crate', 'Display currency') }}</label>
           <select
             id="market-currency"
             v-model="marketCurrency"
@@ -213,20 +209,21 @@
             </option>
           </select>
           <p class="settings-sub-hint settings-sub-hint--flush">
-            Used for Discogs (music) prices. PriceCharting (games &amp; comics) prices are always in USD.
+            {{ t('crate', 'Used for Discogs (music) prices. PriceCharting (games & comics) prices are always in USD.') }}
           </p>
         </div>
       </div>
 
       <div class="settings-group">
         <h4 class="settings-group__label">
-          Fetching
+          <!-- TRANSLATORS: heading over the settings for looking up market prices -->
+          {{ t('crate', 'Fetching') }}
         </h4>
         <NcCheckboxRadioSwitch v-model="autoFetchMarketRates">
-          Fetch market rates automatically
+          {{ t('crate', 'Fetch market rates automatically') }}
         </NcCheckboxRadioSwitch>
         <p class="settings-sub-hint">
-          When enabled, opening an item triggers a live price lookup for the applicable categories.
+          {{ t('crate', 'When enabled, opening an item triggers a live price lookup for the applicable categories.') }}
         </p>
 
         <div class="settings-actions settings-actions--spaced">
@@ -236,20 +233,20 @@
             @click="refreshAllMarketRates"
           >
             {{ marketQueue.running.value
-              ? `Fetching… ${marketQueue.done.value} / ${marketQueue.total.value}`
-              : 'Refresh all market rates' }}
+              ? t('crate', 'Fetching… {done} / {total}', { done: marketQueue.done.value, total: marketQueue.total.value })
+              : t('crate', 'Refresh all market rates') }}
           </NcButton>
           <NcButton
             v-if="marketQueue.running.value"
             variant="tertiary"
             @click="marketQueue.cancel()"
           >
-            Stop
+            {{ t('crate', 'Stop') }}
           </NcButton>
           <span
             v-if="!discogs.hasValue.value && !priceCharting.hasValue.value"
             class="settings-hint settings-hint--flush"
-          >Add a Discogs or PriceCharting API key to enable market rates.</span>
+          >{{ t('crate', 'Add a Discogs or PriceCharting API key to enable market rates.') }}</span>
         </div>
       </div>
     </NcAppSettingsSection>
@@ -260,105 +257,100 @@
          why they sit below the sections that use them rather than inside each. -->
     <NcAppSettingsSection
       id="crate-settings-api-keys"
-      name="API keys"
-      description="Keys are stored on your Nextcloud server and are never shown again once saved. Books need no key — Open Library is open."
+      :name="t('crate', 'API keys')"
+      :description="t('crate', 'Keys are stored on your Nextcloud server and are never shown again once saved. Books need no key — Open Library is open.')"
     >
       <TokenField
         v-model="discogs.input.value"
         input-id="discogs-token"
-        label="Discogs personal access token"
+        :label="t('crate', 'Discogs personal access token')"
         :has-value="discogs.hasValue.value"
         :saving="discogs.saving.value"
         :message="discogs.message.value"
         @save="saveDiscogsToken"
         @remove="clearDiscogsToken"
       >
-        Powers music enrichment and music market values. Generate a personal access token at
-        <a
+        {{ keyHelp.discogs.before }}<a
           href="https://www.discogs.com/settings/developers"
           target="_blank"
           rel="noopener"
-        >discogs.com/settings/developers</a>.
+        >{{ keyHelp.discogs.inner }}</a>{{ keyHelp.discogs.after }}
       </TokenField>
 
       <TokenField
         v-model="tmdb.input.value"
         input-id="tmdb-token"
-        label="TMDB API Read Access Token"
+        :label="t('crate', 'TMDB API Read Access Token')"
         :has-value="tmdb.hasValue.value"
         :saving="tmdb.saving.value"
         :message="tmdb.message.value"
         @save="saveTmdbToken"
         @remove="clearTmdbToken"
       >
-        Powers film enrichment. Generate an API Read Access Token at
-        <a
+        {{ keyHelp.tmdb.before }}<a
           href="https://www.themoviedb.org/settings/api"
           target="_blank"
           rel="noopener"
-        >themoviedb.org/settings/api</a>.
+        >{{ keyHelp.tmdb.inner }}</a>{{ keyHelp.tmdb.after }}
       </TokenField>
 
       <TokenField
         v-model="rawg.input.value"
         input-id="rawg-key"
-        label="RAWG API key"
+        :label="t('crate', 'RAWG API key')"
         :has-value="rawg.hasValue.value"
         :saving="rawg.saving.value"
         :message="rawg.message.value"
         @save="saveRawgKey"
         @remove="clearRawgKey"
       >
-        Powers game enrichment. Get a free API key at
-        <a
+        {{ keyHelp.rawg.before }}<a
           href="https://rawg.io/apidocs"
           target="_blank"
           rel="noopener"
-        >rawg.io/apidocs</a>.
+        >{{ keyHelp.rawg.inner }}</a>{{ keyHelp.rawg.after }}
       </TokenField>
 
       <TokenField
         v-model="comicVine.input.value"
         input-id="comicvine-key"
-        label="ComicVine API key"
+        :label="t('crate', 'ComicVine API key')"
         :has-value="comicVine.hasValue.value"
         :saving="comicVine.saving.value"
         :message="comicVine.message.value"
         @save="saveComicVineKey"
         @remove="clearComicVineKey"
       >
-        Powers comic enrichment. Get a free API key at
-        <a
+        {{ keyHelp.comicVine.before }}<a
           href="https://comicvine.gamespot.com/api/"
           target="_blank"
           rel="noopener"
-        >comicvine.gamespot.com/api</a>.
+        >{{ keyHelp.comicVine.inner }}</a>{{ keyHelp.comicVine.after }}
       </TokenField>
 
       <TokenField
         v-model="priceCharting.input.value"
         input-id="pricecharting-token"
-        label="PriceCharting API key"
+        :label="t('crate', 'PriceCharting API key')"
         :has-value="priceCharting.hasValue.value"
         :saving="priceCharting.saving.value"
         :message="priceCharting.message.value"
         @save="savePriceChartingToken"
         @remove="clearPriceChartingToken"
       >
-        Powers game and comic market values. API access is a paid subscription &mdash; see the
-        <a
+        {{ keyHelp.priceCharting.before }}<a
           href="https://www.pricecharting.com/api-documentation"
           target="_blank"
           rel="noopener"
-        >API documentation</a> for pricing and details.
+        >{{ keyHelp.priceCharting.inner }}</a>{{ keyHelp.priceCharting.after }}
       </TokenField>
     </NcAppSettingsSection>
 
     <!-- ── Danger zone ── -->
     <NcAppSettingsSection
       id="crate-settings-danger"
-      name="Danger zone"
-      description="Permanently delete selected data from your collection. You choose what to wipe in the confirmation dialog. This cannot be undone."
+      :name="t('crate', 'Danger zone')"
+      :description="t('crate', 'Permanently delete selected data from your collection. You choose what to wipe in the confirmation dialog. This cannot be undone.')"
     >
       <div class="settings-actions">
         <NcButton
@@ -366,7 +358,9 @@
           :disabled="wiping"
           @click="openWipeDialog"
         >
-          {{ wiping ? 'Wiping…' : 'Wipe data…' }}
+          {{ wiping
+            ? t('crate', 'Wiping…')
+            : t('crate', 'Wipe data…') }}
         </NcButton>
         <span
           v-if="wipedMessage"
@@ -376,19 +370,19 @@
 
       <NcDialog
         v-if="confirmWipe"
-        name="Wipe data"
+        :name="t('crate', 'Wipe data')"
         :open="confirmWipe"
         @closing="confirmWipe = false"
       >
-        <p>Tick the categories you want to permanently delete. There is no undo.</p>
+        <p>{{ t('crate', 'Tick the categories you want to permanently delete. There is no undo.') }}</p>
         <div class="wipe-scopes">
           <NcCheckboxRadioSwitch
             v-for="scope in wipeScopes"
-            :key="scope.value"
-            :model-value="wipeSelection.includes(scope.value)"
-            @update:model-value="toggleWipeScope(scope.value, $event)"
+            :key="scope"
+            :model-value="wipeSelection.includes(scope)"
+            @update:model-value="toggleWipeScope(scope, $event)"
           >
-            {{ scope.label }}
+            {{ wipeScopeLabel(scope) }}
           </NcCheckboxRadioSwitch>
         </div>
         <template #actions>
@@ -397,7 +391,7 @@
             variant="tertiary"
             @click="confirmWipe = false"
           >
-            Cancel
+            {{ t('crate', 'Cancel') }}
           </NcButton>
           <NcButton
             type="button"
@@ -405,7 +399,7 @@
             :disabled="wipeSelection.length === 0"
             @click="wipeCollection"
           >
-            Wipe selected
+            {{ t('crate', 'Wipe selected') }}
           </NcButton>
         </template>
       </NcDialog>
@@ -414,11 +408,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { NcAppSettingsDialog, NcAppSettingsSection, NcButton, NcCheckboxRadioSwitch, NcDialog } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
+import { splitAround, t } from '../l10n.js'
 import { showError } from '../utils/toast.js'
+import { categoryLabel } from '../utils/categoryFormats.js'
 import EnrichProviderRow from './settings/EnrichProviderRow.vue'
 import TokenField from './settings/TokenField.vue'
 import { useEnrichQueue } from '../composables/useEnrichQueue.js'
@@ -441,14 +437,8 @@ const {
   onlineRecommendations,
 } = useSettings()
 
-// Alphabetical by label so the Categories list matches Android.
-const categoryToggles = [
-  { value: 'book',  label: 'Books' },
-  { value: 'comic', label: 'Comics' },
-  { value: 'film',  label: 'Films' },
-  { value: 'game',  label: 'Games' },
-  { value: 'music', label: 'Music' },
-]
+// Alphabetical by English label so the Categories list matches Android.
+const categoryToggles = ['book', 'comic', 'film', 'game', 'music']
 
 function setCategoryVisible(category, visible) {
   const current = new Set(hiddenCategories.value)
@@ -463,14 +453,79 @@ function setCategoryVisible(category, visible) {
   hiddenCategories.value = [...current]
 }
 
+/** A translated sentence cut at its {linkStart} and {linkEnd} markers. */
+function linkParts(text) {
+  return splitAround(text, 'linkStart', 'linkEnd')
+}
+
+// The description under each per-category enrich button, around the link to
+// the provider's API.
+const providerHelp = computed(() => ({
+  book: linkParts(t('crate', 'Book metadata, covers and author bios via the {linkStart}Open Library API{linkEnd}. No API key is required.')),
+  comic: linkParts(t('crate', 'Comic volume metadata, artwork, genres and descriptions via the {linkStart}ComicVine API{linkEnd}.')),
+  film: linkParts(t('crate', 'Film metadata, posters and director info via the {linkStart}TMDB API{linkEnd}.')),
+  game: linkParts(t('crate', 'Game metadata and cover art via the {linkStart}RAWG API{linkEnd}.')),
+  music: linkParts(t('crate', 'Metadata, artwork, tracklists and artist info via the {linkStart}Discogs API{linkEnd}.')),
+}))
+
+const recommendationsDescription = computed(() => {
+  const rail = t('crate', 'More from your crate')
+  // TRANSLATORS: {rail} is the title of the row of suggestions on an item's page, "More from your crate"
+  return t('crate', 'Items show a "{rail}" row, suggesting similar things you already own or want. That\'s worked out locally from your own collection and needs no setup.', { rail })
+})
+
+const marketSourcesHelp = computed(() => linkParts(
+  t('crate', 'Music market values come from Discogs; game and comic prices come from {linkStart}PriceCharting{linkEnd} (paid API — requires a subscription). Both keys live under API keys. Films and books have no market-value source.'),
+))
+
+// The help under each API key field, around the link to where the key is made.
+const keyHelp = computed(() => ({
+  discogs: linkParts(t('crate', 'Powers music enrichment and music market values. Generate a personal access token at {linkStart}discogs.com/settings/developers{linkEnd}.')),
+  tmdb: linkParts(t('crate', 'Powers film enrichment. Generate an API Read Access Token at {linkStart}themoviedb.org/settings/api{linkEnd}.')),
+  rawg: linkParts(t('crate', 'Powers game enrichment. Get a free API key at {linkStart}rawg.io/apidocs{linkEnd}.')),
+  comicVine: linkParts(t('crate', 'Powers comic enrichment. Get a free API key at {linkStart}comicvine.gamespot.com/api{linkEnd}.')),
+  priceCharting: linkParts(t('crate', 'Powers game and comic market values. API access is a paid subscription — see the {linkStart}API documentation{linkEnd} for pricing and details.')),
+}))
+
 const currencies = ref([])
 
-// Token settings via composable
-const discogs = useTokenSetting({ endpoint: '/settings/discogs-token', payloadKey: 'token', responseKey: 'hasToken', label: 'Discogs token' })
-const tmdb = useTokenSetting({ endpoint: '/settings/tmdb-token', payloadKey: 'token', responseKey: 'hasToken', label: 'TMDB token' })
-const rawg = useTokenSetting({ endpoint: '/settings/rawg-key', payloadKey: 'key', responseKey: 'hasKey', label: 'RAWG key' })
-const comicVine = useTokenSetting({ endpoint: '/settings/comicvine-key', payloadKey: 'key', responseKey: 'hasKey', label: 'ComicVine key' })
-const priceCharting = useTokenSetting({ endpoint: '/settings/pricecharting-token', payloadKey: 'token', responseKey: 'hasToken', label: 'PriceCharting token' })
+// Token settings via composable. `label` names the key in console messages,
+// `name` in the messages the user sees.
+const discogs = useTokenSetting({
+  endpoint: '/settings/discogs-token',
+  payloadKey: 'token',
+  responseKey: 'hasToken',
+  label: 'Discogs token',
+  name: () => t('crate', 'Discogs token'),
+})
+const tmdb = useTokenSetting({
+  endpoint: '/settings/tmdb-token',
+  payloadKey: 'token',
+  responseKey: 'hasToken',
+  label: 'TMDB token',
+  name: () => t('crate', 'TMDB token'),
+})
+const rawg = useTokenSetting({
+  endpoint: '/settings/rawg-key',
+  payloadKey: 'key',
+  responseKey: 'hasKey',
+  label: 'RAWG key',
+  name: () => t('crate', 'RAWG key'),
+})
+const comicVine = useTokenSetting({
+  endpoint: '/settings/comicvine-key',
+  payloadKey: 'key',
+  responseKey: 'hasKey',
+  label: 'ComicVine key',
+  name: () => t('crate', 'ComicVine key'),
+})
+const priceCharting = useTokenSetting({
+  endpoint: '/settings/pricecharting-token',
+  payloadKey: 'token',
+  responseKey: 'hasToken',
+  label: 'PriceCharting token',
+  name: () => t('crate', 'PriceCharting token'),
+})
 
 const confirmWipe = ref(false)
 const wiping = ref(false)
@@ -480,19 +535,16 @@ const wipedMessage = ref('')
 let wipedTimer = null
 onBeforeUnmount(() => clearTimeout(wipedTimer))
 
-const wipeScopes = [
-  { value: 'music',     label: 'Music' },
-  { value: 'film',      label: 'Films' },
-  { value: 'book',      label: 'Books' },
-  { value: 'game',      label: 'Games' },
-  { value: 'comic',     label: 'Comics' },
-  { value: 'playlists', label: 'Playlists and shares' },
-]
+const wipeScopes = ['music', 'film', 'book', 'game', 'comic', 'playlists']
 const wipeSelection = ref([])
+
+function wipeScopeLabel(scope) {
+  return scope === 'playlists' ? t('crate', 'Playlists and shares') : categoryLabel(scope)
+}
 
 function openWipeDialog() {
   // Default: everything selected.
-  wipeSelection.value = wipeScopes.map(s => s.value)
+  wipeSelection.value = [...wipeScopes]
   confirmWipe.value = true
 }
 
@@ -517,7 +569,7 @@ async function load() {
     currencies.value = currRes.data.ocs?.data ?? []
   } catch (e) {
     console.error('Failed to load settings', e)
-    showError('Failed to load settings')
+    showError(t('crate', 'Failed to load settings'))
   }
 }
 
@@ -584,16 +636,17 @@ async function wipeCollection() {
       params: { scopes: scopes.join(',') },
     })
     const allSelected = scopes.length === wipeScopes.length
+    const wiped = scopes.map(wipeScopeLabel).join(', ')
     wipedMessage.value = allSelected
-      ? 'Collection wiped.'
-      : `Wiped: ${scopes.join(', ')}.`
+      ? t('crate', 'Collection wiped.')
+      : t('crate', 'Wiped: {scopes}.', { scopes: wiped })
     emit('collection-wiped')
     clearTimeout(wipedTimer)
     wipedTimer = setTimeout(() => { wipedMessage.value = '' }, 4000)
   } catch (e) {
     console.error('Failed to wipe collection', e)
-    showError('Failed to wipe collection')
-    wipedMessage.value = 'Failed — check the console.'
+    showError(t('crate', 'Failed to wipe collection'))
+    wipedMessage.value = t('crate', 'Failed — check the console.')
   } finally {
     wiping.value = false
   }
@@ -613,7 +666,7 @@ async function refreshAllMarketRates() {
     }
   } catch (e) {
     console.error('Failed to load items for market rate refresh', e)
-    showError('Failed to start market rate refresh')
+    showError(t('crate', 'Failed to start market rate refresh'))
   }
 }
 
@@ -639,7 +692,7 @@ async function enrichAll(category = null) {
     }
   } catch (e) {
     console.error('Failed to load items for enrichment', e)
-    showError('Failed to start enrichment')
+    showError(t('crate', 'Failed to start enrichment'))
   }
 }
 

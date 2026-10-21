@@ -29,7 +29,7 @@
           :model-value="allowWrite"
           @update:model-value="allowWrite = $event"
         >
-          Allow adding &amp; editing (read/write)
+          {{ t('crate', 'Allow adding & editing (read/write)') }}
         </NcCheckboxRadioSwitch>
       </div>
 
@@ -47,7 +47,7 @@
         class="share-current"
       >
         <p class="share-current-label">
-          Shared with
+          {{ t('crate', 'Shared with') }}
         </p>
         <div
           v-for="share in currentShares"
@@ -59,15 +59,17 @@
             <span
               class="share-access-badge"
               :class="share.canWrite ? 'share-access-badge--write' : ''"
-            >{{ share.canWrite ? 'Can edit' : 'Read-only' }}</span>
+            >{{ share.canWrite
+              ? t('crate', 'Can edit')
+              : t('crate', 'Read-only') }}</span>
           </span>
           <NcButton
             variant="tertiary"
             size="small"
-            :aria-label="'Unshare with ' + share.sharedWithUserId"
+            :aria-label="t('crate', 'Unshare with {user}', { user: share.sharedWithUserId })"
             @click="unshare(share)"
           >
-            Remove
+            {{ t('crate', 'Remove') }}
           </NcButton>
         </div>
       </div>
@@ -89,6 +91,8 @@ import { NcModal, NcButton, NcCheckboxRadioSwitch } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
 import { showError } from '../utils/toast.js'
+import { categoryLabel } from '../utils/categoryFormats.js'
+import { t } from '../l10n.js'
 import UserSearchField from './UserSearchField.vue'
 
 const props = defineProps({
@@ -105,8 +109,6 @@ const props = defineProps({
 })
 
 defineEmits(['close'])
-
-const CATEGORY_LABELS = { music: 'Music', film: 'Films', book: 'Books', game: 'Games', comic: 'Comics' }
 
 const userSearch = ref(null)
 const currentShares = ref([])
@@ -128,26 +130,31 @@ onBeforeUnmount(() => clearTimeout(statusTimer))
 const displayName = computed(() => {
   if (!props.target) return ''
   if (props.target.type === 'library') return ''
-  if (props.target.type === 'category') return CATEGORY_LABELS[props.target.category] ?? props.target.category
+  if (props.target.type === 'category') return categoryLabel(props.target.category)
   return props.target.name ?? ''
 })
 
 const headingForTarget = computed(() => {
   switch (props.target?.type) {
-    case 'library':  return 'Share whole library'
-    case 'category': return 'Share category'
-    default:         return 'Share'
+    case 'library':  return t('crate', 'Share whole library')
+    case 'category': return t('crate', 'Share category')
+    // TRANSLATORS: verb; heading of the dialog for sharing an item or a playlist with other users
+    default:         return t('crate', 'Share')
   }
 })
 
 const subscopeHint = computed(() => {
-  const access = allowWrite.value
-    ? 'They can add and edit items, but not delete them.'
-    : 'Read-only.'
   switch (props.target?.type) {
-    case 'library':  return `Sharees can view every item in your collection. ${access}`
-    case 'category': return `Sharees can view items in this category. ${access}`
-    default:         return ''
+    case 'library':
+      return allowWrite.value
+        ? t('crate', 'Sharees can view every item in your collection. They can add and edit items, but not delete them.')
+        : t('crate', 'Sharees can view every item in your collection. Read-only.')
+    case 'category':
+      return allowWrite.value
+        ? t('crate', 'Sharees can view items in this category. They can add and edit items, but not delete them.')
+        : t('crate', 'Sharees can view items in this category. Read-only.')
+    default:
+      return ''
   }
 })
 
@@ -200,7 +207,7 @@ async function loadCurrentShares() {
     currentShares.value = res.data.ocs?.data ?? []
   } catch (e) {
     console.error('Failed to load shares', e)
-    showError('Failed to load shares')
+    showError(t('crate', 'Failed to load shares'))
   }
 }
 
@@ -212,10 +219,10 @@ async function shareWith(user) {
   try {
     await axios.post(url, { userId: user.uid, permission: allowWrite.value ? 'readwrite' : 'read' })
     userSearch.value?.reset()
-    flashStatus(`Shared with ${user.displayName}.`, false, 3000)
+    flashStatus(t('crate', 'Shared with {user}.', { user: user.displayName }), false, 3000)
     await loadCurrentShares()
   } catch (e) {
-    flashStatus(e.response?.data?.ocs?.data?.error ?? 'Failed to share.', true, 4000)
+    flashStatus(e.response?.data?.ocs?.data?.error ?? t('crate', 'Failed to share.'), true, 4000)
   }
 }
 
@@ -225,7 +232,7 @@ async function unshare(share) {
     await loadCurrentShares()
   } catch (e) {
     console.error('Failed to unshare', e)
-    showError('Failed to unshare')
+    showError(t('crate', 'Failed to unshare'))
   }
 }
 </script>

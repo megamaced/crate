@@ -8,13 +8,13 @@
           <span
             v-if="sharedMode"
             class="cv-eyebrow"
-          >Shared with me</span>
+          >{{ t('crate', 'Shared with me') }}</span>
           <h2 class="cv-heading">
             {{ heading }}
             <span
               v-if="sharedMode && singleSharedOwner"
               class="cv-shared-by"
-            >Shared by {{ singleSharedOwner }}</span>
+            >{{ t('crate', 'Shared by {owner}', { owner: singleSharedOwner }) }}</span>
           </h2>
         </div>
 
@@ -23,46 +23,48 @@
           <select
             v-model="sortKey"
             class="cv-sort-select"
-            aria-label="Sort order"
+            :aria-label="t('crate', 'Sort order')"
           >
             <option value="createdAt-desc">
-              Newest First
+              {{ t('crate', 'Newest First') }}
             </option>
             <option value="createdAt-asc">
-              Oldest First
+              {{ t('crate', 'Oldest First') }}
             </option>
             <option value="artist-asc">
-              {{ sortLabels.artist }} A–Z
+              {{ sortLabels.artistAsc }}
             </option>
             <option value="artist-desc">
-              {{ sortLabels.artist }} Z–A
+              {{ sortLabels.artistDesc }}
             </option>
             <option value="title-asc">
-              {{ sortLabels.title }} A–Z
+              {{ sortLabels.titleAsc }}
             </option>
             <option value="title-desc">
-              {{ sortLabels.title }} Z–A
+              {{ sortLabels.titleDesc }}
             </option>
             <option value="year-asc">
-              Year (Oldest)
+              {{ t('crate', 'Year (Oldest)') }}
             </option>
             <option value="year-desc">
-              Year (Newest)
+              {{ t('crate', 'Year (Newest)') }}
             </option>
             <template v-if="sortLabels.hasFormat">
               <option value="format-asc">
-                Format A–Z
+                {{ t('crate', 'Format A–Z') }}
               </option>
               <option value="format-desc">
-                Format Z–A
+                {{ t('crate', 'Format Z–A') }}
               </option>
             </template>
             <template v-if="sortLabels.hasValue">
               <option value="marketValue-desc">
-                Value (Highest)
+                <!-- TRANSLATORS: sort by market value, most valuable first -->
+                {{ t('crate', 'Value (Highest)') }}
               </option>
               <option value="marketValue-asc">
-                Value (Lowest)
+                <!-- TRANSLATORS: sort by market value, least valuable first -->
+                {{ t('crate', 'Value (Lowest)') }}
               </option>
             </template>
           </select>
@@ -71,20 +73,20 @@
           <div
             class="cv-view-toggle"
             role="group"
-            aria-label="View mode"
+            :aria-label="t('crate', 'View mode')"
           >
             <button
               :class="['cv-toggle-btn', { active: viewMode === 'card' }]"
-              title="Card view"
-              aria-label="Card view"
+              :title="t('crate', 'Card view')"
+              :aria-label="t('crate', 'Card view')"
               @click="viewMode = 'card'"
             >
               ▦
             </button>
             <button
               :class="['cv-toggle-btn', { active: viewMode === 'list' }]"
-              title="List view"
-              aria-label="List view"
+              :title="t('crate', 'List view')"
+              :aria-label="t('crate', 'List view')"
               @click="viewMode = 'list'"
             >
               ☰
@@ -95,19 +97,20 @@
           <div
             class="cv-status-tabs"
             role="group"
-            aria-label="Collection or Wanted"
+            :aria-label="t('crate', 'Collection or Wanted')"
           >
             <button
               :class="['cv-status-tab', { active: statusFilter === 'owned' }]"
               @click="statusFilter = 'owned'; clearFilters()"
             >
-              Collection
+              <!-- TRANSLATORS: tab listing the items the user owns, next to the Wanted tab -->
+              {{ t('crate', 'Collection') }}
             </button>
             <button
               :class="['cv-status-tab', { active: statusFilter === 'wanted' }]"
               @click="statusFilter = 'wanted'; clearFilters()"
             >
-              Wanted
+              {{ t('crate', 'Wanted') }}
             </button>
           </div>
 
@@ -116,21 +119,24 @@
             variant="secondary"
             @click="shareOpen = true"
           >
-            Share
+            <!-- TRANSLATORS: button that opens the dialog for sharing this collection -->
+            {{ t('crate', 'Share') }}
           </NcButton>
           <NcButton
             v-if="!sharedMode || sharedExportOwner"
             variant="secondary"
             @click="exportOpen = true"
           >
-            Export
+            <!-- TRANSLATORS: button that opens the dialog for exporting this collection to a file -->
+            {{ t('crate', 'Export') }}
           </NcButton>
           <NcButton
             v-if="!sharedMode || sharedCanWrite"
             variant="secondary"
             @click="$emit('import')"
           >
-            Import
+            <!-- TRANSLATORS: button that opens the dialog for importing items from a file -->
+            {{ t('crate', 'Import') }}
           </NcButton>
           <NcButton
             v-if="!sharedMode || sharedCanWrite"
@@ -140,7 +146,7 @@
             <template #icon>
               <span class="cv-plus">+</span>
             </template>
-            Add item
+            {{ t('crate', 'Add item') }}
           </NcButton>
         </div>
       </div>
@@ -152,23 +158,23 @@
         v-if="presentFormats.length > 1 || presentDecades.length > 1 || presentGenres.length > 1"
         class="cv-filters"
         role="group"
-        aria-label="Filters"
+        :aria-label="t('crate', 'Filters')"
       >
         <select
           v-if="presentDecades.length > 1"
           v-model="filterDecade"
           class="cv-filter-select"
-          aria-label="Filter by year"
+          :aria-label="t('crate', 'Filter by year')"
         >
           <option value="">
-            Any year ({{ filteredByStatus.length }})
+            {{ t('crate', 'Any year ({count})', { count: filteredByStatus.length }) }}
           </option>
           <option
             v-for="bucket in presentDecades"
             :key="bucket.value"
             :value="bucket.value"
           >
-            {{ bucket.value }} ({{ bucket.count }})
+            {{ decadeLabel(bucket.value) }} ({{ bucket.count }})
           </option>
         </select>
 
@@ -176,10 +182,10 @@
           v-if="presentGenres.length > 1"
           v-model="filterGenre"
           class="cv-filter-select"
-          aria-label="Filter by genre"
+          :aria-label="t('crate', 'Filter by genre')"
         >
           <option value="">
-            Any genre ({{ filteredByStatus.length }})
+            {{ t('crate', 'Any genre ({count})', { count: filteredByStatus.length }) }}
           </option>
           <option
             v-for="bucket in presentGenres"
@@ -195,7 +201,8 @@
             :class="['cv-chip', { active: filterFormat === '' }]"
             @click="filterFormat = ''"
           >
-            All ({{ filteredByStatus.length }})
+            <!-- TRANSLATORS: filter chip that shows every format; {count} is how many items there are -->
+            {{ t('crate', 'All ({count})', { count: filteredByStatus.length }) }}
           </button>
           <button
             v-for="fmt in presentFormats"
@@ -203,7 +210,7 @@
             :class="['cv-chip', { active: filterFormat === fmt }]"
             @click="filterFormat = fmt"
           >
-            {{ fmt }} ({{ formatCounts.get(fmt) ?? 0 }})
+            {{ formatLabel(fmt) }} ({{ formatCounts.get(fmt) ?? 0 }})
           </button>
         </template>
 
@@ -212,7 +219,7 @@
           class="cv-clear-filters"
           @click="clearFilters"
         >
-          Clear filters
+          {{ t('crate', 'Clear filters') }}
         </button>
       </div>
     </div><!-- /cv-sticky-header -->
@@ -222,7 +229,7 @@
       v-if="loading"
       class="cv-status"
     >
-      Loading…
+      {{ t('crate', 'Loading…') }}
     </p>
 
     <!-- Empty state -->
@@ -231,22 +238,22 @@
       class="cv-empty"
     >
       <template v-if="filtersActive">
-        <p>No {{ activeFilterDescription }} in your {{ statusFilter === 'wanted' ? 'wanted list' : 'collection' }}.</p>
+        <p>{{ noFilteredItemsMessage }}</p>
         <NcButton
           variant="tertiary"
           @click="clearFilters"
         >
-          Clear filters
+          {{ t('crate', 'Clear filters') }}
         </NcButton>
       </template>
       <template v-else>
-        <p>{{ statusFilter === 'wanted' ? 'Your wanted list is empty.' : `No ${heading} items yet.` }}</p>
+        <p>{{ emptyMessage }}</p>
         <NcButton
           v-if="!sharedMode || sharedCanWrite"
           variant="primary"
           @click="onAddClick"
         >
-          Add item
+          {{ t('crate', 'Add item') }}
         </NcButton>
       </template>
     </div>
@@ -262,7 +269,7 @@
         class="cv-group"
       >
         <div class="cv-group-header">
-          <span class="cv-group-label">{{ group.header }}</span>
+          <span class="cv-group-label">{{ group.label }}</span>
           <span class="cv-group-count">{{ group.total }}</span>
         </div>
 
@@ -298,7 +305,7 @@
             <button
               type="button"
               class="cv-list-row"
-              :aria-label="'Open ' + itemLabel(item)"
+              :aria-label="t('crate', 'Open {item}', { item: itemLabel(item) })"
               @click="$emit('detail', item)"
             >
               <MediaThumb
@@ -318,17 +325,17 @@
                   class="cv-list-secondary"
                 >{{ item.artist }}</span>
                 <span class="cv-list-meta">
-                  <span class="cv-badge">{{ item.format }}</span>
+                  <span class="cv-badge">{{ formatLabel(item.format) }}</span>
                   <template v-if="item.year">&thinsp;{{ item.year }}</template>
                   <span
                     v-if="item.status === 'wanted'"
                     class="cv-badge cv-badge--wanted"
-                  >Wanted</span>
+                  >{{ t('crate', 'Wanted') }}</span>
                   <template v-if="item.label">&ensp;·&ensp;{{ item.label }}</template>
                   <span
                     v-if="multiOwner"
                     class="cv-shared-by-row"
-                  >&ensp;·&ensp;Shared by {{ item.sharedByUser }}</span>
+                  >&ensp;·&ensp;{{ t('crate', 'Shared by {owner}', { owner: item.sharedByUser }) }}</span>
                 </span>
               </div>
               <span
@@ -342,18 +349,18 @@
               <NcButton
                 v-if="!sharedMode || sharedCanWrite"
                 variant="tertiary"
-                :aria-label="'Edit ' + itemLabel(item)"
+                :aria-label="t('crate', 'Edit {item}', { item: itemLabel(item) })"
                 @click="$emit('edit', item)"
               >
-                Edit
+                {{ t('crate', 'Edit') }}
               </NcButton>
               <NcButton
                 v-if="!sharedMode"
                 variant="tertiary"
-                :aria-label="'Delete ' + itemLabel(item)"
+                :aria-label="t('crate', 'Delete {item}', { item: itemLabel(item) })"
                 @click="$emit('delete', item)"
               >
-                Delete
+                {{ t('crate', 'Delete') }}
               </NcButton>
             </div>
           </div>
@@ -372,16 +379,16 @@
     <nav
       v-if="groupedItems.length > 1"
       class="cv-index"
-      aria-label="Jump to section"
+      :aria-label="t('crate', 'Jump to section')"
     >
       <button
         v-for="group in groupedItems"
         :key="group.header"
         :class="['cv-index-btn', { active: activeGroup === group.header }]"
-        :title="group.header"
+        :title="group.label"
         @click="scrollToGroup(group.header)"
       >
-        {{ shortLabel(group.header) }}
+        {{ shortLabel(group) }}
       </button>
     </nav>
 
@@ -411,13 +418,14 @@ import { NcButton } from '@nextcloud/vue'
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
 import { showError } from '../utils/toast.js'
-import { decadeBuckets, decadeOf, genreBuckets, hasGenre } from '../utils/genres.js'
+import { decadeBuckets, decadeLabel, decadeOf, genreBuckets, hasGenre } from '../utils/genres.js'
 import { sortItems, stripArticle } from '../utils/sortItems.js'
 import MediaCard from './MediaCard.vue'
 import MediaThumb from './MediaThumb.vue'
 import { formatMarketValue } from '../utils/formatMarketValue.js'
-import { CATEGORY_LABELS, FORMAT_LIST } from '../utils/categoryFormats.js'
+import { CATEGORY_IDS, FORMAT_LIST, categoryLabel, formatLabel } from '../utils/categoryFormats.js'
 import { readString, safeSet } from '../utils/localStore.js'
+import { t } from '../l10n.js'
 
 // Both open from a toolbar button and neither is needed to render the
 // collection, so they load on first use rather than riding in the entry bundle.
@@ -425,20 +433,65 @@ const ExportModal = defineAsyncComponent(() => import('./ExportModal.vue'))
 const ShareCollectionModal = defineAsyncComponent(() => import('./ShareCollectionModal.vue'))
 
 /**
- * Per-category sort config.
- *  - artist / title : sort-option label for that column
+ * Per-category sort axes.
  *  - hasValue       : whether this category can have a market value
  *                     (music=Discogs, game+comic=PriceCharting; films/books have no source)
  *  - hasFormat      : whether to offer Format A–Z / Z–A — useful where the
  *                     format axis is high-variance (e.g. games spans Sony /
  *                     Nintendo / Sega / PC and collectors group by platform).
  */
-const CATEGORY_SORT_LABELS = {
-  music: { artist: 'Artist',    title: 'Album',  hasValue: true,  hasFormat: false },
-  film:  { artist: 'Director',  title: 'Film',   hasValue: false, hasFormat: false },
-  book:  { artist: 'Author',    title: 'Title',  hasValue: false, hasFormat: false },
-  game:  { artist: 'Developer', title: 'Game',   hasValue: true,  hasFormat: true  },
-  comic: { artist: 'Writer',    title: 'Volume', hasValue: true,  hasFormat: false },
+const CATEGORY_SORT_AXES = {
+  music: { hasValue: true,  hasFormat: false },
+  film:  { hasValue: false, hasFormat: false },
+  book:  { hasValue: false, hasFormat: false },
+  game:  { hasValue: true,  hasFormat: true  },
+  comic: { hasValue: true,  hasFormat: false },
+}
+
+/**
+ * The artist and title sort options, named for the category: a film's
+ * "artist" is its director, a comic's title its volume.
+ */
+function sortOptionLabels(category) {
+  switch (category) {
+    case 'film':
+      return {
+        artistAsc: t('crate', 'Director A–Z'),
+        artistDesc: t('crate', 'Director Z–A'),
+        titleAsc: t('crate', 'Film A–Z'),
+        titleDesc: t('crate', 'Film Z–A'),
+      }
+    case 'book':
+      return {
+        artistAsc: t('crate', 'Author A–Z'),
+        artistDesc: t('crate', 'Author Z–A'),
+        titleAsc: t('crate', 'Title A–Z'),
+        titleDesc: t('crate', 'Title Z–A'),
+      }
+    case 'game':
+      return {
+        artistAsc: t('crate', 'Developer A–Z'),
+        artistDesc: t('crate', 'Developer Z–A'),
+        titleAsc: t('crate', 'Game A–Z'),
+        titleDesc: t('crate', 'Game Z–A'),
+      }
+    case 'comic':
+      return {
+        artistAsc: t('crate', 'Writer A–Z'),
+        artistDesc: t('crate', 'Writer Z–A'),
+        // TRANSLATORS: sort comics by the title of their volume (series)
+        titleAsc: t('crate', 'Volume A–Z'),
+        // TRANSLATORS: sort comics by the title of their volume (series)
+        titleDesc: t('crate', 'Volume Z–A'),
+      }
+    default:
+      return {
+        artistAsc: t('crate', 'Artist A–Z'),
+        artistDesc: t('crate', 'Artist Z–A'),
+        titleAsc: t('crate', 'Album A–Z'),
+        titleDesc: t('crate', 'Album Z–A'),
+      }
+  }
 }
 
 const props = defineProps({
@@ -568,7 +621,7 @@ async function load() {
     items.value = res.data.ocs?.data ?? []
   } catch (e) {
     console.error('Failed to load items', e)
-    showError('Failed to load your collection')
+    showError(t('crate', 'Failed to load your collection'))
   } finally {
     loading.value = false
   }
@@ -634,8 +687,13 @@ const filteredByStatus = computed(() =>
   items.value.filter(i => i.status === statusFilter.value),
 )
 
-const heading = computed(() => CATEGORY_LABELS[props.category] ?? 'Collection')
-const sortLabels = computed(() => CATEGORY_SORT_LABELS[props.category] ?? CATEGORY_SORT_LABELS.music)
+const heading = computed(() => CATEGORY_IDS.includes(props.category)
+  ? categoryLabel(props.category)
+  : t('crate', 'Collection'))
+const sortLabels = computed(() => ({
+  ...(CATEGORY_SORT_AXES[props.category] ?? CATEGORY_SORT_AXES.music),
+  ...sortOptionLabels(props.category),
+}))
 
 const presentFormats = computed(() => {
   const seen = new Set()
@@ -683,12 +741,40 @@ const filtersActive = computed(() =>
   !!(filterFormat.value || filterDecade.value || filterGenre.value),
 )
 
-// "No 1990s Rock LP items" — reads as one phrase in the empty state.
-const activeFilterDescription = computed(() =>
-  [filterDecade.value, filterGenre.value, filterFormat.value]
-    .filter(Boolean)
-    .join(' ') + ' items',
-)
+// "No 1990s Rock LP items in your collection." — the active filters read as
+// one phrase in the empty state.
+const noFilteredItemsMessage = computed(() => {
+  const filters = [
+    filterDecade.value && decadeLabel(filterDecade.value),
+    filterGenre.value,
+    filterFormat.value && formatLabel(filterFormat.value),
+  ].filter(Boolean).join(' ')
+  if (statusFilter.value === 'wanted') {
+    // TRANSLATORS: {filters} is the active decade, genre and format filters, e.g. "1990s Rock Vinyl"
+    return t('crate', 'No {filters} items in your wanted list.', { filters })
+  }
+  // TRANSLATORS: {filters} is the active decade, genre and format filters, e.g. "1990s Rock Vinyl"
+  return t('crate', 'No {filters} items in your collection.', { filters })
+})
+
+// Nothing in this tab at all.
+const emptyMessage = computed(() => {
+  if (statusFilter.value === 'wanted') return t('crate', 'Your wanted list is empty.')
+  switch (props.category) {
+    case 'music':
+      return t('crate', 'No Music items yet.')
+    case 'film':
+      return t('crate', 'No Films items yet.')
+    case 'book':
+      return t('crate', 'No Books items yet.')
+    case 'game':
+      return t('crate', 'No Games items yet.')
+    case 'comic':
+      return t('crate', 'No Comics items yet.')
+    default:
+      return t('crate', 'No Collection items yet.')
+  }
+})
 
 const filteredSorted = computed(() => {
   let list = [...filteredByStatus.value]
@@ -726,7 +812,8 @@ function isArtistRepeat(item, previous) {
   return artist.toLowerCase() === (previous.artist ?? '').trim().toLowerCase()
 }
 
-// Compute the group header label for a single item given the active sort field
+// Compute the group an item falls in for the active sort field. The key is
+// what the groups are tracked by; groupLabel() turns it into the header.
 function getGroupKey(item, field) {
   if (field === 'artist' || field === 'title') {
     const raw = (item[field] ?? '').trim()
@@ -772,8 +859,40 @@ function getGroupKey(item, field) {
   return ''
 }
 
-// Produce an ordered array of { header, items, total } groups, preserving sort
-// order. `total` is the group's full size; `items` is what the render window
+/** The header shown for a group key from getGroupKey(). */
+function groupLabel(key, field) {
+  // TRANSLATORS: heading for the items with no year, date added or format
+  if (key === 'Unknown') return t('crate', 'Unknown')
+  if (field === 'format') return formatLabel(key)
+  if (field === 'year') return decadeLabel(key)
+  if (field === 'createdAt') {
+    switch (key) {
+      case 'Today':
+        return t('crate', 'Today')
+      case 'Yesterday':
+        return t('crate', 'Yesterday')
+      case 'Earlier this week':
+        return t('crate', 'Earlier this week')
+      case 'Last week':
+        return t('crate', 'Last week')
+      case 'Earlier this month':
+        return t('crate', 'Earlier this month')
+      case 'Last month':
+        return t('crate', 'Last month')
+      case 'Earlier this year':
+        return t('crate', 'Earlier this year')
+      case 'Last year':
+        return t('crate', 'Last year')
+      default:
+        return key
+    }
+  }
+  return key
+}
+
+// Produce an ordered array of { header, label, items, total } groups,
+// preserving sort order. `header` is the group's key, `label` what it shows;
+// `total` is the group's full size; `items` is what the render window
 // currently allows (see visibleGroups).
 const groupedItems = computed(() => {
   const [field] = sortKey.value.split('-')
@@ -783,7 +902,7 @@ const groupedItems = computed(() => {
   for (const item of filteredSorted.value) {
     const key = getGroupKey(item, field)
     if (!seen.has(key)) {
-      const g = { header: key, items: [], total: 0 }
+      const g = { header: key, label: groupLabel(key, field), items: [], total: 0 }
       seen.set(key, g)
       groups.push(g)
     }
@@ -815,7 +934,7 @@ const visibleGroups = computed(() => {
     const room = limit - rendered
     out.push(room >= group.items.length
       ? group
-      : { header: group.header, items: group.items.slice(0, room), total: group.total })
+      : { ...group, items: group.items.slice(0, room) })
     rendered += group.items.length
   }
   return out
@@ -931,18 +1050,16 @@ onBeforeUnmount(() => {
 
 watch(visibleGroups, scheduleActiveGroup)
 
-function shortLabel(header) {
-  if (header.length <= 3) return header
+function shortLabel(group) {
+  const { header, label } = group
+  if (label.length <= 3) return label
   // Decade like "1970s" → "70s"
   const decade = header.match(/^(\d{2})(\d{2})s$/)
-  if (decade) return decade[2] + 's'
-  if (header === 'This Week') return 'Wk'
-  if (header === 'This Month') return 'Mo'
-  if (header === 'This Year') return 'Yr'
+  if (decade) return decadeLabel(decade[2] + 's')
   // Full year like "2024" → "'24"
   if (/^\d{4}$/.test(header)) return '\'' + header.slice(2)
   if (header === 'Unknown') return '?'
-  return header.slice(0, 3)
+  return label.slice(0, 3)
 }
 
 /** Items up to and including `header`, i.e. the window width needed to show it. */
