@@ -208,6 +208,13 @@
         </div>
 
         <div class="crate-field">
+          <StarRating
+            v-model="form.rating"
+            :legend="t('crate', 'Rating')"
+          />
+        </div>
+
+        <div class="crate-field">
           <label for="field-notes">{{ t('crate', 'Notes') }}</label>
           <textarea
             id="field-notes"
@@ -330,6 +337,7 @@ import { generateUrl, generateOcsUrl } from '@nextcloud/router'
 import { showError } from '../utils/toast.js'
 import EnrichmentSearch from './EnrichmentSearch.vue'
 import PhotoSlot from './PhotoSlot.vue'
+import StarRating from './StarRating.vue'
 import {
   CATEGORY_IDS,
   FORMAT_GROUPS,
@@ -519,6 +527,7 @@ const blankForm = () => ({
   artist:     '',
   format:     '',
   year:       null,
+  rating:     null,
   notes:      '',
   status:     props.defaultStatus,
   discogsId:  null,
@@ -563,6 +572,7 @@ watch(
           artist:     props.item.artist,
           format:     props.item.format,
           year:       props.item.year ?? null,
+          rating:     props.item.rating ?? null,
           notes:      props.item.notes ?? '',
           status:     props.item.status ?? props.defaultStatus,
           discogsId:  props.item.discogsId ?? null,
@@ -752,6 +762,8 @@ function submit() {
   const payload = {
     ...form.value,
     year:                  form.value.year || null,
+    // 0 clears a rating; the server reads a missing one as "leave it".
+    rating:                form.value.rating ?? 0,
     notes:                 form.value.notes || null,
     label:                 form.value.label || null,
     barcode:               form.value.barcode || null,

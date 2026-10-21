@@ -49,6 +49,14 @@
             <option value="year-desc">
               {{ t('crate', 'Year (Newest)') }}
             </option>
+            <option value="rating-desc">
+              <!-- TRANSLATORS: sort by star rating, most stars first; unrated items come last -->
+              {{ t('crate', 'Rating (Highest)') }}
+            </option>
+            <option value="rating-asc">
+              <!-- TRANSLATORS: sort by star rating, fewest stars first; unrated items come last -->
+              {{ t('crate', 'Rating (Lowest)') }}
+            </option>
             <template v-if="sortLabels.hasFormat">
               <option value="format-asc">
                 {{ t('crate', 'Format A–Z') }}
@@ -426,6 +434,7 @@ import { formatMarketValue } from '../utils/formatMarketValue.js'
 import { CATEGORY_IDS, FORMAT_LIST, categoryLabel, formatLabel } from '../utils/categoryFormats.js'
 import { readString, safeSet } from '../utils/localStore.js'
 import { t } from '../l10n.js'
+import { starsLabel } from '../utils/rating.js'
 
 // Both open from a toolbar button and neither is needed to render the
 // collection, so they load on first use rather than riding in the entry bundle.
@@ -856,6 +865,10 @@ function getGroupKey(item, field) {
     return item.format || 'Unknown'
   }
 
+  if (field === 'rating') {
+    return item.rating ? String(item.rating) : 'Unrated'
+  }
+
   return ''
 }
 
@@ -865,6 +878,10 @@ function groupLabel(key, field) {
   if (key === 'Unknown') return t('crate', 'Unknown')
   if (field === 'format') return formatLabel(key)
   if (field === 'year') return decadeLabel(key)
+  if (field === 'rating') {
+    // TRANSLATORS: heading for the items that have no star rating
+    return key === 'Unrated' ? t('crate', 'Not rated') : starsLabel(Number(key))
+  }
   if (field === 'createdAt') {
     switch (key) {
       case 'Today':
@@ -1059,6 +1076,9 @@ function shortLabel(group) {
   // Full year like "2024" → "'24"
   if (/^\d{4}$/.test(header)) return '\'' + header.slice(2)
   if (header === 'Unknown') return '?'
+  // Star count like "4" → "4★"; unrated → "–"
+  if (/^\d$/.test(header)) return header + '★'
+  if (header === 'Unrated') return '–'
   return label.slice(0, 3)
 }
 

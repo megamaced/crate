@@ -6,6 +6,7 @@ namespace OCA\Crate\Service;
 
 use OCA\Crate\CrateCategories;
 use OCA\Crate\Db\MediaItemMapper;
+use OCA\Crate\Dto\MediaItemData;
 use OCA\Crate\Service\MarketValueService;
 use OCA\Crate\Exception\UserFacingException;
 use OCA\Crate\Message;
@@ -230,6 +231,8 @@ class ImportService
         'collection notes' => 'notes',
         // Status
         'status'          => 'status',
+        // Star rating — Discogs collection exports call it "Rating" too
+        'rating'          => 'rating',
         // Enrichment ID (stored in discogsId regardless of source)
         'discogsid'       => 'discogsId',
         'discogs_id'      => 'discogsId',
@@ -1223,6 +1226,20 @@ class ImportService
                     );
                 }
             }
+            $rating    = null;
+            $ratingRaw = trim((string)($row['rating'] ?? ''));
+            // Discogs exports an unrated release as blank or 0, and any zero
+            // ("00" from a spreadsheet) means the same.
+            if ($ratingRaw !== '' && !(ctype_digit($ratingRaw) && (int)$ratingRaw === 0)) {
+                if (ctype_digit($ratingRaw) && (int)$ratingRaw <= MediaItemData::MAX_RATING) {
+                    $rating = (int)$ratingRaw;
+                } else {
+                    $errors[] = Message::t(
+                        'Row %1$s: unrecognised rating "%2$s" — imported without a rating',
+                        [$rowNum, $ratingRaw],
+                    );
+                }
+            }
             $notes     = $row['notes']     ?? null;
             $status    = strtolower(trim((string)($row['status'] ?? 'owned')));
             $discogsId = $row['discogsId'] ?? null;
@@ -1266,6 +1283,7 @@ class ImportService
             $item->setTitle($title);
             $item->setFormat($format);
             $item->setYear($year);
+            $item->setRating($rating);
             $item->setNotes(self::filled($notes));
             $item->setStatus($status);
             $item->setDiscogsId(self::filled($discogsId));

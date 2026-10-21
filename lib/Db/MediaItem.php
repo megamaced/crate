@@ -17,6 +17,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setFormat(string $format)
  * @method int|null getYear()
  * @method void setYear(?int $year)
+ * @method int|null getRating()
+ * @method void setRating(?int $rating)
  * @method string|null getBarcode()
  * @method void setBarcode(?string $barcode)
  * @method string|null getNotes()
@@ -93,6 +95,8 @@ class MediaItem extends Entity implements \JsonSerializable
     protected string $artist = '';
     protected string $format = '';
     protected ?int $year = null;
+    /** Whole stars from 1 to 5; null while the item is unrated. */
+    protected ?int $rating = null;
     protected ?string $barcode = null;
     protected ?string $notes = null;
     protected string $status = 'owned';
@@ -132,6 +136,7 @@ class MediaItem extends Entity implements \JsonSerializable
     public function __construct()
     {
         $this->addType('year', 'integer');
+        $this->addType('rating', 'integer');
         $this->addType('originalYear', 'integer');
         $this->addType('marketValue', 'float');
         $this->addType('marketValueLoose', 'float');
@@ -166,6 +171,7 @@ class MediaItem extends Entity implements \JsonSerializable
             'artist'          => $this->artist,
             'format'          => $this->format,
             'year'            => $this->year,
+            'rating'          => $this->rating,
             'barcode'         => $this->barcode,
             'notes'           => $this->notes,
             'status'          => $this->status,

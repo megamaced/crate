@@ -32,7 +32,7 @@ class ImportController extends OCSController
      */
     public const VALID_MAPPING_FIELDS = [
         'artist', 'title', 'format', 'year', 'notes',
-        'status', 'discogsId', 'barcode', 'label', 'category',
+        'status', 'rating', 'discogsId', 'barcode', 'label', 'category',
         'purchasePrice', 'purchasePriceCurrency',
     ];
 

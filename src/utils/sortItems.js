@@ -47,6 +47,10 @@ function valueKey(item) {
 	return item.marketValue ?? Number.NEGATIVE_INFINITY
 }
 
+function ratingKey(item) {
+	return item.rating ?? 0
+}
+
 function createdAtKey(item) {
 	return item.createdAt ?? ''
 }
@@ -65,8 +69,18 @@ const KEYS = {
 	year: yearKey,
 	format: formatKey,
 	marketValue: valueKey,
+	rating: ratingKey,
 	createdAt: createdAtKey,
 	id: idKey,
+}
+
+/**
+ * Axes whose unset value sorts last in either direction, ahead of the
+ * directional comparison: an unrated item belongs after the rated ones whether
+ * they count up or down.
+ */
+const LAST_WHEN_UNSET = {
+	rating: item => (item.rating ? 0 : 1),
 }
 
 /**
@@ -84,6 +98,7 @@ const TIEBREAKS = {
 	createdAt: ['artist', 'title', 'year', 'id'],
 	format: ['artist', 'title', 'year', 'id'],
 	marketValue: ['artist', 'title', 'year', 'id'],
+	rating: ['artist', 'title', 'year', 'id'],
 }
 
 function compareOn(a, b, field) {
@@ -110,6 +125,11 @@ function compareOn(a, b, field) {
  * @return {number} negative, zero or positive, per Array#sort
  */
 export function compareItems(a, b, field, dir) {
+	const unset = LAST_WHEN_UNSET[field]
+	if (unset) {
+		const presence = unset(a) - unset(b)
+		if (presence !== 0) return presence
+	}
 	const primary = compareOn(a, b, field)
 	if (primary !== 0) return dir === 'desc' ? -primary : primary
 
@@ -129,8 +149,9 @@ export function compareItems(a, b, field, dir) {
  * each one ~2·n·log(n) times instead of once.
  *
  * Ordering is identical to a plain sort on compareItems(): the tuple is that
- * comparator's primary key followed by its tiebreak chain, compared in the
- * same order, with only the primary honouring `dir`.
+ * comparator's unset flag (for the axes that have one), primary key and
+ * tiebreak chain, compared in the same order, with only the primary honouring
+ * `dir`.
  *
  * @param {Array<object>} items items to order
  * @param {string} field primary axis — a key of KEYS
@@ -138,6 +159,7 @@ export function compareItems(a, b, field, dir) {
  * @return {Array<object>} a new, ordered array
  */
 export function sortItems(items, field, dir) {
+	const unset = LAST_WHEN_UNSET[field] ?? (() => 0)
 	const primary = KEYS[field] ?? null
 	const tiebreaks = (TIEBREAKS[field] ?? ['id']).map(f => KEYS[f]).filter(Boolean)
 	// Only the primary axis honours the direction, matching compareItems().
@@ -145,12 +167,14 @@ export function sortItems(items, field, dir) {
 
 	const decorated = items.map(item => ({
 		item,
+		unset: unset(item),
 		// An unrecognised axis compares equal for every item, as compareOn() does,
 		// leaving the tiebreak chain to decide the order.
 		keys: [primary ? primary(item) : 0, ...tiebreaks.map(key => key(item))],
 	}))
 
 	decorated.sort((a, b) => {
+		if (a.unset !== b.unset) return a.unset - b.unset
 		if (a.keys[0] < b.keys[0]) return -sign
 		if (a.keys[0] > b.keys[0]) return sign
 		for (let i = 1; i < a.keys.length; i++) {

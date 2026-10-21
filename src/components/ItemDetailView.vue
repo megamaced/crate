@@ -138,6 +138,13 @@
             >{{ item.country }}</span>
           </div>
 
+          <StarRating
+            v-if="item.rating"
+            class="detail-rating"
+            :model-value="item.rating"
+            readonly
+          />
+
           <!-- Original purchase price + gain/loss vs current market value -->
           <div
             v-if="item.purchasePrice != null"
@@ -393,6 +400,7 @@ import { ENRICHMENT_ID_KEY } from '../utils/enrichmentProviders.js'
 import { cssUrl } from '../utils/artworkUrl.js'
 import { RAIL_TILE_TARGET, railLayoutFor } from '../utils/railLayout.js'
 import RecommendationRail from './RecommendationRail.vue'
+import StarRating from './StarRating.vue'
 
 const props = defineProps({
   item: { type: Object, required: true },
@@ -1123,6 +1131,10 @@ async function stripEnrich() {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+.detail-rating {
+  margin-top: 10px;
 }
 
 /* One pill, whether it is rendered as a span or as a button. .detail-badges is
