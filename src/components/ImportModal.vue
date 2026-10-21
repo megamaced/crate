@@ -197,6 +197,7 @@
               v-model="autoEnrichOnImport"
               type="checkbox"
             >
+            <!-- TRANSLATORS: {service} is the name of the online service items are enriched from, such as Discogs or TMDB -->
             {{ t('crate', 'Enrich from {service} after importing', { service: enrichServiceName }) }}
           </label>
         </div>
@@ -210,6 +211,7 @@
               v-model="autoFetchMarketRates"
               type="checkbox"
             >
+            <!-- TRANSLATORS: {service} is the name of the price service, Discogs or PriceCharting -->
             {{ t('crate', 'Fetch market rates from {service} after importing', { service: marketServiceName }) }}
           </label>
         </div>
@@ -272,12 +274,14 @@
           <div class="import-enrich">
             <p class="import-enrich__label">
               <template v-if="enrich.finished.value">
+                <!-- TRANSLATORS: {service} is the name of the online service items are enriched from, such as Discogs or TMDB -->
                 {{ n('crate', 'Enrichment complete — {done} of %n item enriched from {service}.', 'Enrichment complete — {done} of %n items enriched from {service}.', enrich.total.value, { done: enrich.done.value, service: enrichServiceName }) }}
                 <template v-if="enrich.failed.value > 0">
                   {{ n('crate', '%n could not be matched.', '%n could not be matched.', enrich.failed.value) }}
                 </template>
               </template>
               <template v-else>
+                <!-- TRANSLATORS: {service} is the name of the online service items are enriched from, such as Discogs or TMDB -->
                 {{ t('crate', 'Enriching from {service}… {done} / {total}', { service: enrichServiceName, done: enrich.done.value, total: enrich.total.value }) }}
               </template>
             </p>
@@ -298,6 +302,7 @@
         </template>
         <template v-else-if="!enrichTokenAvailable && result.created > 0">
           <p class="import-hint import-hint--warn">
+            <!-- TRANSLATORS: {service} is the name of the online service items are enriched from, such as Discogs or TMDB -->
             {{ t('crate', '{service} enrichment skipped — no API key configured.', { service: enrichServiceName }) }}
             {{ t('crate', 'Add your key in Settings to enrich artwork and metadata.') }}
           </p>
@@ -308,12 +313,14 @@
           <div class="import-enrich">
             <p class="import-enrich__label">
               <template v-if="marketQueue.finished.value">
+                <!-- TRANSLATORS: {service} is the name of the price service, Discogs or PriceCharting -->
                 {{ n('crate', 'Market rates complete — {done} of %n item priced via {service}.', 'Market rates complete — {done} of %n items priced via {service}.', marketQueue.total.value, { done: marketQueue.done.value, service: marketServiceName }) }}
                 <template v-if="marketQueue.failed.value > 0">
                   {{ n('crate', '%n had no listing.', '%n had no listing.', marketQueue.failed.value) }}
                 </template>
               </template>
               <template v-else>
+                <!-- TRANSLATORS: {service} is the name of the price service, Discogs or PriceCharting -->
                 {{ t('crate', 'Fetching market rates from {service}… {done} / {total}', { service: marketServiceName, done: marketQueue.done.value, total: marketQueue.total.value }) }}
               </template>
             </p>
@@ -490,10 +497,7 @@ const ENRICH_SERVICE = {
   game:  'RAWG',
   comic: 'ComicVine',
 }
-const enrichServiceName = computed(() => {
-  // TRANSLATORS: stands in for a service's name, such as Discogs, in "Enrich from {service} after importing"
-  return ENRICH_SERVICE[selectedCategory.value] ?? t('crate', 'the enrichment service')
-})
+const enrichServiceName = computed(() => ENRICH_SERVICE[selectedCategory.value] ?? ENRICH_SERVICE.music)
 
 /** Whether the user has the credential needed to enrich this category. */
 const enrichTokenAvailable = computed(() => {

@@ -47,7 +47,7 @@ msgid_plural "%n comics"
 msgstr[0] ""
 msgstr[1] ""
 
-#. TRANSLATORS src/components/ImportModal.vue:277
+#. TRANSLATORS src/components/ImportModal.vue:280
 msgid "%n could not be matched."
 msgid_plural "%n could not be matched."
 msgstr[0] ""
@@ -65,7 +65,7 @@ msgid_plural "%n games"
 msgstr[0] ""
 msgstr[1] ""
 
-#. TRANSLATORS src/components/ImportModal.vue:313
+#. TRANSLATORS src/components/ImportModal.vue:319
 msgid "%n had no listing."
 msgid_plural "%n had no listing."
 msgstr[0] ""
@@ -198,7 +198,7 @@ msgstr ""
 msgid "Add your first record"
 msgstr ""
 
-#. TRANSLATORS src/components/ImportModal.vue:302
+#. TRANSLATORS src/components/ImportModal.vue:307
 msgid "Add your key in Settings to enrich artwork and metadata."
 msgstr ""
 
@@ -332,7 +332,7 @@ msgstr ""
 msgid "Automatic"
 msgstr ""
 
-#. TRANSLATORS src/components/ImportModal.vue:223
+#. TRANSLATORS src/components/ImportModal.vue:225
 #. TRANSLATORS src/components/ItemDetailView.vue:12
 #. TRANSLATORS src/components/PlaylistDetailView.vue:10
 msgid "Back"
@@ -668,7 +668,7 @@ msgstr ""
 msgid "Display currency"
 msgstr ""
 
-#. TRANSLATORS src/components/ImportModal.vue:335
+#. TRANSLATORS src/components/ImportModal.vue:342
 msgid "Done"
 msgstr ""
 
@@ -745,7 +745,7 @@ msgstr ""
 msgid "Enrich all un-enriched music"
 msgstr ""
 
-#. TRANSLATORS src/components/ImportModal.vue:200
+#. TRANSLATORS {service} is the name of the online service items are enriched from, such as Discogs or TMDB (src/components/ImportModal.vue:201)
 msgid "Enrich from {service} after importing"
 msgstr ""
 
@@ -767,7 +767,7 @@ msgstr ""
 msgid "Enriches every un-enriched item across every category, using whichever API keys you have configured."
 msgstr ""
 
-#. TRANSLATORS src/components/ImportModal.vue:281
+#. TRANSLATORS {service} is the name of the online service items are enriched from, such as Discogs or TMDB (src/components/ImportModal.vue:285)
 msgid "Enriching from {service}… {done} / {total}"
 msgstr ""
 
@@ -785,7 +785,7 @@ msgstr ""
 msgid "Enrichment ID"
 msgstr ""
 
-#. TRANSLATORS src/components/ImportModal.vue:275
+#. TRANSLATORS {service} is the name of the online service items are enriched from, such as Discogs or TMDB (src/components/ImportModal.vue:278)
 msgid "Enrichment complete — {done} of %n item enriched from {service}."
 msgid_plural "Enrichment complete — {done} of %n items enriched from {service}."
 msgstr[0] ""
@@ -934,7 +934,7 @@ msgstr ""
 msgid "Fetch market rates automatically"
 msgstr ""
 
-#. TRANSLATORS src/components/ImportModal.vue:213
+#. TRANSLATORS {service} is the name of the price service, Discogs or PriceCharting (src/components/ImportModal.vue:215)
 msgid "Fetch market rates from {service} after importing"
 msgstr ""
 
@@ -950,7 +950,7 @@ msgstr ""
 msgid "Fetching from {source}…"
 msgstr ""
 
-#. TRANSLATORS src/components/ImportModal.vue:317
+#. TRANSLATORS {service} is the name of the price service, Discogs or PriceCharting (src/components/ImportModal.vue:324)
 msgid "Fetching market rates from {service}… {done} / {total}"
 msgstr ""
 
@@ -1102,7 +1102,7 @@ msgstr ""
 msgid "Import"
 msgstr ""
 
-#. TRANSLATORS src/components/ImportModal.vue:233
+#. TRANSLATORS src/components/ImportModal.vue:235
 msgid "Import %n row"
 msgid_plural "Import %n rows"
 msgstr[0] ""
@@ -1118,7 +1118,7 @@ msgstr ""
 msgid "Import into whose collection?"
 msgstr ""
 
-#. TRANSLATORS src/components/ImportModal.vue:232
+#. TRANSLATORS src/components/ImportModal.vue:234
 msgid "Importing…"
 msgstr ""
 
@@ -1231,7 +1231,7 @@ msgstr ""
 msgid "Market data"
 msgstr ""
 
-#. TRANSLATORS src/components/ImportModal.vue:311
+#. TRANSLATORS {service} is the name of the price service, Discogs or PriceCharting (src/components/ImportModal.vue:317)
 msgid "Market rates complete — {done} of %n item priced via {service}."
 msgid_plural "Market rates complete — {done} of %n items priced via {service}."
 msgstr[0] ""
@@ -2265,7 +2265,7 @@ msgstr ""
 msgid "You added {item} to your %s collection"
 msgstr ""
 
-#. TRANSLATORS src/components/ImportModal.vue:294
+#. TRANSLATORS src/components/ImportModal.vue:298
 msgid "You can safely close this dialog — enrichment will continue in the background."
 msgstr ""
 
@@ -2320,7 +2320,7 @@ msgstr ""
 msgid "currencies differ"
 msgstr ""
 
-#. TRANSLATORS under the number of rows left out because the item is already in the collection (src/components/ImportModal.vue:249)
+#. TRANSLATORS under the number of rows left out because the item is already in the collection (src/components/ImportModal.vue:251)
 msgid "duplicate skipped"
 msgid_plural "duplicates skipped"
 msgstr[0] ""
@@ -2358,7 +2358,7 @@ msgstr ""
 msgid "ignore"
 msgstr ""
 
-#. TRANSLATORS under the number of items the import added, which is shown above it (src/components/ImportModal.vue:244)
+#. TRANSLATORS under the number of items the import added, which is shown above it (src/components/ImportModal.vue:246)
 msgid "item added"
 msgid_plural "items added"
 msgstr[0] ""
@@ -2389,15 +2389,11 @@ msgstr ""
 msgid "purchasePriceCurrency is required when purchasePrice is set"
 msgstr ""
 
-#. TRANSLATORS under the number of rows the import could not use (src/components/ImportModal.vue:254)
+#. TRANSLATORS under the number of rows the import could not use (src/components/ImportModal.vue:256)
 msgid "row skipped"
 msgid_plural "rows skipped"
 msgstr[0] ""
 msgstr[1] ""
-
-#. TRANSLATORS: stands in for a service's name, such as Discogs, in "Enrich from {service} after importing"
-msgid "the enrichment service"
-msgstr ""
 
 #: lib/Service/ImportService.php:301
 #, php-format
@@ -2434,7 +2430,7 @@ msgstr ""
 msgid "{provider} search failed"
 msgstr ""
 
-#. TRANSLATORS src/components/ImportModal.vue:301
+#. TRANSLATORS {service} is the name of the online service items are enriched from, such as Discogs or TMDB (src/components/ImportModal.vue:306)
 msgid "{service} enrichment skipped — no API key configured."
 msgstr ""
 
