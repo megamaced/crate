@@ -107,6 +107,7 @@ class RecommendationLimitTest extends TestCase
             $recommendations,
             $session,
             $this->createMock(IConfig::class),
+            new EnglishL10N(),
         );
     }
 }

@@ -10,6 +10,7 @@ use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\OCSController;
+use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IUserSession;
 
@@ -22,6 +23,7 @@ class RawgController extends OCSController
         IRequest $request,
         private readonly RawgService $rawgService,
         private readonly IUserSession $userSession,
+        private readonly IL10N $l,
     ) {
         parent::__construct($appName, $request);
     }
@@ -45,7 +47,7 @@ class RawgController extends OCSController
         $data = $this->rawgService->getGame($this->userId(), $id);
         if (empty($data)) {
             return new DataResponse(
-                ['error' => 'Game not found or no RAWG API key configured'],
+                ['error' => $this->l->t('Game not found or no RAWG API key configured')],
                 Http::STATUS_NOT_FOUND,
             );
         }

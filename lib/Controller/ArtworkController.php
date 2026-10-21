@@ -22,6 +22,7 @@ use OCP\Files\AppData\IAppDataFactory;
 use OCP\Files\NotFoundException;
 use OCP\Http\Client\IClientService;
 use OCP\Http\Client\IResponse;
+use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IUserSession;
 use Psr\Log\LoggerInterface;
@@ -47,6 +48,7 @@ class ArtworkController extends Controller
         private readonly IClientService $clientService,
         private readonly ItemFileWriter $files,
         private readonly LoggerInterface $logger,
+        private readonly IL10N $l,
     ) {
         parent::__construct($appName, $request);
     }
@@ -244,25 +246,25 @@ class ArtworkController extends Controller
     {
         $user = $this->userSession->getUser();
         if ($user === null) {
-            return new DataResponse(['error' => 'Not authenticated'], Http::STATUS_FORBIDDEN);
+            return new DataResponse(['error' => $this->l->t('Not authenticated')], Http::STATUS_FORBIDDEN);
         }
         $userId = $user->getUID();
 
         try {
             $this->mapper->findWritableForUser($itemId, $userId);
         } catch (\OCP\AppFramework\Db\DoesNotExistException) {
-            return new DataResponse(['error' => 'Not found'], Http::STATUS_NOT_FOUND);
+            return new DataResponse(['error' => $this->l->t('Not found')], Http::STATUS_NOT_FOUND);
         }
 
         $uploadedFile = $this->request->getUploadedFile('file');
         if (!$uploadedFile || ($uploadedFile['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-            return new DataResponse(['error' => 'No file uploaded'], Http::STATUS_BAD_REQUEST);
+            return new DataResponse(['error' => $this->l->t('No file uploaded')], Http::STATUS_BAD_REQUEST);
         }
 
         // Cap artwork upload at 10 MB. Defence-in-depth alongside the
         // per-user rate limit and PHP's upload_max_filesize.
         if (($uploadedFile['size'] ?? 0) > self::MAX_REMOTE_IMAGE_BYTES) {
-            return new DataResponse(['error' => 'File too large (max 10 MB)'], 413);
+            return new DataResponse(['error' => $this->l->t('File too large (max 10 MB)')], 413);
         }
 
         // Detect and validate MIME type from file content
@@ -270,7 +272,10 @@ class ArtworkController extends Controller
         $mime  = $finfo->file($uploadedFile['tmp_name']);
         $allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
         if (!in_array($mime, $allowedMimes, true)) {
-            return new DataResponse(['error' => 'Unsupported file type'], Http::STATUS_UNSUPPORTED_MEDIA_TYPE);
+            return new DataResponse(
+                ['error' => $this->l->t('Unsupported file type')],
+                Http::STATUS_UNSUPPORTED_MEDIA_TYPE,
+            );
         }
 
         $ext = match ($mime) {
@@ -286,7 +291,7 @@ class ArtworkController extends Controller
         // would leave neither a commit nor a rollback.
         $bytes = (string) file_get_contents($uploadedFile['tmp_name']);
         if (!$this->gdDimensionsWithinBudget($bytes)) {
-            return new DataResponse(['error' => 'Image dimensions too large'], 413);
+            return new DataResponse(['error' => $this->l->t('Image dimensions too large')], 413);
         }
         // Strip EXIF/IPTC/XMP before persisting — phone-gallery uploads
         // commonly carry GPS, timestamps, camera serials. See GdImageTrait.
@@ -296,7 +301,7 @@ class ArtworkController extends Controller
         $sanitised = $this->stripImageMetadata($bytes, (string) $mime);
         if ($sanitised === null) {
             return new DataResponse(
-                ['error' => 'This image could not be processed. Re-save it as JPEG or PNG and try again.'],
+                ['error' => $this->l->t('This image could not be processed. Re-save it as JPEG or PNG and try again.')],
                 Http::STATUS_UNSUPPORTED_MEDIA_TYPE,
             );
         }
@@ -344,14 +349,14 @@ class ArtworkController extends Controller
     {
         $user = $this->userSession->getUser();
         if ($user === null) {
-            return new DataResponse(['error' => 'Not authenticated'], Http::STATUS_FORBIDDEN);
+            return new DataResponse(['error' => $this->l->t('Not authenticated')], Http::STATUS_FORBIDDEN);
         }
         $userId = $user->getUID();
 
         try {
             $this->mapper->findWritableForUser($itemId, $userId);
         } catch (\OCP\AppFramework\Db\DoesNotExistException) {
-            return new DataResponse(['error' => 'Not found'], Http::STATUS_NOT_FOUND);
+            return new DataResponse(['error' => $this->l->t('Not found')], Http::STATUS_NOT_FOUND);
         }
 
         try {

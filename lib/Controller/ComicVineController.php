@@ -10,6 +10,7 @@ use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\OCSController;
+use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IUserSession;
 
@@ -22,6 +23,7 @@ class ComicVineController extends OCSController
         IRequest $request,
         private readonly ComicVineService $comicVineService,
         private readonly IUserSession $userSession,
+        private readonly IL10N $l,
     ) {
         parent::__construct($appName, $request);
     }
@@ -45,7 +47,7 @@ class ComicVineController extends OCSController
         $data = $this->comicVineService->getVolume($this->userId(), $id);
         if (empty($data)) {
             return new DataResponse(
-                ['error' => 'Volume not found or no ComicVine API key configured'],
+                ['error' => $this->l->t('Volume not found or no ComicVine API key configured')],
                 Http::STATUS_NOT_FOUND,
             );
         }

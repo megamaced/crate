@@ -42,14 +42,14 @@ class PurchasePriceTest extends TestCase
     {
         $r = MediaController::normalisePurchasePrice(-0.01, 'GBP');
         self::assertArrayHasKey('error', $r);
-        self::assertStringContainsString('out of range', $r['error']);
+        self::assertStringContainsString('out of range', (string) $r['error']);
     }
 
     public function testNormaliseRejectsAbsurdlyLargePrice(): void
     {
         $r = MediaController::normalisePurchasePrice(1_000_000.01, 'GBP');
         self::assertArrayHasKey('error', $r);
-        self::assertStringContainsString('out of range', $r['error']);
+        self::assertStringContainsString('out of range', (string) $r['error']);
     }
 
     public function testNormaliseAcceptsBoundaryValues(): void
@@ -70,21 +70,21 @@ class PurchasePriceTest extends TestCase
     {
         $r = MediaController::normalisePurchasePrice(24.99, null);
         self::assertArrayHasKey('error', $r);
-        self::assertStringContainsString('required', $r['error']);
+        self::assertStringContainsString('required', (string) $r['error']);
     }
 
     public function testNormaliseRejectsEmptyStringCurrency(): void
     {
         $r = MediaController::normalisePurchasePrice(24.99, '   ');
         self::assertArrayHasKey('error', $r);
-        self::assertStringContainsString('required', $r['error']);
+        self::assertStringContainsString('required', (string) $r['error']);
     }
 
     public function testNormaliseRejectsUnknownCurrencyCode(): void
     {
         $r = MediaController::normalisePurchasePrice(24.99, 'XYZ');
         self::assertArrayHasKey('error', $r);
-        self::assertStringContainsString('Unsupported', $r['error']);
+        self::assertStringContainsString('Unsupported', (string) $r['error']);
     }
 
     public function testNormaliseUppercasesAndTrimsCurrency(): void
@@ -146,21 +146,21 @@ class PurchasePriceTest extends TestCase
     {
         $r = ImportService::parsePurchasePriceCell('not a price');
         self::assertArrayHasKey('error', $r);
-        self::assertStringContainsString('unparseable', $r['error']);
+        self::assertStringContainsString('unparseable', (string) $r['error']);
     }
 
     public function testParsePriceCellRejectsOutOfRange(): void
     {
         $r = ImportService::parsePurchasePriceCell('99999999');
         self::assertArrayHasKey('error', $r);
-        self::assertStringContainsString('out of range', $r['error']);
+        self::assertStringContainsString('out of range', (string) $r['error']);
     }
 
     public function testParsePriceCellRejectsNegative(): void
     {
         $r = ImportService::parsePurchasePriceCell('-5');
         self::assertArrayHasKey('error', $r);
-        self::assertStringContainsString('out of range', $r['error']);
+        self::assertStringContainsString('out of range', (string) $r['error']);
     }
 
     // ── ImportService::parsePurchaseCurrencyCell ───────────────────────────────
@@ -175,13 +175,13 @@ class PurchasePriceTest extends TestCase
     {
         $r = ImportService::parsePurchaseCurrencyCell('');
         self::assertArrayHasKey('error', $r);
-        self::assertSame('purchase price requires a currency', $r['error']);
+        self::assertSame('purchase price requires a currency', (string) $r['error']);
     }
 
     public function testParseCurrencyCellRejectsUnknownCode(): void
     {
         $r = ImportService::parsePurchaseCurrencyCell('XYZ');
         self::assertArrayHasKey('error', $r);
-        self::assertStringContainsString('unsupported', $r['error']);
+        self::assertStringContainsString('unsupported', (string) $r['error']);
     }
 }

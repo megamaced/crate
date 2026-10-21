@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace OCA\Crate\Controller;
 
 use OCA\Crate\Service\PlaylistService;
+use OCA\Crate\Message;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\OCSController;
+use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IUserSession;
 
@@ -28,6 +30,7 @@ class PlaylistController extends OCSController
         IRequest $request,
         private readonly PlaylistService $playlistService,
         private readonly IUserSession $userSession,
+        private readonly IL10N $l,
     ) {
         parent::__construct($appName, $request);
     }
@@ -54,7 +57,7 @@ class PlaylistController extends OCSController
         try {
             return new DataResponse($this->playlistService->findForViewer($id, $this->userId()));
         } catch (\OCP\AppFramework\Db\DoesNotExistException) {
-            return new DataResponse(['error' => 'Not found'], Http::STATUS_NOT_FOUND);
+            return new DataResponse(['error' => $this->l->t('Not found')], Http::STATUS_NOT_FOUND);
         }
     }
 
@@ -63,7 +66,7 @@ class PlaylistController extends OCSController
     {
         $error = self::validateName($name);
         if ($error !== null) {
-            return new DataResponse(['error' => $error], Http::STATUS_BAD_REQUEST);
+            return new DataResponse(['error' => $error->translate($this->l)], Http::STATUS_BAD_REQUEST);
         }
         return new DataResponse($this->playlistService->create($this->userId(), trim($name), $description));
     }
@@ -83,12 +86,12 @@ class PlaylistController extends OCSController
     ): DataResponse {
         $error = self::validateName($name);
         if ($error !== null) {
-            return new DataResponse(['error' => $error], Http::STATUS_BAD_REQUEST);
+            return new DataResponse(['error' => $error->translate($this->l)], Http::STATUS_BAD_REQUEST);
         }
         try {
             return new DataResponse($this->playlistService->update($id, $this->userId(), trim($name), $description));
         } catch (\OCP\AppFramework\Db\DoesNotExistException) {
-            return new DataResponse(['error' => 'Not found'], Http::STATUS_NOT_FOUND);
+            return new DataResponse(['error' => $this->l->t('Not found')], Http::STATUS_NOT_FOUND);
         }
     }
 
@@ -99,7 +102,7 @@ class PlaylistController extends OCSController
             $this->playlistService->delete($id, $this->userId());
             return new DataResponse([]);
         } catch (\OCP\AppFramework\Db\DoesNotExistException) {
-            return new DataResponse(['error' => 'Not found'], Http::STATUS_NOT_FOUND);
+            return new DataResponse(['error' => $this->l->t('Not found')], Http::STATUS_NOT_FOUND);
         }
     }
 
@@ -109,7 +112,7 @@ class PlaylistController extends OCSController
         try {
             return new DataResponse($this->playlistService->addItem($id, $this->userId(), $mediaItemId));
         } catch (\OCP\AppFramework\Db\DoesNotExistException) {
-            return new DataResponse(['error' => 'Playlist or item not found'], Http::STATUS_NOT_FOUND);
+            return new DataResponse(['error' => $this->l->t('Playlist or item not found')], Http::STATUS_NOT_FOUND);
         }
     }
 
@@ -119,7 +122,7 @@ class PlaylistController extends OCSController
         try {
             return new DataResponse($this->playlistService->removeItem($id, $this->userId(), $mediaItemId));
         } catch (\OCP\AppFramework\Db\DoesNotExistException) {
-            return new DataResponse(['error' => 'Playlist not found'], Http::STATUS_NOT_FOUND);
+            return new DataResponse(['error' => $this->l->t('Playlist not found')], Http::STATUS_NOT_FOUND);
         }
     }
 
@@ -127,14 +130,14 @@ class PlaylistController extends OCSController
      * Reject a playlist name the column cannot hold, or a blank one. Returns
      * the error message, or null when the name is usable.
      */
-    private static function validateName(string $name): ?string
+    private static function validateName(string $name): ?Message
     {
         $name = trim($name);
         if ($name === '') {
-            return 'Name is required';
+            return Message::t('Name is required');
         }
         if (mb_strlen($name, 'UTF-8') > self::MAX_NAME_LEN) {
-            return 'Name exceeds ' . self::MAX_NAME_LEN . ' characters';
+            return Message::t('Name exceeds %s characters', [self::MAX_NAME_LEN]);
         }
         return null;
     }

@@ -87,6 +87,7 @@ class PlaylistDescriptionTest extends TestCase
             $this->createMock(IRequest::class),
             $service,
             $session,
+            new EnglishL10N(),
         );
     }
 }

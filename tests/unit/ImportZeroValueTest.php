@@ -65,7 +65,7 @@ class ImportZeroValueTest extends TestCase
                 'Row 3: missing Artist or Title — skipped',
                 'Row 4: missing Format — skipped',
             ],
-            $result['errors'],
+            array_map('strval', $result['errors']),
         );
     }
 

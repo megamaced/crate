@@ -17,6 +17,18 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
+#. TRANSLATORS: %1$s is a field's name as the API spells it, %2$s its maximum length
+#: lib/Dto/MediaItemData.php:97
+#, php-format
+msgid "%1$s exceeds %2$s characters"
+msgstr ""
+
+#. TRANSLATORS: %1$s is a field's name as the import spells it, %2$s its maximum length
+#: lib/Service/ImportService.php:1189
+#, php-format
+msgid "%1$s exceeds %2$s chars"
+msgstr ""
+
 #: src/utils/categoryFormats.js:48
 msgid "%n album"
 msgid_plural "%n albums"
@@ -71,6 +83,12 @@ msgid_plural "%n rows in file."
 msgstr[0] ""
 msgstr[1] ""
 
+#. TRANSLATORS: %s is the field's name as the API spells it (title, artist, format)
+#: lib/Dto/MediaItemData.php:87
+#, php-format
+msgid "%s is required"
+msgstr ""
+
 msgid "(Discogs for music; PriceCharting loose / CIB / new for games and comics)"
 msgstr ""
 
@@ -98,6 +116,11 @@ msgstr ""
 
 #: src/utils/categoryFormats.js:177
 msgid "7\" Single"
+msgstr ""
+
+#: lib/Service/ImportService.php:636
+#, php-format
+msgid "A cell holds more than %s characters, the most a spreadsheet cell can hold. Shorten it, or import the collection as CSV."
 msgstr ""
 
 #. TRANSLATORS src/components/PlaylistsView.vue:121
@@ -199,6 +222,10 @@ msgstr ""
 msgid "Album Z–A"
 msgstr ""
 
+#: lib/Controller/ShareController.php:99 lib/Controller/ShareController.php:111
+msgid "Album not found"
+msgstr ""
+
 msgid "Album of the Day"
 msgstr ""
 
@@ -220,6 +247,10 @@ msgid "Allow adding & editing (read/write)"
 msgstr ""
 
 msgid "Already shared"
+msgstr ""
+
+#: lib/Service/ShareService.php:46 lib/Service/ShareService.php:83
+msgid "Already shared with this user."
 msgstr ""
 
 #. TRANSLATORS src/components/SettingsPanel.vue:173
@@ -267,6 +298,10 @@ msgstr ""
 msgid "Artwork upload failed"
 msgstr ""
 
+#: lib/Controller/SettingsController.php:288
+msgid "At least one category must remain visible."
+msgstr ""
+
 #: src/utils/categoryFormats.js:155
 msgid "Audio"
 msgstr ""
@@ -308,7 +343,15 @@ msgstr ""
 msgid "Barcode"
 msgstr ""
 
+#: lib/Service/ShareService.php:356
+msgid "Book"
+msgstr ""
+
 msgid "Book metadata, covers and author bios via the {linkStart}Open Library API{linkEnd}. No API key is required."
+msgstr ""
+
+#: lib/Controller/OpenLibraryController.php:53
+msgid "Book not found for ISBN"
 msgstr ""
 
 msgid "Book of the Day"
@@ -342,6 +385,10 @@ msgstr ""
 msgid "Cancel"
 msgstr ""
 
+#: lib/Service/ShareService.php:411
+msgid "Cannot share with that user."
+msgstr ""
+
 #. TRANSLATORS src/components/CollectionView.vue:80
 msgid "Card view"
 msgstr ""
@@ -358,6 +405,15 @@ msgstr ""
 #. TRANSLATORS src/components/ExportModal.vue:17
 #. TRANSLATORS src/components/ImportModal.vue:29
 msgid "Category"
+msgstr ""
+
+#: lib/Service/ShareService.php:154
+msgid "Category already shared with this user."
+msgstr ""
+
+#: lib/Service/ImportService.php:629
+#, php-format
+msgid "Cell %1$s holds more than %2$s characters, the most a spreadsheet cell can hold. Shorten it, or import the collection as CSV."
 msgstr ""
 
 #. TRANSLATORS button to pick a different user to share with (src/components/ShareCollectionModal.vue:65)
@@ -397,7 +453,7 @@ msgstr ""
 msgid "Collection wiped."
 msgstr ""
 
-#: src/utils/categoryFormats.js:207
+#: lib/Service/ShareService.php:358 src/utils/categoryFormats.js:207
 msgid "Comic"
 msgstr ""
 
@@ -424,6 +480,38 @@ msgstr ""
 
 #. TRANSLATORS src/components/AddEditModal.vue:216
 msgid "Condition, purchase details, thoughts…"
+msgstr ""
+
+#: lib/Service/EnrichmentService.php:131
+msgid "Could not fetch film from TMDB. Check your token."
+msgstr ""
+
+#: lib/Service/EnrichmentService.php:210
+msgid "Could not fetch game from RAWG. Check your API key."
+msgstr ""
+
+#: lib/Service/EnrichmentService.php:90
+msgid "Could not fetch release from Discogs. Check your token."
+msgstr ""
+
+#: lib/Service/EnrichmentService.php:158
+msgid "Could not fetch this book from Open Library."
+msgstr ""
+
+#: lib/Service/EnrichmentService.php:239
+msgid "Could not fetch volume from ComicVine. Check your API key."
+msgstr ""
+
+#: lib/Service/ImportService.php:494
+msgid "Could not open spreadsheet file"
+msgstr ""
+
+#: lib/Controller/ImportController.php:185 lib/Service/ImportService.php:418
+msgid "Could not read file"
+msgstr ""
+
+#: lib/Service/ImportService.php:509 lib/Service/ImportService.php:652
+msgid "Could not read worksheet from spreadsheet"
 msgstr ""
 
 msgid "Couldn't fetch full details from {provider} — using the search result."
@@ -559,6 +647,14 @@ msgstr ""
 
 #. TRANSLATORS src/components/SettingsPanel.vue:266
 msgid "Discogs personal access token"
+msgstr ""
+
+#: lib/Service/EnrichmentService.php:106
+msgid "Discogs rate limit exceeded. The queue will retry automatically."
+msgstr ""
+
+#: lib/Controller/MediaController.php:475
+msgid "Discogs rate limit exceeded. Try again shortly."
 msgstr ""
 
 msgid "Discogs token"
@@ -872,8 +968,18 @@ msgstr ""
 msgid "File picker not available."
 msgstr ""
 
+#: lib/Controller/ArtworkController.php:267
+#: lib/Controller/PhotoController.php:154 lib/Service/ImportService.php:412
+#: lib/Service/ImportService.php:489
+msgid "File too large (max 10 MB)"
+msgstr ""
+
 #. TRANSLATORS src/components/SettingsPanel.vue:36
 msgid "Fill items in with metadata, artwork and descriptions from each category's provider. Every provider except Open Library needs a key, set under API keys."
+msgstr ""
+
+#: lib/Service/ShareService.php:355
+msgid "Film"
 msgstr ""
 
 msgid "Film A–Z"
@@ -928,6 +1034,10 @@ msgstr ""
 msgid "Format Z–A"
 msgstr ""
 
+#: lib/Service/ShareService.php:357
+msgid "Game"
+msgstr ""
+
 msgid "Game A–Z"
 msgstr ""
 
@@ -939,6 +1049,10 @@ msgid "Game Z–A"
 msgstr ""
 
 msgid "Game metadata and cover art via the {linkStart}RAWG API{linkEnd}."
+msgstr ""
+
+#: lib/Controller/RawgController.php:50
+msgid "Game not found or no RAWG API key configured"
 msgstr ""
 
 msgid "Game of the Day"
@@ -979,6 +1093,11 @@ msgstr ""
 msgid "If you like this…"
 msgstr ""
 
+#: lib/Controller/ArtworkController.php:294
+#: lib/Controller/PhotoController.php:179
+msgid "Image dimensions too large"
+msgstr ""
+
 #. TRANSLATORS button that opens the dialog for importing items from a file (src/components/CollectionView.vue:139)
 msgid "Import"
 msgstr ""
@@ -1007,6 +1126,25 @@ msgstr ""
 msgid "Include"
 msgstr ""
 
+#: lib/Controller/OpenLibraryController.php:49
+msgid "Invalid ISBN"
+msgstr ""
+
+#: lib/Service/MediaService.php:306
+msgid "Invalid artworkPath."
+msgstr ""
+
+#: lib/Controller/MediaController.php:170
+#: lib/Controller/MediaController.php:231
+msgid "Invalid category"
+msgstr ""
+
+#: lib/Controller/MediaController.php:167
+#: lib/Controller/MediaController.php:228
+msgid "Invalid status"
+msgstr ""
+
+#: lib/Service/ShareService.php:332
 msgid "Item"
 msgstr ""
 
@@ -1046,6 +1184,10 @@ msgstr ""
 
 #. TRANSLATORS: a share of someone's whole collection
 msgid "Library"
+msgstr ""
+
+#: lib/Service/ShareService.php:113
+msgid "Library already shared with this user."
 msgstr ""
 
 #: src/utils/categoryFormats.js:225
@@ -1126,7 +1268,11 @@ msgstr ""
 msgid "Most Valuable"
 msgstr ""
 
-#: src/utils/categoryFormats.js:13
+#: lib/Controller/TmdbController.php:50
+msgid "Movie not found or no TMDB token configured"
+msgstr ""
+
+#: lib/Service/ShareService.php:354 src/utils/categoryFormats.js:13
 msgid "Music"
 msgstr ""
 
@@ -1136,6 +1282,15 @@ msgstr ""
 #. TRANSLATORS src/components/PlaylistDetailView.vue:140
 #. TRANSLATORS src/components/PlaylistsView.vue:104
 msgid "Name"
+msgstr ""
+
+#: lib/Controller/PlaylistController.php:140
+#, php-format
+msgid "Name exceeds %s characters"
+msgstr ""
+
+#: lib/Controller/PlaylistController.php:137
+msgid "Name is required"
 msgstr ""
 
 #: src/utils/apiErrors.js:36
@@ -1176,7 +1331,19 @@ msgstr ""
 msgid "No ComicVine API key saved — add one in Settings to enable comic search."
 msgstr ""
 
+#: lib/Service/EnrichmentService.php:224
+msgid "No ComicVine match found. Add a ComicVine API key in Settings."
+msgstr ""
+
+#: lib/Service/EnrichmentService.php:232
+msgid "No ComicVine volume ID available."
+msgstr ""
+
 msgid "No Comics items yet."
+msgstr ""
+
+#: lib/Service/EnrichmentService.php:66 lib/Service/EnrichmentService.php:80
+msgid "No Discogs match found for this item."
 msgstr ""
 
 #: src/utils/enrichmentProviders.js:31
@@ -1196,8 +1363,31 @@ msgstr ""
 msgid "No RAWG API key saved — add one in Settings to enable game search."
 msgstr ""
 
+#: lib/Service/EnrichmentService.php:205
+msgid "No RAWG ID available."
+msgstr ""
+
+#: lib/Service/EnrichmentService.php:198
+msgid "No RAWG match found. Add a RAWG API key in Settings."
+msgstr ""
+
+#: lib/Service/EnrichmentService.php:126
+msgid "No TMDB ID available."
+msgstr ""
+
+#: lib/Service/EnrichmentService.php:119
+msgid "No TMDB match found. Add a TMDB token in Settings."
+msgstr ""
+
 #: src/utils/enrichmentProviders.js:43
 msgid "No TMDB token saved — add one in Settings to enable film search."
+msgstr ""
+
+#: lib/Controller/ArtworkController.php:261
+#: lib/Controller/ImportController.php:65
+#: lib/Controller/ImportController.php:100
+#: lib/Controller/PhotoController.php:149
+msgid "No file uploaded"
 msgstr ""
 
 #. TRANSLATORS src/components/PlaylistDetailView.vue:81
@@ -1206,6 +1396,14 @@ msgstr ""
 
 #. TRANSLATORS src/components/ExportModal.vue:135
 msgid "No items match this selection — the file will contain only a header row."
+msgstr ""
+
+#: lib/Controller/MediaController.php:464
+msgid "No market value available — this category may have no price source, no match was found, or (for music) the item needs a Discogs ID first."
+msgstr ""
+
+#: lib/Service/EnrichmentService.php:146
+msgid "No match found on Open Library."
 msgstr ""
 
 #. TRANSLATORS src/components/SharedPlaylistsView.vue:20
@@ -1220,12 +1418,24 @@ msgstr ""
 msgid "No playlists yet. Create one to organise your collection."
 msgstr ""
 
+#: lib/Controller/ExportController.php:76
+msgid "No read access to that collection"
+msgstr ""
+
 #. TRANSLATORS src/components/EnrichmentSearch.vue:36
 msgid "No results found."
 msgstr ""
 
 #. TRANSLATORS src/components/UserSearchField.vue:30
 msgid "No users found."
+msgstr ""
+
+#: lib/Controller/ImportController.php:148
+msgid "No write access to that collection"
+msgstr ""
+
+#: lib/Service/MediaService.php:208
+msgid "No write access to that collection."
 msgstr ""
 
 #. TRANSLATORS: {filters} is the active decade, genre and format filters, e.g. "1990s Rock Vinyl"
@@ -1236,8 +1446,36 @@ msgstr ""
 msgid "No {filters} items in your wanted list."
 msgstr ""
 
+#: lib/Controller/ArtworkController.php:249
+#: lib/Controller/ArtworkController.php:352
+#: lib/Controller/PhotoController.php:134
+#: lib/Controller/PhotoController.php:234
+msgid "Not authenticated"
+msgstr ""
+
 #: src/utils/apiErrors.js:31
 msgid "Not authorised for this action."
+msgstr ""
+
+#: lib/Controller/ArtworkController.php:256
+#: lib/Controller/ArtworkController.php:359
+#: lib/Controller/MediaController.php:133
+#: lib/Controller/MediaController.php:256
+#: lib/Controller/MediaController.php:333
+#: lib/Controller/MediaController.php:388
+#: lib/Controller/MediaController.php:433
+#: lib/Controller/MediaController.php:472
+#: lib/Controller/MediaController.php:498
+#: lib/Controller/PhotoController.php:144
+#: lib/Controller/PhotoController.php:244
+#: lib/Controller/PlaylistController.php:60
+#: lib/Controller/PlaylistController.php:94
+#: lib/Controller/PlaylistController.php:105
+msgid "Not found"
+msgstr ""
+
+#: lib/Controller/ExportController.php:63
+msgid "Not logged in"
 msgstr ""
 
 #. TRANSLATORS src/components/AddEditModal.vue:211
@@ -1352,7 +1590,18 @@ msgstr ""
 msgid "Picture Disc"
 msgstr ""
 
+#: lib/Service/ShareService.php:337 lib/Service/ShareService.php:339
 msgid "Playlist"
+msgstr ""
+
+#: lib/Controller/PlaylistController.php:125
+#: lib/Controller/ShareController.php:124
+#: lib/Controller/ShareController.php:136
+msgid "Playlist not found"
+msgstr ""
+
+#: lib/Controller/PlaylistController.php:115
+msgid "Playlist or item not found"
 msgstr ""
 
 #. TRANSLATORS src/App.vue:20
@@ -1390,6 +1639,10 @@ msgstr[1] ""
 
 #. TRANSLATORS src/components/SettingsPanel.vue:334
 msgid "PriceCharting API key"
+msgstr ""
+
+#: lib/Controller/MediaController.php:480
+msgid "PriceCharting rate limit reached. Try again shortly."
 msgstr ""
 
 msgid "PriceCharting token"
@@ -1505,6 +1758,37 @@ msgstr ""
 msgid "Required columns:"
 msgstr ""
 
+#: lib/Service/ImportService.php:1195 lib/Service/ImportService.php:1246
+#: lib/Service/ImportService.php:1257
+#, php-format
+msgid "Row %1$s: %2$s — skipped"
+msgstr ""
+
+#: lib/Service/ImportService.php:1167
+#, php-format
+msgid "Row %1$s: unrecognised format \"%2$s\" - skipped"
+msgstr ""
+
+#: lib/Service/ImportService.php:1221
+#, php-format
+msgid "Row %1$s: unrecognised year \"%2$s\" — imported without a year"
+msgstr ""
+
+#: lib/Service/ImportService.php:1291
+#, php-format
+msgid "Row %s: could not be saved — skipped"
+msgstr ""
+
+#: lib/Service/ImportService.php:1151
+#, php-format
+msgid "Row %s: missing Artist or Title — skipped"
+msgstr ""
+
+#: lib/Service/ImportService.php:1157
+#, php-format
+msgid "Row %s: missing Format — skipped"
+msgstr ""
+
 #. TRANSLATORS src/components/PlaylistDetailView.vue:174
 #. TRANSLATORS src/components/PlaylistsView.vue:190
 #. TRANSLATORS src/components/settings/TokenField.vue:31
@@ -1592,6 +1876,10 @@ msgstr ""
 
 #. TRANSLATORS src/components/ShareCollectionModal.vue:10
 msgid "Share collection"
+msgstr ""
+
+#: lib/Controller/ShareController.php:215
+msgid "Share not found"
 msgstr ""
 
 msgid "Share whole library"
@@ -1716,6 +2004,22 @@ msgstr ""
 msgid "Special"
 msgstr ""
 
+#: lib/Service/ImportService.php:563 lib/Service/ImportService.php:985
+msgid "Spreadsheet contents too large to process"
+msgstr ""
+
+#: lib/Service/ImportService.php:557
+msgid "Spreadsheet has too many distinct text values to process"
+msgstr ""
+
+#: lib/Service/ImportService.php:994
+msgid "Spreadsheet rejected: implausible compression ratio"
+msgstr ""
+
+#: lib/Service/ImportService.php:853
+msgid "Spreadsheet rejected: unexpected document type declaration"
+msgstr ""
+
 #. TRANSLATORS src/components/AddEditModal.vue:41
 msgid "Status"
 msgstr ""
@@ -1752,6 +2056,11 @@ msgstr ""
 msgid "This category is shared with you by several people. Choose whose collection to add to."
 msgstr ""
 
+#: lib/Controller/ArtworkController.php:304
+#: lib/Controller/PhotoController.php:189
+msgid "This image could not be processed. Re-save it as JPEG or PNG and try again."
+msgstr ""
+
 #. TRANSLATORS src/components/SettingsPanel.vue:377
 msgid "Tick the categories you want to permanently delete. There is no undo."
 msgstr ""
@@ -1769,6 +2078,16 @@ msgstr ""
 msgid "Today"
 msgstr ""
 
+#: lib/Service/ImportService.php:1102
+#, php-format
+msgid "Too many rows (%1$s) — the limit is %2$s rows per import"
+msgstr ""
+
+#: lib/Service/ImportService.php:454 lib/Service/ImportService.php:683
+#, php-format
+msgid "Too many rows — the limit is %s rows per import"
+msgstr ""
+
 #. TRANSLATORS src/components/ItemDetailView.vue:277
 msgid "Tracklist"
 msgstr ""
@@ -1781,8 +2100,40 @@ msgstr ""
 msgid "Unknown"
 msgstr ""
 
+#: lib/Service/ShareService.php:419
+msgid "Unknown category."
+msgstr ""
+
+#: lib/Service/EnrichmentService.php:52
+#, php-format
+msgid "Unknown category: %s"
+msgstr ""
+
+#: lib/Service/ShareService.php:397
+msgid "Unknown permission."
+msgstr ""
+
+#: lib/Controller/MediaController.php:361
+#, php-format
+msgid "Unknown wipe scope(s): %s"
+msgstr ""
+
 #. TRANSLATORS src/components/ShareModal.vue:69
 msgid "Unshare with {user}"
+msgstr ""
+
+#: lib/Controller/ArtworkController.php:276
+#: lib/Controller/PhotoController.php:161
+msgid "Unsupported file type"
+msgstr ""
+
+#: lib/Service/ImportService.php:403
+#, php-format
+msgid "Unsupported file type: .%s"
+msgstr ""
+
+#: lib/Controller/MediaController.php:322
+msgid "Unsupported purchasePriceCurrency"
 msgstr ""
 
 msgid "Upload"
@@ -1833,6 +2184,10 @@ msgstr ""
 msgid "Volume Z–A"
 msgstr ""
 
+#: lib/Controller/ComicVineController.php:50
+msgid "Volume not found or no ComicVine API key configured"
+msgstr ""
+
 #. TRANSLATORS src/components/CollectionView.vue:113
 #. TRANSLATORS src/components/ExportModal.vue:63
 #: src/utils/categoryFormats.js:29
@@ -1848,6 +2203,7 @@ msgid "When enabled, opening an item triggers a live price lookup for the applic
 msgstr ""
 
 #. TRANSLATORS src/components/ShareCollectionModal.vue:24
+#: lib/Service/ShareService.php:342
 msgid "Whole library"
 msgstr ""
 
@@ -1868,6 +2224,10 @@ msgstr ""
 
 #. TRANSLATORS src/components/SettingsPanel.vue:362
 msgid "Wiping…"
+msgstr ""
+
+#: lib/Controller/OpenLibraryController.php:66
+msgid "Work not found"
 msgstr ""
 
 #: src/utils/categoryFormats.js:280
@@ -2013,6 +2373,22 @@ msgstr ""
 msgid "or"
 msgstr ""
 
+#: lib/Service/ImportService.php:305
+msgid "purchase price out of range"
+msgstr ""
+
+#: lib/Service/ImportService.php:368
+msgid "purchase price requires a currency"
+msgstr ""
+
+#: lib/Controller/MediaController.php:315
+msgid "purchasePrice out of range"
+msgstr ""
+
+#: lib/Controller/MediaController.php:319
+msgid "purchasePriceCurrency is required when purchasePrice is set"
+msgstr ""
+
 #. TRANSLATORS under the number of rows the import could not use (src/components/ImportModal.vue:254)
 msgid "row skipped"
 msgid_plural "rows skipped"
@@ -2023,8 +2399,22 @@ msgstr[1] ""
 msgid "the enrichment service"
 msgstr ""
 
+#: lib/Service/ImportService.php:301
+#, php-format
+msgid "unparseable purchase price \"%s\""
+msgstr ""
+
+#: lib/Service/ImportService.php:371
+#, php-format
+msgid "unsupported purchase currency \"%s\""
+msgstr ""
+
 #. TRANSLATORS credits the service the suggestions came from, e.g. "via TMDB" (src/components/RecommendationRail.vue:20)
 msgid "via {source}"
+msgstr ""
+
+#: lib/Dto/MediaItemData.php:103
+msgid "year out of range"
 msgstr ""
 
 #. TRANSLATORS: {count} is what the playlist holds, e.g. "3 films"; {user} is who shared it

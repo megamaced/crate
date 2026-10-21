@@ -5,17 +5,22 @@ declare(strict_types=1);
 namespace OCA\Crate\Controller;
 
 use OCA\Crate\CrateCategories;
+use OCA\Crate\Exception\UserFacingException;
+use OCA\Crate\Message;
 use OCA\Crate\Service\ImportService;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\OCSController;
+use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IUserSession;
+use Psr\Log\LoggerInterface;
 
 class ImportController extends OCSController
 {
+    use ReportsUserFacingErrors;
     use UsesAuthenticatedUser;
 
     /**
@@ -37,6 +42,8 @@ class ImportController extends OCSController
         private readonly ImportService $importService,
         private readonly IUserSession $userSession,
         private readonly \OCA\Crate\Db\CrateShareMapper $shareMapper,
+        private readonly IL10N $l,
+        private readonly LoggerInterface $logger,
     ) {
         parent::__construct($appName, $request);
     }
@@ -55,13 +62,13 @@ class ImportController extends OCSController
         $file = $this->request->getUploadedFile('file');
 
         if (empty($file) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-            return new DataResponse(['error' => 'No file uploaded'], Http::STATUS_BAD_REQUEST);
+            return new DataResponse(['error' => $this->l->t('No file uploaded')], Http::STATUS_BAD_REQUEST);
         }
 
         try {
-            $parsed = $this->importService->parseFile($file['tmp_name'], $file['name']);
-        } catch (\RuntimeException $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            $parsed = $this->parse($file);
+        } catch (UserFacingException $e) {
+            return $this->userError($e);
         }
 
         $mapping  = ImportService::detectMapping($parsed['headers']);
@@ -90,7 +97,7 @@ class ImportController extends OCSController
         $file = $this->request->getUploadedFile('file');
 
         if (empty($file) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-            return new DataResponse(['error' => 'No file uploaded'], Http::STATUS_BAD_REQUEST);
+            return new DataResponse(['error' => $this->l->t('No file uploaded')], Http::STATUS_BAD_REQUEST);
         }
 
         $mappingJson = $this->request->getParam('mapping', '{}');
@@ -120,9 +127,9 @@ class ImportController extends OCSController
         }
 
         try {
-            $parsed = $this->importService->parseFile($file['tmp_name'], $file['name']);
-        } catch (\RuntimeException $e) {
-            return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+            $parsed = $this->parse($file);
+        } catch (UserFacingException $e) {
+            return $this->userError($e);
         }
 
         $mappedRows  = ImportService::applyMapping($parsed['rows'], $mapping);
@@ -137,7 +144,10 @@ class ImportController extends OCSController
         $crossUser = false;
         if ($owner !== '' && $owner !== $importUserId) {
             if (!$this->shareMapper->hasWritableCollectionShare($importUserId, $owner, $category)) {
-                return new DataResponse(['error' => 'No write access to that collection'], Http::STATUS_FORBIDDEN);
+                return new DataResponse(
+                    ['error' => $this->l->t('No write access to that collection')],
+                    Http::STATUS_FORBIDDEN,
+                );
             }
             $importUserId = $owner;
             $crossUser = true;
@@ -147,7 +157,32 @@ class ImportController extends OCSController
         // Category column must not be allowed to redirect rows into the
         // owner's other collections.
         $result = $this->importService->import($mappedRows, $importUserId, $category, !$crossUser);
+        $result['errors'] = array_map(fn (Message $error) => $error->translate($this->l), $result['errors']);
 
         return new DataResponse($result);
+    }
+
+    /**
+     * Reads the uploaded file. Whatever the parser says is wrong with the file
+     * reaches the user; any other failure is ours, so it is logged and the
+     * user hears only that the file could not be read.
+     *
+     * @param array{tmp_name: string, name: string} $file
+     * @return array{headers: string[], rows: array<int, array<string|null>>}
+     * @throws UserFacingException
+     */
+    private function parse(array $file): array
+    {
+        try {
+            return $this->importService->parseFile($file['tmp_name'], $file['name']);
+        } catch (UserFacingException $e) {
+            throw $e;
+        } catch (\RuntimeException $e) {
+            $this->logger->warning('Import could not parse {file}: {msg}', [
+                'file' => $file['name'],
+                'msg'  => $e->getMessage(),
+            ]);
+            throw new UserFacingException(Message::t('Could not read file'), Http::STATUS_BAD_REQUEST, $e);
+        }
     }
 }

@@ -10,6 +10,7 @@ use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\OCSController;
+use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IUserSession;
 
@@ -22,6 +23,7 @@ class TmdbController extends OCSController
         IRequest $request,
         private readonly TmdbService $tmdbService,
         private readonly IUserSession $userSession,
+        private readonly IL10N $l,
     ) {
         parent::__construct($appName, $request);
     }
@@ -45,7 +47,7 @@ class TmdbController extends OCSController
         $data = $this->tmdbService->getMovie($this->userId(), $id);
         if (empty($data)) {
             return new DataResponse(
-                ['error' => 'Movie not found or no TMDB token configured'],
+                ['error' => $this->l->t('Movie not found or no TMDB token configured')],
                 Http::STATUS_NOT_FOUND,
             );
         }
