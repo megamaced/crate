@@ -104,6 +104,12 @@ bin/l10n check
 
 ## Translations
 
+Crate uses [Weblate](https://weblate.org/) for community translations. Thank you to Weblate for providing free hosting through its Libre plan.
+
+[![Translation status on Weblate](https://hosted.weblate.org/widget/crate/svg-badge.svg)](https://hosted.weblate.org/projects/crate/)
+
+[Help translate the web app](https://hosted.weblate.org/projects/crate/web-app/) or the [Android app](https://hosted.weblate.org/projects/crate/android-app/) in your browser.
+
 The source strings are the `t()` and `n()` calls in `src/` and `lib/`, gathered into `translationfiles/templates/crate.pot`. Each language is a gettext file, `translationfiles/<language>/crate.po`.
 
 `bin/l10n` (needs podman or docker) runs Nextcloud's translationtool in a pinned container:
