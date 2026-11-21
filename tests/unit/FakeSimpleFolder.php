@@ -24,6 +24,9 @@ final class FakeSimpleFolder implements ISimpleFolder
     /** Make every write fail, as a full disk or quota would. */
     public bool $failWrites = false;
 
+    /** @var array<string, ISimpleFolder> path => folder */
+    private array $folders = [];
+
     private int $writes = 0;
 
     public function write(string $name, string $content): void
@@ -62,6 +65,7 @@ final class FakeSimpleFolder implements ISimpleFolder
     public function delete(): void
     {
         $this->files = [];
+        $this->folders = [];
     }
 
     public function getName(): string
@@ -71,12 +75,17 @@ final class FakeSimpleFolder implements ISimpleFolder
 
     public function getFolder(string $name): ISimpleFolder
     {
-        throw new NotFoundException($name);
+        return $this->folders[$name] ?? throw new NotFoundException($name);
     }
 
     public function newFolder(string $path): ISimpleFolder
     {
-        return new self();
+        return $this->folders[$path] = new self();
+    }
+
+    public function getOrCreateFolder(string $path, int $maxRetries = 5): ISimpleFolder
+    {
+        return $this->folders[$path] ?? $this->newFolder($path);
     }
 
     private function handle(string $name): ISimpleFile
