@@ -13,6 +13,10 @@ updates:
     groups:
       nextcloud:
         patterns: ['@nextcloud/*']
+    # Dialogs 8 requires Nextcloud 35+. Revisit when Crate's minimum is 35.
+    ignore:
+      - dependency-name: '@nextcloud/dialogs'
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: composer
     directory: /
