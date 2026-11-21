@@ -13,13 +13,16 @@ describe('toasts show their message exactly as given', () => {
     ['markup', 'Not <b>bold</b>, <img src=x onerror=alert(1)>'],
   ])('keeps %s', (_label, message) => {
     showError(message)
-    const toast = document.querySelector('[role="alert"]')
+    const toast = document.querySelector('[aria-live="assertive"]')
+    expect(toast).not.toBeNull()
     expect(toast.textContent).toContain(message)
     expect(toast.querySelector('b, img')).toBeNull()
   })
 
   it('does the same for warnings', () => {
     showWarning('Shelf <unknown> & co')
-    expect(document.body.textContent).toContain('Shelf <unknown> & co')
+    const toast = document.querySelector('[aria-live="polite"]')
+    expect(toast).not.toBeNull()
+    expect(toast.textContent).toContain('Shelf <unknown> & co')
   })
 })
