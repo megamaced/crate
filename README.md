@@ -41,7 +41,7 @@ Rich, category-aware detail with auto-fetched metadata, tracklists, market value
 
 ## Requirements
 
-- Nextcloud 29 – 35
+- Nextcloud 29 – 36 (Nextcloud 36 support is preliminary)
 
 ## Optional API tokens
 
