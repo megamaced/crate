@@ -9,7 +9,7 @@ msgstr ""
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Automatically generated\n"
-"Language-Team: none\n"
+"Language-Team: German <https://hosted.weblate.org/projects/crate/web-app/de/>\n"
 "Language: de\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -132,7 +132,7 @@ msgstr ""
 msgid "A short description"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:260
+#. TRANSLATORS src/components/SettingsPanel.vue:268
 msgid "API keys"
 msgstr ""
 
@@ -149,23 +149,23 @@ msgstr ""
 msgid "Access"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:100
+#. TRANSLATORS src/components/SettingsPanel.vue:105
 msgid "Add a ComicVine API key under API keys to enable enrichment."
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:142
+#. TRANSLATORS src/components/SettingsPanel.vue:147
 msgid "Add a Discogs API key under API keys to enable enrichment."
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:249
+#. TRANSLATORS src/components/SettingsPanel.vue:256
 msgid "Add a Discogs or PriceCharting API key to enable market rates."
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:128
+#. TRANSLATORS src/components/SettingsPanel.vue:133
 msgid "Add a RAWG API key under API keys to enable enrichment."
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:114
+#. TRANSLATORS src/components/SettingsPanel.vue:119
 msgid "Add a TMDB API key under API keys to enable enrichment."
 msgstr ""
 
@@ -258,7 +258,7 @@ msgstr ""
 msgid "Already shared with this user."
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:173
+#. TRANSLATORS src/components/SettingsPanel.vue:179
 msgid "Also suggest things you don't own yet, from the same service that enriched the item — Discogs for music, TMDB for films, Open Library for books, RAWG for games. Only enriched items can have these, since suggestions are looked up by the ID enrichment stores. Results are cached, so re-opening an item won't re-query the service. Comics aren't covered: ComicVine publishes no similarity data."
 msgstr ""
 
@@ -282,7 +282,7 @@ msgstr ""
 msgid "Any year ({count})"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:47
+#. TRANSLATORS src/components/SettingsPanel.vue:49
 msgid "Applies to Music (Discogs), Films (TMDB), Books (Open Library — no key needed), Games (RAWG), and Comics (ComicVine). Requires the relevant API key to be configured."
 msgstr ""
 
@@ -329,11 +329,11 @@ msgstr ""
 msgid "Author Z–A"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:44
+#. TRANSLATORS src/components/SettingsPanel.vue:46
 msgid "Auto-enrich items when opening them"
 msgstr ""
 
-#. TRANSLATORS heading over the setting that enriches items without being asked (src/components/SettingsPanel.vue:41)
+#. TRANSLATORS heading over the setting that enriches items without being asked (src/components/SettingsPanel.vue:43)
 msgid "Automatic"
 msgstr ""
 
@@ -366,7 +366,7 @@ msgstr ""
 msgid "Books"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:80
+#. TRANSLATORS src/components/SettingsPanel.vue:85
 msgid "By category"
 msgstr ""
 
@@ -386,7 +386,7 @@ msgstr ""
 #. TRANSLATORS src/components/OwnerPickerModal.vue:34
 #. TRANSLATORS src/components/PlaylistDetailView.vue:165
 #. TRANSLATORS src/components/PlaylistsView.vue:132
-#. TRANSLATORS src/components/SettingsPanel.vue:394
+#. TRANSLATORS src/components/SettingsPanel.vue:403
 msgid "Cancel"
 msgstr ""
 
@@ -402,7 +402,7 @@ msgstr ""
 msgid "Cassette"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:16
+#. TRANSLATORS src/components/SettingsPanel.vue:17
 msgid "Categories"
 msgstr ""
 
@@ -468,7 +468,7 @@ msgstr ""
 msgid "Comic volume metadata, artwork, genres and descriptions via the {linkStart}ComicVine API{linkEnd}."
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:317
+#. TRANSLATORS src/components/SettingsPanel.vue:325
 msgid "ComicVine API key"
 msgstr ""
 
@@ -578,7 +578,7 @@ msgstr ""
 msgid "Currency"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:352
+#. TRANSLATORS src/components/SettingsPanel.vue:361
 msgid "Danger zone"
 msgstr ""
 
@@ -652,7 +652,7 @@ msgstr ""
 msgid "Disc"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:266
+#. TRANSLATORS src/components/SettingsPanel.vue:274
 msgid "Discogs personal access token"
 msgstr ""
 
@@ -667,11 +667,11 @@ msgstr ""
 msgid "Discogs token"
 msgstr ""
 
-#. TRANSLATORS heading over the setting for the currency prices are shown in (src/components/SettingsPanel.vue:194)
+#. TRANSLATORS heading over the setting for the currency prices are shown in (src/components/SettingsPanel.vue:201)
 msgid "Display"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:197
+#. TRANSLATORS src/components/SettingsPanel.vue:204
 msgid "Display currency"
 msgstr ""
 
@@ -724,31 +724,31 @@ msgstr ""
 msgid "Edit {item}"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:170
+#. TRANSLATORS src/components/SettingsPanel.vue:176
 msgid "Enable online recommendations"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:63
+#. TRANSLATORS src/components/SettingsPanel.vue:70
 msgid "Enrich all items (every category)"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:85
+#. TRANSLATORS src/components/SettingsPanel.vue:90
 msgid "Enrich all un-enriched books"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:98
+#. TRANSLATORS src/components/SettingsPanel.vue:103
 msgid "Enrich all un-enriched comics"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:112
+#. TRANSLATORS src/components/SettingsPanel.vue:117
 msgid "Enrich all un-enriched films"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:126
+#. TRANSLATORS src/components/SettingsPanel.vue:131
 msgid "Enrich all un-enriched games"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:140
+#. TRANSLATORS src/components/SettingsPanel.vue:145
 msgid "Enrich all un-enriched music"
 msgstr ""
 
@@ -770,7 +770,7 @@ msgstr ""
 msgid "Enriched {provider} data"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:74
+#. TRANSLATORS src/components/SettingsPanel.vue:59
 msgid "Enriches every un-enriched item across every category, using whichever API keys you have configured."
 msgstr ""
 
@@ -781,11 +781,11 @@ msgstr ""
 msgid "Enriching items {done} / {total}"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:62
+#. TRANSLATORS src/components/SettingsPanel.vue:69
 msgid "Enriching… {done} / {total}"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:35
+#. TRANSLATORS src/components/SettingsPanel.vue:37
 msgid "Enrichment"
 msgstr ""
 
@@ -798,7 +798,7 @@ msgid_plural "Enrichment complete — {done} of %n items enriched from {service}
 msgstr[0] ""
 msgstr[1] ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:53
+#. TRANSLATORS src/components/SettingsPanel.vue:55
 msgid "Everything at once"
 msgstr ""
 
@@ -937,7 +937,7 @@ msgstr ""
 msgid "Fetch market rate"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:223
+#. TRANSLATORS src/components/SettingsPanel.vue:230
 msgid "Fetch market rates automatically"
 msgstr ""
 
@@ -945,7 +945,7 @@ msgstr ""
 msgid "Fetch market rates from {service} after importing"
 msgstr ""
 
-#. TRANSLATORS heading over the settings for looking up market prices (src/components/SettingsPanel.vue:220)
+#. TRANSLATORS heading over the settings for looking up market prices (src/components/SettingsPanel.vue:227)
 msgid "Fetching"
 msgstr ""
 
@@ -968,7 +968,7 @@ msgstr ""
 msgid "Fetching price…"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:236
+#. TRANSLATORS src/components/SettingsPanel.vue:243
 msgid "Fetching… {done} / {total}"
 msgstr ""
 
@@ -981,7 +981,7 @@ msgstr ""
 msgid "File too large (max 10 MB)"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:36
+#. TRANSLATORS src/components/SettingsPanel.vue:38
 msgid "Fill items in with metadata, artwork and descriptions from each category's provider. Every provider except Open Library needs a key, set under API keys."
 msgstr ""
 
@@ -1081,7 +1081,7 @@ msgstr ""
 msgid "Hardcover"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:17
+#. TRANSLATORS src/components/SettingsPanel.vue:18
 msgid "Hide categories you don't use. Hidden categories disappear from the sidebar and the Home view, and won't show up in search. At least one category must remain visible."
 msgstr ""
 
@@ -1167,7 +1167,7 @@ msgstr ""
 msgid "Jump to section"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:261
+#. TRANSLATORS src/components/SettingsPanel.vue:269
 msgid "Keys are stored on your Nextcloud server and are never shown again once saved. Books need no key — Open Library is open."
 msgstr ""
 
@@ -1244,7 +1244,7 @@ msgid_plural "Market rates complete — {done} of %n items priced via {service}.
 msgstr[0] ""
 msgstr[1] ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:181
+#. TRANSLATORS src/components/SettingsPanel.vue:188
 msgid "Market values"
 msgstr ""
 
@@ -1530,7 +1530,7 @@ msgstr ""
 msgid "One-Shot"
 msgstr ""
 
-#. TRANSLATORS heading over the setting that looks up recommendations on online services (src/components/SettingsPanel.vue:164)
+#. TRANSLATORS heading over the setting that looks up recommendations on online services (src/components/SettingsPanel.vue:170)
 msgid "Online"
 msgstr ""
 
@@ -1566,7 +1566,7 @@ msgstr ""
 msgid "Paste your API key here"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:353
+#. TRANSLATORS src/components/SettingsPanel.vue:362
 msgid "Permanently delete selected data from your collection. You choose what to wipe in the confirmation dialog. This cannot be undone."
 msgstr ""
 
@@ -1649,7 +1649,7 @@ msgid_plural "Preview (first %n rows):"
 msgstr[0] ""
 msgstr[1] ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:334
+#. TRANSLATORS src/components/SettingsPanel.vue:342
 msgid "PriceCharting API key"
 msgstr ""
 
@@ -1679,7 +1679,7 @@ msgstr ""
 msgid "Purchase price"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:300
+#. TRANSLATORS src/components/SettingsPanel.vue:308
 msgid "RAWG API key"
 msgstr ""
 
@@ -1732,7 +1732,7 @@ msgstr ""
 msgid "Recently Shared"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:158
+#. TRANSLATORS src/components/SettingsPanel.vue:164
 msgid "Recommendations"
 msgstr ""
 
@@ -1740,7 +1740,7 @@ msgstr ""
 msgid "Reel-to-Reel"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:237
+#. TRANSLATORS src/components/SettingsPanel.vue:244
 msgid "Refresh all market rates"
 msgstr ""
 
@@ -2062,7 +2062,7 @@ msgid "Status ({owned} / {wanted})"
 msgstr ""
 
 #. TRANSLATORS src/App.vue:276
-#. TRANSLATORS src/components/SettingsPanel.vue:70
+#. TRANSLATORS src/components/SettingsPanel.vue:77
 msgid "Stop"
 msgstr ""
 
@@ -2074,7 +2074,7 @@ msgstr ""
 msgid "Studio"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:283
+#. TRANSLATORS src/components/SettingsPanel.vue:291
 msgid "TMDB API Read Access Token"
 msgstr ""
 
@@ -2094,7 +2094,7 @@ msgstr ""
 msgid "This image could not be processed. Re-save it as JPEG or PNG and try again."
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:377
+#. TRANSLATORS src/components/SettingsPanel.vue:386
 msgid "Tick the categories you want to permanently delete. There is no undo."
 msgstr ""
 
@@ -2180,7 +2180,7 @@ msgstr ""
 msgid "Upload from computer"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:212
+#. TRANSLATORS src/components/SettingsPanel.vue:219
 msgid "Used for Discogs (music) prices. PriceCharting (games & comics) prices are always in USD."
 msgstr ""
 
@@ -2231,7 +2231,7 @@ msgstr ""
 msgid "What to share"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:226
+#. TRANSLATORS src/components/SettingsPanel.vue:233
 msgid "When enabled, opening an item triggers a live price lookup for the applicable categories."
 msgstr ""
 
@@ -2240,22 +2240,22 @@ msgstr ""
 msgid "Whole library"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:373
+#. TRANSLATORS src/components/SettingsPanel.vue:382
 msgid "Wipe data"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:363
+#. TRANSLATORS src/components/SettingsPanel.vue:372
 msgid "Wipe data…"
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:402
+#. TRANSLATORS src/components/SettingsPanel.vue:411
 msgid "Wipe selected"
 msgstr ""
 
 msgid "Wiped: {scopes}."
 msgstr ""
 
-#. TRANSLATORS src/components/SettingsPanel.vue:362
+#. TRANSLATORS src/components/SettingsPanel.vue:371
 msgid "Wiping…"
 msgstr ""
 
