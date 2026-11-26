@@ -1,6 +1,6 @@
 <template>
   <div class="provider">
-    <div class="provider__text">
+    <div>
       <span class="provider__name">{{ label }}</span>
       <p class="provider__description">
         <slot />
@@ -15,8 +15,8 @@
       </p>
     </div>
     <NcButton
-      class="provider__action"
       variant="secondary"
+      wide
       :disabled="disabled"
       @click="$emit('enrich')"
     >
@@ -43,15 +43,11 @@ defineEmits(['enrich'])
 
 <style scoped>
 .provider {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.provider__text {
-  flex: 1 1 260px;
-  min-width: 0;
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: start;
+  row-gap: 8px;
 }
 
 .provider__name {
@@ -78,9 +74,5 @@ defineEmits(['enrich'])
   line-height: 1.4;
   margin: 4px 0 0;
   font-style: italic;
-}
-
-.provider__action {
-  flex: 0 0 auto;
 }
 </style>

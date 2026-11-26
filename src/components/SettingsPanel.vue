@@ -13,6 +13,7 @@
     <!-- ── Categories ── -->
     <NcAppSettingsSection
       id="crate-settings-categories"
+      class="settings-section"
       :name="t('crate', 'Categories')"
       :description="t('crate', 'Hide categories you don\'t use. Hidden categories disappear from the sidebar and the Home view, and won\'t show up in search. At least one category must remain visible.')"
     >
@@ -32,6 +33,7 @@
     <!-- ── Enrichment ── -->
     <NcAppSettingsSection
       id="crate-settings-enrichment"
+      class="settings-section settings-section--enrichment"
       :name="t('crate', 'Enrichment')"
       :description="t('crate', 'Fill items in with metadata, artwork and descriptions from each category\'s provider. Every provider except Open Library needs a key, set under API keys.')"
     >
@@ -52,34 +54,37 @@
         <h4 class="settings-group__label">
           {{ t('crate', 'Everything at once') }}
         </h4>
-        <div class="settings-actions">
-          <NcButton
-            variant="secondary"
-            :disabled="enrich.running.value || marketQueue.running.value"
-            @click="enrichAll()"
-          >
-            {{ enrich.running.value
-              ? t('crate', 'Enriching… {done} / {total}', { done: enrich.done.value, total: enrich.total.value })
-              : t('crate', 'Enrich all items (every category)') }}
-          </NcButton>
-          <NcButton
-            v-if="enrich.running.value"
-            variant="tertiary"
-            @click="enrich.cancel()"
-          >
-            {{ t('crate', 'Stop') }}
-          </NcButton>
+        <div class="settings-enrich-row">
+          <p class="settings-hint settings-hint--flush">
+            {{ t('crate', 'Enriches every un-enriched item across every category, using whichever API keys you have configured.') }}
+          </p>
+          <div class="settings-actions">
+            <NcButton
+              class="settings-enrich-action"
+              variant="secondary"
+              :disabled="enrich.running.value || marketQueue.running.value"
+              @click="enrichAll()"
+            >
+              {{ enrich.running.value
+                ? t('crate', 'Enriching… {done} / {total}', { done: enrich.done.value, total: enrich.total.value })
+                : t('crate', 'Enrich all items (every category)') }}
+            </NcButton>
+            <NcButton
+              v-if="enrich.running.value"
+              variant="tertiary"
+              @click="enrich.cancel()"
+            >
+              {{ t('crate', 'Stop') }}
+            </NcButton>
+          </div>
         </div>
-        <p class="settings-hint settings-hint--tight">
-          {{ t('crate', 'Enriches every un-enriched item across every category, using whichever API keys you have configured.') }}
-        </p>
       </div>
 
       <div class="settings-group">
         <h4 class="settings-group__label">
           {{ t('crate', 'By category') }}
         </h4>
-        <div class="settings-stack settings-stack--wide">
+        <div class="settings-enrich-providers">
           <EnrichProviderRow
             :label="categoryLabel('book')"
             :action-label="t('crate', 'Enrich all un-enriched books')"
@@ -155,6 +160,7 @@
     <!-- ── Recommendations ── -->
     <NcAppSettingsSection
       id="crate-settings-recommendations"
+      class="settings-section"
       :name="t('crate', 'Recommendations')"
       :description="recommendationsDescription"
     >
@@ -178,6 +184,7 @@
     <!-- ── Market values ── -->
     <NcAppSettingsSection
       id="crate-settings-market"
+      class="settings-section"
       :name="t('crate', 'Market values')"
     >
       <p class="settings-hint">
@@ -257,6 +264,7 @@
          why they sit below the sections that use them rather than inside each. -->
     <NcAppSettingsSection
       id="crate-settings-api-keys"
+      class="settings-section"
       :name="t('crate', 'API keys')"
       :description="t('crate', 'Keys are stored on your Nextcloud server and are never shown again once saved. Books need no key — Open Library is open.')"
     >
@@ -349,6 +357,7 @@
     <!-- ── Danger zone ── -->
     <NcAppSettingsSection
       id="crate-settings-danger"
+      class="settings-section"
       :name="t('crate', 'Danger zone')"
       :description="t('crate', 'Permanently delete selected data from your collection. You choose what to wipe in the confirmation dialog. This cannot be undone.')"
     >
@@ -700,6 +709,18 @@ onMounted(load)
 </script>
 
 <style scoped>
+.settings-section.app-settings-section {
+  --app-settings-section-text-offset: 0;
+}
+
+.settings-section :deep(.app-settings-section__content) {
+  padding-inline-start: var(--form-element-label-offset);
+}
+
+.settings-section--enrichment :deep(.app-settings-section__content) {
+  container: crate-enrichment / inline-size;
+}
+
 /* A titled block within a section — the bold sub-label plus the controls it
    covers. NcAppSettingsSection already spaces its direct children apart, so a
    group only has to handle the gaps inside itself. */
@@ -714,15 +735,47 @@ onMounted(load)
   margin: 0 0 8px;
 }
 
-/* Vertical run of like-for-like controls (category switches, provider rows). */
 .settings-stack {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.settings-stack--wide {
-  gap: 16px;
+.settings-enrich-row,
+.settings-enrich-providers {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 8px 16px;
+}
+
+.settings-enrich-providers {
+  row-gap: 16px;
+}
+
+.settings-enrich-row .settings-actions {
+  flex-wrap: nowrap;
+}
+
+.settings-enrich-action {
+  flex: 1;
+}
+
+.settings-enrich-action :deep(.button-vue__text),
+.settings-enrich-providers :deep(.button-vue__text) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+@container crate-enrichment (min-width: 34rem) {
+  .settings-enrich-row,
+  .settings-enrich-providers {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 44%);
+  }
+
+  .settings-enrich-providers {
+    grid-auto-rows: 1fr;
+  }
 }
 
 .wipe-scopes {
@@ -737,10 +790,6 @@ onMounted(load)
   color: var(--color-text-maxcontrast);
   margin-bottom: 16px;
   line-height: 1.5;
-}
-
-.settings-hint--tight {
-  margin: 8px 0 0;
 }
 
 .settings-hint--flush {
